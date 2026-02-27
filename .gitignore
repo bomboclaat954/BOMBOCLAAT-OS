@@ -1,3 +1,5 @@
 /build
-/iso/boot/kernel.bin
+/iso
+/iso/boot
+/iso/boot/grub
 bomboclaat-os.iso
