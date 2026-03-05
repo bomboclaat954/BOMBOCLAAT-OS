@@ -1,8 +1,10 @@
+// BOMBOCLAAT-OS IO
+// Here you can find functions which can talk with the hardware
 #include "../include/io.h"
 
 void outb(unsigned short port, unsigned char val)
 {
-    __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port));
+    __asm__ volatile("outb %0, %1" : : "a"(val), "Nd"(port)); // Yeah, assembly
 }
 
 unsigned char inb(unsigned short port)

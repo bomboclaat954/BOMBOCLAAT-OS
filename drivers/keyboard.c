@@ -1,3 +1,5 @@
+// BOMBOCLAAT-OS KEYBOARD DRIVER
+// The function below recognizes characters entered from the keyboard
 #include "../include/keyboard.h"
 
 int shift_pressed = 0;

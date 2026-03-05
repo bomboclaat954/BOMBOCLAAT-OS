@@ -1,3 +1,5 @@
+// BOMBOCLAAT-OS SCREEN DRIVER
+// These functions are responsible for what you see while using this OS
 #include "../include/screen.h"
 #include "../include/string.h"
 #include "../include/io.h"

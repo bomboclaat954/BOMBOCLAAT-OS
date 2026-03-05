@@ -1,3 +1,7 @@
+;BOMBOCLAAT-OS boot.asm 
+;This is the entry point of the system. It tells GRUB that there's a kernel to load and jumps into it.
+;Some of this code is probably useless but it works so don't touch it
+
 [BITS 32]
 
 SECTION .text
@@ -20,6 +24,7 @@ mboot:
 GLOBAL start
 start:
     push eax
+    EXTERN start_kernel
     call start_kernel
     cli
     lgdt [gdt_descr]
@@ -35,9 +40,6 @@ start:
     mov esp, kstack + 4096
     ;push ebx
     push eax
-
-    EXTERN start_kernel
-    call start_kernel
 halt_loop:
     hlt
     jmp halt_loop

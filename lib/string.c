@@ -1,3 +1,5 @@
+// BOMBOCLAAT-OS STRING LIBRARY
+// Some string tools
 #include "../include/string.h"
 
 int strlen(const char *str)
@@ -32,7 +34,7 @@ void to_upper_case(char *str)
         *p = *p > 0x60 && *p < 0x7B ? *p & ~0x20 : *p;
 }
 
-int atoi(char *str)
+int atoi(char *str) // ascii to int
 {
     int res = 0;
     while (*str >= '0' && *str <= '9')
@@ -43,7 +45,62 @@ int atoi(char *str)
     return res;
 }
 
-char *itoa(unsigned long num, char *str, int base)
+int contains(char *str, char c)
+{
+    for (int i = 0; str[i]; i++)
+    {
+        if (str[i] == c)
+        {
+            return 1;
+            break;
+        }
+        else
+        {
+            continue;
+        }
+    }
+    return 0;
+}
+
+char *dtoa(double num, char *str, int precision)
+{
+    int i = 0;
+
+    if (num < 0)
+    {
+        str[i++] = '-';
+        num = -num;
+    }
+
+    long int_part = (long)num;
+
+    char int_str[32];
+    itoa(int_part, int_str, 10);
+
+    int j = 0;
+    while (int_str[j])
+        str[i++] = int_str[j++];
+
+    str[i++] = '.';
+
+    double frac = num - (double)int_part;
+
+    for (int k = 0; k < precision; k++)
+    {
+        frac *= 10.0;
+        int digit = (int)frac;
+
+        str[i++] = digit + '0';
+
+        frac -= digit;
+    }
+
+    str[i] = '\0';
+
+    return str;
+}
+
+char *itoa(long num, char *str, int base) // int to ascii
 {
     int i = 0;
     int is_negative = 0;
@@ -110,12 +167,11 @@ char *join(char *str1, char *str2, char *output_str, int n)
 
 int is_number(char *x)
 {
-    char digits[10] = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
     int x_len = strlen(x);
     for (int i = 0; i < x_len; i++)
     {
-        if (x[i] == digits[0] || x[i] == digits[1] || x[i] == digits[2] || x[i] == digits[3] || x[i] == digits[4] ||
-            x[i] == digits[5] || x[i] == digits[6] || x[i] == digits[7] || x[i] == digits[8] || x[i] == digits[9])
+        if (x[i] == '0' || x[i] == '1' || x[i] == '2' || x[i] == '3' || x[i] == '4' ||
+            x[i] == '5' || x[i] == '6' || x[i] == '7' || x[i] == '8' || x[i] == '9')
             return 1;
         else
             return 0;

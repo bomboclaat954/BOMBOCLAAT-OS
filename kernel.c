@@ -1,4 +1,6 @@
 // BOMBOCLAAT-OS KERNEL
+// This is the most important file of the OS
+// btw this whole kernel is as long as a random file in the Linux code XD
 #include "include/keyboard.h"
 #include "include/io.h"
 #include "include/string.h"
@@ -15,11 +17,29 @@
 
 char *prompt = "$ ";
 char *last_cmd;
-char *VER = "BOMBOCLAAT-OS 1.1";
+char *VER = "BOMBOCLAAT-OS 1.2";
 
 #define PIT_COMMAND 0x43
 #define PIT_CHANNEL0 0x40
 #define PIT_FREQUENCY 1193182
+
+void fpu_enable()
+{
+    unsigned int cr0;
+    asm volatile("mov %%cr0, %0" : "=r"(cr0));
+    cr0 &= ~(1 << 2);
+    cr0 |= (1 << 1);
+    asm volatile("mov %0, %%cr0" ::"r"(cr0));
+    asm volatile("fninit");
+}
+
+void sse_enable()
+{
+    unsigned int cr4;
+    asm volatile("mov %%cr4, %0" : "=r"(cr4));
+    cr4 |= (3 << 9);
+    asm volatile("mov %0, %%cr4" ::"r"(cr4));
+}
 
 int is_update_in_progress()
 {
@@ -191,6 +211,7 @@ void execute_command(char *cmd_line)
         puts("shutdown, exit    - shut down your computer", 1);
         puts("color <color>     - change text color", 1);
         puts("gui               - graphic interface", 1);
+        puts("updates           - check what's new in BOMBOCLAAT-OS", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -382,7 +403,30 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "calc") == 0)
     {
-        calc_main(arg);
+        if (strlen(arg) > 0)
+            calc_main(arg);
+        else
+        {
+            puts("How to use BOMBOCLAAT-OS calculator", 1);
+            puts("Enter only one expression (like 2+2)", 1);
+            puts("Supported operations:", 1);
+            puts("a+b add", 1);
+            puts("a-b subtract", 1);
+            puts("a*b multiply", 1);
+            puts("a/b divide", 1);
+            puts("a^b power", 1);
+            puts("a%b percent (a% of b)", 1);
+        }
+    }
+    else if (strcmp(cmd, "updates") == 0)
+    {
+        puts("Last update date: 4.03.2026", 1);
+        puts("What's new:", 1);
+        puts("  - added calculator", 1);
+        puts("  - added this command", 1);
+    }
+    else if (strcmp(cmd, "info") == 0)
+    {
     }
     else if (strlen(cmd) > 0)
     {
@@ -465,6 +509,7 @@ void kernel_main(void)
 
 void start_kernel(long magic)
 {
+    asm volatile("clts");
     if (magic != 0x2BADB002)
     {
         char *m;
@@ -499,6 +544,8 @@ void start_kernel(long magic)
     set_color(0x07, 0x00);
     puts(" for commands list", 2);
     // puts("Type help for commands list", 2);
+    fpu_enable();
+    sse_enable();
     kernel_main();
 }
 

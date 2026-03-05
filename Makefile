@@ -13,6 +13,7 @@ all:
 	gcc lib/string.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/string.o
 	gcc apps/gui.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/gui.o
 	gcc apps/calc.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/calc.o
+
 	ld -m elf_i386 -T link.ld -o build/kernel.bin build/*.o
 	cp grub.cfg iso/boot/grub
 	cp build/kernel.bin iso/boot

@@ -1,3 +1,5 @@
+//BOMBOCLAAT-OS GUI
+//Still in test phase
 #include "../include/gui.h"
 #include "../include/screen.h"
 #include "../include/io.h"

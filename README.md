@@ -1,5 +1,5 @@
 # BOMBOCLAAT-OS
-BOMBOCLAAT-OS is a really simple and dumb operating system (I wouldn't even call it an OS) written in C for fun and to learn low-level programming.
+BOMBOCLAAT-OS is a really simple and dumb operating system (I wouldn't even call it an OS) written in C for fun and to learn low-level programming. It uses the simplest possible monolithic kernel. Please don't judge me for the Makefile, it just works ok...
 
 # How to build
 **IMPORTANT NOTE: Windows sucks in OS development so be smart and use Linux.**
