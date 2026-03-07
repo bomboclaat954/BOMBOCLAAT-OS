@@ -19,13 +19,13 @@ mboot:
 GLOBAL start
 start:
     cli
-    mov edi, eax    ; zachowaj magic w EDI (GRUB go nie używa)
-    mov esi, ebx    ; zachowaj mboot_info w ESI
+    mov edi, eax
+    mov esi, ebx
 
     lgdt [gdt_descr]
     jmp 0x08:.reload_cs
 .reload_cs:
-    mov ax, 0x10    ; to nadpisuje EAX!
+    mov ax, 0x10
     mov ds, ax
     mov es, ax
     mov fs, ax
@@ -33,8 +33,8 @@ start:
     mov ss, ax
     mov esp, kstack + 4096
 
-    push esi        ; 2. argument: mboot_info (oryginalne EBX)
-    push edi        ; 1. argument: magic (oryginalne EAX)
+    push esi        ; mboot_info
+    push edi        ; magic
     EXTERN start_kernel
     call start_kernel
     cli
