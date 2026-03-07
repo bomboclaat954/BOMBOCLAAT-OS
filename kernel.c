@@ -418,7 +418,7 @@ void execute_command(char *cmd_line)
         puts("What's new:", 1);
         puts("  - info command was split into ver and cpu", 1);
         puts("  - added source command", 1);
-        puts("  - removed unneccesary definitions in source code", 1);
+        puts("  - removed unnecessary definitions in source code", 1);
     }
     else if (strcmp(cmd, "source") == 0)
     {
