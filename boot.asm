@@ -36,7 +36,7 @@ start:
     push esi        ; mboot_info
     push edi        ; magic
     EXTERN start_kernel
-    call start_kernel
+    call start_kernel ;jump into kernel_main function passing magic and mboot_info
     cli
 .hang:
     hlt

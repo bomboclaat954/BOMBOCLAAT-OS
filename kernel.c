@@ -1,6 +1,7 @@
 // BOMBOCLAAT-OS KERNEL
 // This is the most important file of the OS
 // btw this whole kernel is as long as a random file in the Linux code XD
+#include <stdint.h>
 #include "include/keyboard.h"
 #include "include/io.h"
 #include "include/string.h"
@@ -9,9 +10,58 @@
 #include "include/api.h"
 #include "include/calc.h"
 
+#define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
+
+#define MULTIBOOT_INFO_MEM_MAP 0x40
+#define MULTIBOOT_MEMORY_AVAILABLE 1
+
+typedef struct multiboot_info
+{
+    uint32_t flags;
+
+    uint32_t mem_lower;
+    uint32_t mem_upper;
+
+    uint32_t boot_device;
+    uint32_t cmdline;
+
+    uint32_t mods_count;
+    uint32_t mods_addr;
+
+    uint32_t syms[4];
+
+    uint32_t mmap_length;
+    uint32_t mmap_addr;
+
+    uint32_t drives_length;
+    uint32_t drives_addr;
+
+    uint32_t config_table;
+    uint32_t boot_loader_name;
+    uint32_t apm_table;
+
+    uint32_t vbe_control_info;
+    uint32_t vbe_mode_info;
+    uint16_t vbe_mode;
+    uint16_t vbe_interface_seg;
+    uint16_t vbe_interface_off;
+    uint16_t vbe_interface_len;
+
+} multiboot_info_t;
+
+typedef struct multiboot_memory_map
+{
+    uint32_t size;
+    uint64_t addr;
+    uint64_t len;
+    uint32_t type;
+} multiboot_memory_map_t;
+
 char *prompt = "$ ";
 char *last_cmd;
-char *VER = "BOMBOCLAAT-OS 1.2.1";
+char *VER = "BOMBOCLAAT-OS 1.3";
+char *RAM_MB;
+char *RAM_B;
 
 void fpu_enable()
 {
@@ -109,6 +159,30 @@ void shutdown()
     __asm__ volatile("cli; hlt");
 }
 
+void panic(char *msg)
+{
+    set_color(0x04, 0x00);
+    puts("KERNEL PANIC!", 1);
+    puts("Reason: ", 0);
+    puts(msg, 1);
+    puts("Press ESC to shut down or ENTER to reboot", 1);
+    while (1)
+    {
+        if (inb(0x64) & 1)
+        {
+            int scancode = inb(0x60);
+            if (scancode == 0x01)
+            {
+                shutdown();
+            }
+            else if (scancode == 0x1C)
+            {
+                reboot();
+            }
+        }
+    }
+}
+
 void update_clock()
 {
     int old_x = cursor_x;
@@ -204,6 +278,8 @@ void execute_command(char *cmd_line)
         puts("gui               - graphic interface", 1);
         puts("updates           - check what's new in BOMBOCLAAT-OS", 1);
         puts("source            - get informations about this OS source code", 1);
+        puts("panic <msg>       - makes a kernel panic with your message", 1);
+        puts("ram               - check installed RAM size", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -416,13 +492,22 @@ void execute_command(char *cmd_line)
     {
         puts("Last update date: 07/03/2026", 1);
         puts("What's new:", 1);
-        puts("  - info command was split into ver and cpu", 1);
-        puts("  - added source command", 1);
-        puts("  - removed unnecessary definitions in source code", 1);
+        puts("  - added ram command", 1);
+        puts("  - added panic command", 1);
     }
     else if (strcmp(cmd, "source") == 0)
     {
         puts("Get the source code at: https://www.github.com/bomboclaat954/bomboclaat-os", 1);
+    }
+    else if (strcmp(cmd, "panic") == 0)
+    {
+        panic(arg);
+    }
+    else if (strcmp(cmd, "ram") == 0)
+    {
+        puts("Total RAM: ", 0);
+        puts(RAM_MB, 0);
+        puts(" MB", 1);
     }
     else if (strlen(cmd) > 0)
     {
@@ -503,43 +588,54 @@ void kernel_main(void)
     }
 }
 
-void start_kernel(long magic, int memmap)
+uint64_t multiboot_get_ram(multiboot_info_t *mbi, int unit) // 0 - B, 1 - kB, 2 - MB
+{
+    uint64_t total_ram = 0;
+
+    if (!(mbi->flags & (1 << 6)))
+        return 0;
+
+    uint32_t mmap_end = mbi->mmap_addr + mbi->mmap_length;
+
+    multiboot_memory_map_t *mmap =
+        (multiboot_memory_map_t *)mbi->mmap_addr;
+
+    while ((uint32_t)mmap < mmap_end)
+    {
+        if (mmap->type == 1)
+            total_ram += mmap->len;
+
+        mmap = (multiboot_memory_map_t *)((uint32_t)mmap + mmap->size + sizeof(mmap->size));
+    }
+
+    if (unit == 0 || unit > 2)
+        return total_ram;
+    else if (unit == 1)
+        return total_ram / 1024;
+    else if (unit == 2)
+        return total_ram / (1024 * 1024);
+}
+
+void start_kernel(long magic, uint32_t mboot_info_addr)
 {
     asm volatile("clts");
-    if (magic != 0x2BADB002)
+    if (magic != MULTIBOOT_BOOTLOADER_MAGIC)
     {
-        char *m;
-        set_color(0x04, 0x00);
-        itoa(magic, m, 16);
-        puts("KERNEL PANIC!", 1);
-        puts("Invalid multiboot signature: ", 0);
-        puts(m, 1);
-        puts("Press ESC to shut down or ENTER to reboot", 1);
-        while (1)
-        {
-            if (inb(0x64) & 1)
-            {
-                int scancode = inb(0x60);
-                if (scancode == 0x01)
-                {
-                    shutdown();
-                }
-                else if (scancode == 0x1C)
-                {
-                    reboot();
-                }
-            }
-        }
+        panic("invalid multiboot signature");
     }
     update_hardware_cursor();
     box(0, 0, VER);
     set_cursor(0, 3);
+
+    multiboot_info_t *mbi = (multiboot_info_t *)mboot_info_addr;
+    uint64_t ram = multiboot_get_ram(mbi, 2); // RAM size in MB
+    itoa(ram, RAM_MB, 10);
+
     puts("Type ", 0);
     set_color(0x0F, 0x00);
     puts("help", 0);
     set_color(0x07, 0x00);
     puts(" for commands list", 2);
-    // puts("Type help for commands list", 2);
     fpu_enable();
     sse_enable();
 
