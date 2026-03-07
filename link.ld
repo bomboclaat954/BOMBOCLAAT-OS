@@ -2,22 +2,14 @@ OUTPUT_FORMAT("elf32-i386")
 OUTPUT_ARCH("i386")
 ENTRY(start)
 
-SECTIONS {
-    . = 0x100000;
+SECTIONS
+{
+    . = 1M;
+    _kernel_start = .;
 
-    .text : {
-        *(.text)
-    }
+    .text : { *(.text) }
+    .data : { *(.data) }
+    .bss  : { *(.bss)  }
 
-    .data : {
-        *(.data)
-        *(.rodata)
-    }
-
-    .bss : {
-        bss = .;
-        *(COMMON)
-        *(.bss)
-        end = .;
-    }
+    _kernel_end = .;
 }

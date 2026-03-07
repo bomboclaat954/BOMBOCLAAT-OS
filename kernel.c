@@ -11,7 +11,7 @@
 #include "include/calc.h"
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
-
+#define PAGE_SIZE 4096
 #define MULTIBOOT_INFO_MEM_MAP 0x40
 #define MULTIBOOT_MEMORY_AVAILABLE 1
 
@@ -57,11 +57,38 @@ typedef struct multiboot_memory_map
     uint32_t type;
 } multiboot_memory_map_t;
 
+extern uint32_t _kernel_start;
+extern uint32_t _kernel_end;
+
 char *prompt = "$ ";
 char *last_cmd;
-char *VER = "BOMBOCLAAT-OS 1.3";
+char *VER = "BOMBOCLAAT-OS 1.3.1";
 char *RAM_MB;
 char *RAM_B;
+
+uint32_t *bitmap;
+uint32_t total_frames;
+uint32_t used_frames;
+
+void bitmap_set(uint32_t frame)
+{
+    bitmap[frame / 32] |= (1 << (frame % 32));
+}
+
+void bitmap_unset(uint32_t frame)
+{
+    bitmap[frame / 32] &= ~(1 << (frame % 32));
+}
+
+uint32_t get_free_ram_kb()
+{
+    return (total_frames - used_frames) * 4;
+}
+
+uint32_t get_used_ram_kb()
+{
+    return used_frames * 4;
+}
 
 void fpu_enable()
 {
@@ -279,7 +306,7 @@ void execute_command(char *cmd_line)
         puts("updates           - check what's new in BOMBOCLAAT-OS", 1);
         puts("source            - get informations about this OS source code", 1);
         puts("panic <msg>       - makes a kernel panic with your message", 1);
-        puts("ram               - check installed RAM size", 1);
+        puts("ram               - RAM informations", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -508,6 +535,11 @@ void execute_command(char *cmd_line)
         puts("Total RAM: ", 0);
         puts(RAM_MB, 0);
         puts(" MB", 1);
+        char *used_ram;
+        itoa(get_used_ram_kb(), used_ram, 10);
+        puts("Used RAM: ", 0);
+        puts(used_ram, 0);
+        puts(" kB", 1);
     }
     else if (strlen(cmd) > 0)
     {
@@ -616,6 +648,42 @@ uint64_t multiboot_get_ram(multiboot_info_t *mbi, int unit) // 0 - B, 1 - kB, 2 
         return total_ram / (1024 * 1024);
 }
 
+void pmm_init(multiboot_info_t *mbi)
+{
+    bitmap = (uint32_t *)&_kernel_end;
+
+    uint64_t mem_size = multiboot_get_ram(mbi, 0);
+    total_frames = mem_size / PAGE_SIZE;
+    used_frames = total_frames;
+
+    memset(bitmap, 0xFF, (total_frames / 8));
+
+    multiboot_memory_map_t *mmap = (multiboot_memory_map_t *)mbi->mmap_addr;
+    uint32_t mmap_end = mbi->mmap_addr + mbi->mmap_length;
+
+    while ((uint32_t)mmap < mmap_end)
+    {
+        if (mmap->type == MULTIBOOT_MEMORY_AVAILABLE)
+        {
+            for (uint64_t addr = mmap->addr; addr < mmap->addr + mmap->len; addr += PAGE_SIZE)
+            {
+                bitmap_unset(addr / PAGE_SIZE);
+                used_frames--;
+            }
+        }
+        mmap = (multiboot_memory_map_t *)((uint32_t)mmap + mmap->size + sizeof(mmap->size));
+    }
+
+    uint32_t kernel_start_frame = (uint32_t)&_kernel_start / PAGE_SIZE;
+    uint32_t kernel_end_frame = ((uint32_t)bitmap + (total_frames / 8)) / PAGE_SIZE;
+
+    for (uint32_t f = kernel_start_frame; f <= kernel_end_frame; f++)
+    {
+        bitmap_set(f);
+        used_frames++;
+    }
+}
+
 void start_kernel(long magic, uint32_t mboot_info_addr)
 {
     asm volatile("clts");
@@ -628,8 +696,11 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     set_cursor(0, 3);
 
     multiboot_info_t *mbi = (multiboot_info_t *)mboot_info_addr;
+    pmm_init(mbi);
     uint64_t ram = multiboot_get_ram(mbi, 2); // RAM size in MB
     itoa(ram, RAM_MB, 10);
+    if (ram == 0)
+        panic("error while getting RAM ammount");
 
     puts("Type ", 0);
     set_color(0x0F, 0x00);

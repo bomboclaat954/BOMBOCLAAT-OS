@@ -177,3 +177,13 @@ int is_number(char *x)
             return 0;
     }
 }
+
+void *memset(void *ptr, int value, uint32_t num)
+{
+    unsigned char *p = (unsigned char *)ptr;
+    while (num--)
+    {
+        *p++ = (unsigned char)value;
+    }
+    return ptr;
+}
