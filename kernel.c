@@ -9,19 +9,9 @@
 #include "include/api.h"
 #include "include/calc.h"
 
-#define COLUMNS 80
-#define ROWS 25
-#define PIT_COMMAND 0x43
-#define PIT_CHANNEL0 0x40
-#define PIT_FREQ 1193182
-
 char *prompt = "$ ";
 char *last_cmd;
-char *VER = "BOMBOCLAAT-OS 1.2";
-
-#define PIT_COMMAND 0x43
-#define PIT_CHANNEL0 0x40
-#define PIT_FREQUENCY 1193182
+char *VER = "BOMBOCLAAT-OS 1.2.1";
 
 void fpu_enable()
 {
@@ -202,8 +192,9 @@ void execute_command(char *cmd_line)
     if (strcmp(cmd, "help") == 0)
     {
         puts("Available commands:", 1);
-        puts("cls               - clear screen", 1);
-        puts("info              - informations about this system and computer", 1);
+        puts("cls               - clear commands output", 1);
+        puts("ver               - check the OS version", 1);
+        puts("cpu               - get informations about your CPU", 1);
         puts("box <text>        - show a box with yout text", 1);
         puts("time              - show current time (HH:MM:SS)", 1);
         puts("date              - show current date (DD.MM.YY)", 1);
@@ -212,6 +203,7 @@ void execute_command(char *cmd_line)
         puts("color <color>     - change text color", 1);
         puts("gui               - graphic interface", 1);
         puts("updates           - check what's new in BOMBOCLAAT-OS", 1);
+        puts("source            - get informations about this OS source code", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -219,13 +211,15 @@ void execute_command(char *cmd_line)
         box(0, 0, VER);
         update_clock();
     }
-    else if (strcmp(cmd, "info") == 0)
+    else if (strcmp(cmd, "ver") == 0)
     {
         puts(VER, 0);
-        puts(" by BOMBOCLAAT.", 1);
+        puts(" by BOMBOCLAAT", 1);
+    }
+    else if (strcmp(cmd, "cpu") == 0)
+    {
         char cpu[49];
         get_cpu_model(cpu);
-        puts("Processor: ", 0);
         puts(cpu, 1);
     }
     else if (strcmp(cmd, "box") == 0)
@@ -420,13 +414,15 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 4.03.2026", 1);
+        puts("Last update date: 07/03/2026", 1);
         puts("What's new:", 1);
-        puts("  - added calculator", 1);
-        puts("  - added this command", 1);
+        puts("  - info command was split into ver and cpu", 1);
+        puts("  - added source command", 1);
+        puts("  - removed unneccesary definitions in source code", 1);
     }
-    else if (strcmp(cmd, "info") == 0)
+    else if (strcmp(cmd, "source") == 0)
     {
+        puts("Get the source code at: https://www.github.com/bomboclaat954/bomboclaat-os", 1);
     }
     else if (strlen(cmd) > 0)
     {
@@ -507,7 +503,7 @@ void kernel_main(void)
     }
 }
 
-void start_kernel(long magic)
+void start_kernel(long magic, int memmap)
 {
     asm volatile("clts");
     if (magic != 0x2BADB002)
@@ -546,6 +542,7 @@ void start_kernel(long magic)
     // puts("Type help for commands list", 2);
     fpu_enable();
     sse_enable();
+
     kernel_main();
 }
 

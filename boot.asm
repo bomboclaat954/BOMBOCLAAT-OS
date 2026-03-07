@@ -7,7 +7,7 @@
 SECTION .text
 ALIGN 4
     MB_MAGIC    equ 0x1BADB002
-    MB_FLAGS    equ 0x00010003
+    MB_FLAGS    equ 0x00000003
     MB_CHECKSUM equ -(MB_MAGIC + MB_FLAGS)
 
 mboot:
@@ -15,34 +15,32 @@ mboot:
     dd MB_FLAGS
     dd MB_CHECKSUM
     EXTERN code, bss, end
-    dd mboot
-    dd code
-    dd bss
-    dd end
-    dd start
 
 GLOBAL start
 start:
-    push eax
-    EXTERN start_kernel
-    call start_kernel
     cli
+    mov edi, eax    ; zachowaj magic w EDI (GRUB go nie używa)
+    mov esi, ebx    ; zachowaj mboot_info w ESI
+
     lgdt [gdt_descr]
     jmp 0x08:.reload_cs
-
 .reload_cs:
-    mov ax, 0x10
+    mov ax, 0x10    ; to nadpisuje EAX!
     mov ds, ax
     mov es, ax
     mov fs, ax
     mov gs, ax
     mov ss, ax
     mov esp, kstack + 4096
-    ;push ebx
-    push eax
-halt_loop:
+
+    push esi        ; 2. argument: mboot_info (oryginalne EBX)
+    push edi        ; 1. argument: magic (oryginalne EAX)
+    EXTERN start_kernel
+    call start_kernel
+    cli
+.hang:
     hlt
-    jmp halt_loop
+    jmp .hang
 
 SECTION .bss
 ALIGN 16
