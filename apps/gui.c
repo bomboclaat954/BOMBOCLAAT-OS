@@ -1,5 +1,5 @@
-//BOMBOCLAAT-OS GUI
-//Still in test phase
+// BOMBOCLAAT-OS GUI
+// Still in test phase, has a lot of bugs
 #include "../include/gui.h"
 #include "../include/screen.h"
 #include "../include/io.h"
@@ -31,7 +31,8 @@ void draw_menu(char *options[], int count)
     }
     set_cursor(0, 0);
     set_color(0x00, 0x03);
-    puts(VER, 1);
+    puts(VER, 0);
+    puts("            This GUI is in test phase and has a lot of bugs", 1);
     set_color(0x07, 0x00);
     for (int i = 0; i < COLUMNS; i++)
     {
@@ -83,30 +84,30 @@ void update_clock_gui()
 
 void window(char *title, char *text, int w, int h, int x, int y, int bgc, int fgc, void (*after)(char *[], int))
 {
-    // ╔ = \xC9; ═ = \xCD; ╗ = \xBB; ║ = \xBA; ╚ = \xC8; ╝ = \0xBC
+    // ╔ = \xC9; ═ = \xCD; ╗ = \xBB; ║ = \xBA; ╚ = \xC8; ╝ = \xBC
     set_color(fgc, bgc);
     set_cursor(x, y);
-    puts("\xC9", 0);
+    puts("\xDA", 0);
     puts(title, 0);
     for (int i = 0; i < w - strlen(title); i++)
     {
-        puts("\xCD", 0);
+        puts("\xC4", 0);
     }
-    puts("\xBB", 1);
+    puts("\xBF", 1);
     set_cursor(x, y + 1);
     for (int i = 0; i < h; i++)
     {
         set_cursor(x, y + 1 + i);
-        puts("\xBA", 0);
+        puts("\xB3", 0);
         for (int j = 0; j < w; j++)
             putc(' ');
-        puts("\xBA", 1);
+        puts("\xB3", 1);
     }
     set_cursor(x, y + 1 + h);
-    puts("\xC8", 0);
+    puts("\xC0", 0);
     for (int i = 0; i < w; i++)
-        puts("\xCD", 0);
-    puts("\xBC", 0);
+        puts("\xC4", 0);
+    puts("\xD9", 0);
     print_multiline(text, x + 1, y + 1, w, h);
     puts(" ", 0);
     disable_cursor();

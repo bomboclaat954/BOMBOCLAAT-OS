@@ -14,6 +14,7 @@ all:
 	gcc lib/string.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/string.o -O0
 	gcc apps/gui.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/gui.o -O0
 	gcc apps/calc.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/calc.o -O0
+	gcc disk/disk.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/disk.o -O0
 
 	ld -m elf_i386 -T link.ld -o build/kernel.bin build/*.o
 	cp grub.cfg iso/boot/grub
@@ -21,4 +22,8 @@ all:
 	grub-mkrescue -o bomboclaat-os.iso iso
 
 run:
-	qemu-system-i386 -cdrom bomboclaat-os.iso -audiodev pa,id=speaker -machine pcspk-audiodev=speaker
+	qemu-system-i386 -cdrom bomboclaat-os.iso -hda disk.img -boot d
+
+disk-img:
+	qemu-img create -f raw disk.img 16M
+	mkfs.fat -f 32 disk.img

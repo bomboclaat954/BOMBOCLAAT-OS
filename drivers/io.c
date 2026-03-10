@@ -19,6 +19,13 @@ void outw(unsigned short port, unsigned short val)
     __asm__ volatile("outw %0, %1" : : "a"(val), "Nd"(port));
 }
 
+uint16_t inw(unsigned short port)
+{
+    uint16_t val;
+    asm volatile("inw %w1, %w0" : "=a"(val) : "Nd"(port));
+    return val;
+}
+
 unsigned char read_cmos(unsigned char reg)
 {
     outb(CMOS_ADDRESS, reg);

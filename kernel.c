@@ -1,6 +1,7 @@
 // BOMBOCLAAT-OS KERNEL
 // This is the most important file of the OS
 // btw this whole kernel is as long as a random file in the Linux code XD
+// I don't like comments in code when they're not needed so there's almost no comments
 #include <stdint.h>
 #include "include/keyboard.h"
 #include "include/io.h"
@@ -9,6 +10,7 @@
 #include "include/gui.h"
 #include "include/api.h"
 #include "include/calc.h"
+#include "include/disk.h"
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define PAGE_SIZE 4096
@@ -62,13 +64,15 @@ extern uint32_t _kernel_end;
 
 char *prompt = "$ ";
 char *last_cmd;
-char *VER = "BOMBOCLAAT-OS 1.3.1";
+char *VER = "BOMBOCLAAT-OS 1.4";
 char *RAM_MB;
 char *RAM_B;
 
 uint32_t *bitmap;
 uint32_t total_frames;
 uint32_t used_frames;
+
+extern uint32_t stack_guard;
 
 void bitmap_set(uint32_t frame)
 {
@@ -210,6 +214,30 @@ void panic(char *msg)
     }
 }
 
+void check_stack()
+{
+    uint32_t esp;
+    asm volatile("mov %%esp, %0" : "=r"(esp));
+    if (esp <= (uint32_t)&stack_guard || (esp - (uint32_t)&stack_guard) < 512)
+    {
+        panic("stack very near to overflow");
+    }
+}
+
+void cause_stack_overflow(int depth)
+{
+    check_stack();
+    char *tmp;
+    if (depth % 10 == 0)
+    {
+        char tmp[16];
+        itoa(depth, tmp, 10);
+        puts("Depth: ", 0);
+        puts(tmp, 1);
+    }
+    cause_stack_overflow(depth + 1);
+}
+
 void update_clock()
 {
     int old_x = cursor_x;
@@ -255,11 +283,21 @@ void info_gui()
     get_cpu_model(cpu);
     char sysinfo_l1[128];
     char sysinfo_l2[128];
-    char sysinfo[256];
-    join(VER, " by BOMBOCLAAT.", sysinfo_l1, 1);
+    char sysinfo_l3[128];
+    char sysinfo_l4[128];
+    char sysinfo1[256];
+    char sysinfo2[256];
+    char sysinfo[512];
+    join("OS Version: ", VER, sysinfo_l1, 1);
     join("CPU: ", cpu, sysinfo_l2, 0);
-    join(sysinfo_l1, sysinfo_l2, sysinfo, 0);
-    window("INFORMATIONS", sysinfo, 50, 2, 13, 10, 0x0F, 0x00, draw_menu);
+    join(sysinfo_l1, sysinfo_l2, sysinfo1, 1);
+    join("Total RAM (MB): ", RAM_MB, sysinfo_l3, 1);
+    char *used_ram;
+    itoa(get_used_ram_kb(), used_ram, 10);
+    join("Used RAM (kB): ", used_ram, sysinfo_l4, 0);
+    join(sysinfo_l3, sysinfo_l4, sysinfo2, 0);
+    join(sysinfo1, sysinfo2, sysinfo, 0);
+    window("INFORMATIONS", sysinfo, 50, 4, 13, 10, 0x0F, 0x00, draw_menu);
 }
 
 void execute_command(char *cmd_line)
@@ -288,14 +326,12 @@ void execute_command(char *cmd_line)
     arg[j] = '\0';
 
     to_lower_case(cmd);
-    to_lower_case(arg);
 
     if (strcmp(cmd, "help") == 0)
     {
         puts("Available commands:", 1);
         puts("cls               - clear commands output", 1);
-        puts("ver               - check the OS version", 1);
-        puts("cpu               - get informations about your CPU", 1);
+        puts("info              - informations about software and hardware", 1);
         puts("box <text>        - show a box with yout text", 1);
         puts("time              - show current time (HH:MM:SS)", 1);
         puts("date              - show current date (DD.MM.YY)", 1);
@@ -306,7 +342,8 @@ void execute_command(char *cmd_line)
         puts("updates           - check what's new in BOMBOCLAAT-OS", 1);
         puts("source            - get informations about this OS source code", 1);
         puts("panic <msg>       - makes a kernel panic with your message", 1);
-        puts("ram               - RAM informations", 1);
+        puts("bootable          - check if installed disk has boot signature (0xAA55)", 1);
+        puts("overflow          - cause stack overflow and see how deep it can get", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -314,46 +351,21 @@ void execute_command(char *cmd_line)
         box(0, 0, VER);
         update_clock();
     }
-    else if (strcmp(cmd, "ver") == 0)
-    {
-        puts(VER, 0);
-        puts(" by BOMBOCLAAT", 1);
-    }
-    else if (strcmp(cmd, "cpu") == 0)
-    {
-        char cpu[49];
-        get_cpu_model(cpu);
-        puts(cpu, 1);
-    }
     else if (strcmp(cmd, "box") == 0)
     {
         if (strlen(arg) > 0)
-        {
             box(cursor_x, cursor_y, arg);
-        }
         else
-        {
             puts("Usage: box <your text>", 1);
-        }
     }
     else if (strcmp(cmd, "time") == 0)
-    {
         puts(datetime(0), 1);
-    }
     else if (strcmp(cmd, "date") == 0)
-    {
         puts(datetime(1), 1);
-    }
     else if (strcmp(cmd, "reboot") == 0)
-    {
-        puts("Rebooting...", 0);
         reboot();
-    }
     else if (strcmp(cmd, "shutdown") == 0 || strcmp(cmd, "exit") == 0)
-    {
-        puts("Shutting down...", 0);
         shutdown();
-    }
     else if (strcmp(cmd, "color") == 0)
     {
         if (strlen(arg) > 0)
@@ -517,21 +529,34 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 07/03/2026", 1);
+        puts("Last update date: 10/03/2026", 1);
         puts("What's new:", 1);
-        puts("  - added ram command", 1);
-        puts("  - added panic command", 1);
+        puts("  - added disk support", 1);
+        puts("  - updated info command", 1);
+        puts("  - new commands: bootable, overflow", 1);
+        puts("  - added stack overflow check", 1);
     }
     else if (strcmp(cmd, "source") == 0)
-    {
         puts("Get the source code at: https://www.github.com/bomboclaat954/bomboclaat-os", 1);
-    }
+
     else if (strcmp(cmd, "panic") == 0)
     {
-        panic(arg);
+        if (strlen(arg) > 0)
+            panic(arg);
+        else
+            panic("no reason");
     }
-    else if (strcmp(cmd, "ram") == 0)
+    else if (strcmp(cmd, "info") == 0)
     {
+        puts("Software informations", 1);
+        puts("Version: ", 0);
+        puts(VER, 1);
+        puts("", 1);
+        puts("Hardware informations", 1);
+        puts("CPU: ", 0);
+        char cpu[49];
+        get_cpu_model(cpu);
+        puts(cpu, 1);
         puts("Total RAM: ", 0);
         puts(RAM_MB, 0);
         puts(" MB", 1);
@@ -540,6 +565,38 @@ void execute_command(char *cmd_line)
         puts("Used RAM: ", 0);
         puts(used_ram, 0);
         puts(" kB", 1);
+
+        uint8_t disk_detected = detect_ata_drive(0);
+        if (disk_detected == 0)
+            puts("Disk not detected", 1);
+        else
+        {
+            puts("Disk model: ", 0);
+            char *disk;
+            get_drive_model(0, disk);
+            puts(disk, 1);
+            puts("Total disk capacity: ", 0);
+            uint32_t sectors = get_ata_capacity_sectors(0);
+            uint32_t size_mb = (sectors * 512) / (1024 * 1024);
+            char *size_str;
+            itoa(size_mb, size_str, 10);
+            puts(size_str, 0);
+            puts(" MB", 1);
+        }
+    }
+    else if (strcmp(cmd, "bootable") == 0)
+    {
+        char *data_;
+        uint16_t data[256];
+        ata_read_sector(0, data);
+        if (data[255] == 0xAA55)
+            puts("Disk is bootable", 1);
+        else
+            puts("Disk is not bootable", 1);
+    }
+    else if (strcmp(cmd, "overflow") == 0)
+    {
+        cause_stack_overflow(1);
     }
     else if (strlen(cmd) > 0)
     {
@@ -560,6 +617,8 @@ void kernel_main(void)
 
     while (1)
     {
+        // check if stack isn't overflowed
+        check_stack();
         // CLOCK UPDATE
         if (!is_update_in_progress())
         {

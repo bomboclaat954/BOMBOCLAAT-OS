@@ -44,11 +44,16 @@ start:
 
 SECTION .bss
 ALIGN 16
+resb 1024
 kstack: 
-    resb 4096
+    resb 16384
+kstack_end:
 
 SECTION .data
 ALIGN 4
+GLOBAL stack_guard
+stack_guard:
+    dd 0xDEADBEEF
 gdt:
     dd 0, 0 
     dw 0xFFFF, 0x0000
