@@ -220,7 +220,7 @@ void check_stack()
     asm volatile("mov %%esp, %0" : "=r"(esp));
     if (esp <= (uint32_t)&stack_guard || (esp - (uint32_t)&stack_guard) < 512)
     {
-        panic("stack very near to overflow");
+        panic("stack overflow");
     }
 }
 
