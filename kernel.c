@@ -7,10 +7,10 @@
 #include "include/io.h"
 #include "include/string.h"
 #include "include/screen.h"
-#include "include/gui.h"
 #include "include/api.h"
 #include "include/calc.h"
 #include "include/disk.h"
+#include "include/fat32.h"
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define PAGE_SIZE 4096
@@ -64,13 +64,14 @@ extern uint32_t _kernel_end;
 
 char *prompt = "$ ";
 char *last_cmd;
-char *VER = "BOMBOCLAAT-OS 1.4";
-char *RAM_MB;
-char *RAM_B;
+char *VER = "BOMBOCLAAT-OS 1.4.1";
+char RAM_MB[10];
 
 uint32_t *bitmap;
 uint32_t total_frames;
 uint32_t used_frames;
+
+int disk_detect;
 
 extern uint32_t stack_guard;
 
@@ -277,29 +278,6 @@ void get_cpu_model(char *model)
     model[48] = '\0';
 }
 
-void info_gui()
-{
-    char cpu[49];
-    get_cpu_model(cpu);
-    char sysinfo_l1[128];
-    char sysinfo_l2[128];
-    char sysinfo_l3[128];
-    char sysinfo_l4[128];
-    char sysinfo1[256];
-    char sysinfo2[256];
-    char sysinfo[512];
-    join("OS Version: ", VER, sysinfo_l1, 1);
-    join("CPU: ", cpu, sysinfo_l2, 0);
-    join(sysinfo_l1, sysinfo_l2, sysinfo1, 1);
-    join("Total RAM (MB): ", RAM_MB, sysinfo_l3, 1);
-    char *used_ram;
-    itoa(get_used_ram_kb(), used_ram, 10);
-    join("Used RAM (kB): ", used_ram, sysinfo_l4, 0);
-    join(sysinfo_l3, sysinfo_l4, sysinfo2, 0);
-    join(sysinfo1, sysinfo2, sysinfo, 0);
-    window("INFORMATIONS", sysinfo, 50, 4, 13, 10, 0x0F, 0x00, draw_menu);
-}
-
 void execute_command(char *cmd_line)
 {
     last_cmd = cmd_line;
@@ -338,7 +316,6 @@ void execute_command(char *cmd_line)
         puts("reboot            - reboot your computer", 1);
         puts("shutdown, exit    - shut down your computer", 1);
         puts("color <color>     - change text color", 1);
-        puts("gui               - graphic interface", 1);
         puts("updates           - check what's new in BOMBOCLAAT-OS", 1);
         puts("source            - get informations about this OS source code", 1);
         puts("panic <msg>       - makes a kernel panic with your message", 1);
@@ -504,12 +481,6 @@ void execute_command(char *cmd_line)
             set_color(0x07, 0x00);
         }
     }
-    else if (strcmp(cmd, "gui") == 0)
-    {
-        char *opts[] = {"Shut down", "Reboot", "Info", "Exit"};
-        void (*actions[])(void) = {shutdown, reboot, info_gui, return_to_kernel};
-        menu(opts, 4, actions);
-    }
     else if (strcmp(cmd, "calc") == 0)
     {
         if (strlen(arg) > 0)
@@ -529,12 +500,10 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 10/03/2026", 1);
+        puts("Last update date: 17/03/2026", 1);
         puts("What's new:", 1);
-        puts("  - added disk support", 1);
-        puts("  - updated info command", 1);
-        puts("  - new commands: bootable, overflow", 1);
-        puts("  - added stack overflow check", 1);
+        puts("  - added FAT32 definitions (not used yet)", 1);
+        puts("  - fixed a bug with getting RAM ammount", 1);
     }
     else if (strcmp(cmd, "source") == 0)
         puts("Get the source code at: https://www.github.com/bomboclaat954/bomboclaat-os", 1);
@@ -586,7 +555,6 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "bootable") == 0)
     {
-        char *data_;
         uint16_t data[256];
         ata_read_sector(0, data);
         if (data[255] == 0xAA55)
