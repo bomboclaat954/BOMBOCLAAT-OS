@@ -16,6 +16,10 @@ And build the system:
 ```
 $ make all
 ```
+Make the disk file:
+```
+$ make disk-img
+```
 Congratulations, you've just built totally useless "operating system".
 Now if you want to run this on QEMU:
 ```
