@@ -1,7 +1,7 @@
-// BOMBOCLAAT-OS KERNEL
-// This is the most important file of the OS
-// btw this whole kernel is as long as a random file in the Linux code XD
-// I don't like comments in code when they're not needed so there's almost no comments
+/*
+    BOMBOCLAAT-OS KERNEL
+    The most important file of the OS
+*/
 #include <stdint.h>
 #include "include/keyboard.h"
 #include "include/io.h"
@@ -63,17 +63,19 @@ extern uint32_t _kernel_start;
 extern uint32_t _kernel_end;
 
 char *prompt = "$ ";
-char *last_cmd;
-char *VER = "BOMBOCLAAT-OS 1.4.1";
+char *VER = "BOMBOCLAAT-OS 1.5";
 char RAM_MB[10];
 
 uint32_t *bitmap;
 uint32_t total_frames;
 uint32_t used_frames;
 
-int disk_detect;
-
 extern uint32_t stack_guard;
+
+uint16_t reverse_endian(uint16_t nb)
+{
+    return (nb >> 8) | (nb << 8);
+}
 
 void bitmap_set(uint32_t frame)
 {
@@ -228,7 +230,6 @@ void check_stack()
 void cause_stack_overflow(int depth)
 {
     check_stack();
-    char *tmp;
     if (depth % 10 == 0)
     {
         char tmp[16];
@@ -280,7 +281,6 @@ void get_cpu_model(char *model)
 
 void execute_command(char *cmd_line)
 {
-    last_cmd = cmd_line;
     putc('\n');
     char cmd[32];
     char arg[96];
@@ -308,19 +308,21 @@ void execute_command(char *cmd_line)
     if (strcmp(cmd, "help") == 0)
     {
         puts("Available commands:", 1);
-        puts("cls               - clear commands output", 1);
-        puts("info              - informations about software and hardware", 1);
-        puts("box <text>        - show a box with yout text", 1);
-        puts("time              - show current time (HH:MM:SS)", 1);
-        puts("date              - show current date (DD.MM.YY)", 1);
-        puts("reboot            - reboot your computer", 1);
-        puts("shutdown, exit    - shut down your computer", 1);
-        puts("color <color>     - change text color", 1);
-        puts("updates           - check what's new in BOMBOCLAAT-OS", 1);
-        puts("source            - get informations about this OS source code", 1);
-        puts("panic <msg>       - makes a kernel panic with your message", 1);
-        puts("bootable          - check if installed disk has boot signature (0xAA55)", 1);
-        puts("overflow          - cause stack overflow and see how deep it can get", 1);
+        puts("cls                   - clear commands output", 1);
+        puts("info                  - informations about software and hardware", 1);
+        puts("box <text>            - show a box with yout text", 1);
+        puts("time                  - show current time (HH:MM:SS)", 1);
+        puts("date                  - show current date (DD.MM.YY)", 1);
+        puts("reboot                - reboot your computer", 1);
+        puts("shutdown, exit        - shut down your computer", 1);
+        puts("color <color>         - change text color", 1);
+        puts("updates               - check what's new in BOMBOCLAAT-OS", 1);
+        puts("source                - get informations about this OS source code", 1);
+        puts("panic <msg>           - makes a kernel panic with your message", 1);
+        puts("bootable              - check if installed disk has boot signature (0xAA55)", 1);
+        puts("overflow              - cause stack overflow and see how deep it can get", 1);
+        puts("erase_sector <lba>    - erases all data on a sector", 1);
+        puts("read_sector <lba>     - reads and prints all data from a sector", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -347,102 +349,20 @@ void execute_command(char *cmd_line)
     {
         if (strlen(arg) > 0)
         {
-            set_color(0x03, 0x00);
-            if (strcmp(arg, "blue") == 0)
+            static const struct
             {
-                set_color(0x01, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "green") == 0)
+                char *name;
+                uint8_t code;
+            } colors[] = {
+                {"blue", 0x01}, {"green", 0x02}, {"cyan", 0x03}, {"red", 0x04}, {"magenta", 0x05}, {"orange", 0x06}, {"default", 0x07}, {"dark_gray", 0x08}, {"light_blue", 0x09}, {"light_green", 0x0A}, {"light_cyan", 0x0B}, {"light_red", 0x0C}, {"light_magenta", 0x0D}, {"yellow", 0x0E}, {"white", 0x0F}, {0, 0}};
+            for (int i = 0; colors[i].name; i++)
             {
-                set_color(0x02, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "cyan") == 0)
-            {
-                set_color(0x03, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "red") == 0)
-            {
-                set_color(0x04, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "magenta") == 0)
-            {
-                set_color(0x04, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "orange") == 0)
-            {
-                set_color(0x06, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "default") == 0)
-            {
-                set_color(0x07, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "dark_gray") == 0)
-            {
-                set_color(0x08, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "light_blue") == 0)
-            {
-                set_color(0x09, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "light_green") == 0)
-            {
-                set_color(0x0A, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "light_cyan") == 0)
-            {
-                set_color(0x0B, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "light_red") == 0)
-            {
-                set_color(0x0C, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "light_magenta") == 0)
-            {
-                set_color(0x0D, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "yellow") == 0)
-            {
-                set_color(0x0E, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strcmp(arg, "white") == 0)
-            {
-                set_color(0x0F, 0x00);
-                cls();
-                draw_main_screen();
-            }
-            else if (strlen(arg) > 0)
-            {
-                set_color(0x07, 0x00);
-                puts("Unknown color: ", 0);
-                puts(arg, 1);
+                if (strcmp(arg, colors[i].name) == 0)
+                {
+                    set_color(colors[i].code, 0x00);
+                    cls();
+                    draw_main_screen();
+                }
             }
         }
         else
@@ -500,10 +420,10 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 17/03/2026", 1);
+        puts("Last update date: 2/04/2026", 1);
         puts("What's new:", 1);
-        puts("  - added FAT32 definitions (not used yet)", 1);
-        puts("  - fixed a bug with getting RAM ammount", 1);
+        puts("  - new commands: erase_sector, read_sector", 1);
+        puts("  - shortened color command", 1);
     }
     else if (strcmp(cmd, "source") == 0)
         puts("Get the source code at: https://www.github.com/bomboclaat954/bomboclaat-os", 1);
@@ -529,7 +449,7 @@ void execute_command(char *cmd_line)
         puts("Total RAM: ", 0);
         puts(RAM_MB, 0);
         puts(" MB", 1);
-        char *used_ram;
+        char used_ram[16];
         itoa(get_used_ram_kb(), used_ram, 10);
         puts("Used RAM: ", 0);
         puts(used_ram, 0);
@@ -541,13 +461,13 @@ void execute_command(char *cmd_line)
         else
         {
             puts("Disk model: ", 0);
-            char *disk;
+            char disk[64];
             get_drive_model(0, disk);
             puts(disk, 1);
             puts("Total disk capacity: ", 0);
             uint32_t sectors = get_ata_capacity_sectors(0);
             uint32_t size_mb = (sectors * 512) / (1024 * 1024);
-            char *size_str;
+            char size_str[16];
             itoa(size_mb, size_str, 10);
             puts(size_str, 0);
             puts(" MB", 1);
@@ -563,8 +483,63 @@ void execute_command(char *cmd_line)
             puts("Disk is not bootable", 1);
     }
     else if (strcmp(cmd, "overflow") == 0)
-    {
         cause_stack_overflow(1);
+    else if (strcmp(cmd, "erase_sector") == 0)
+    {
+        if (strlen(arg) > 0)
+        {
+            uint16_t tmp = atoi(arg);
+            puts("Are you sure? All data on sector ", 0);
+            puts(arg, 0);
+            puts(" will be destroyed", 1);
+            puts("ENTER - YES, ESC - NO", 1);
+            while (1)
+            {
+                if (inb(0x64) & 1)
+                {
+                    unsigned char sc = inb(0x60);
+                    if (sc == 0x1C)
+                    {
+                        puts("Erasing...", 1);
+                        ata_erase_sector(tmp);
+                        puts("Done", 1);
+                        break;
+                    }
+                    else if (sc == 0x01)
+                    {
+                        puts("Abort", 1);
+                        break;
+                    }
+                }
+            }
+        }
+        else
+            puts("Error: no sector number specified", 1);
+    }
+    else if (strcmp(cmd, "read_sector") == 0)
+    {
+        if (strlen(arg) > 0)
+        {
+            uint16_t arg_ = atoi(arg);
+            uint16_t buf[256];
+            ata_read_sector(arg_, buf);
+            char *tmp = "";
+            for (int i = 0; i < 256; i++)
+            {
+                tmp = "";
+                itoa(reverse_endian(buf[i]), tmp, 16);
+                if (strlen(tmp) == 1)
+                    tmp = join("000", tmp, tmp, 0);
+                else if (strlen(tmp) == 2)
+                    tmp = join("00", tmp, tmp, 0);
+                else if (strlen(tmp) == 3)
+                    tmp = join("0", tmp, tmp, 0);
+                puts(tmp, 0);
+                puts(" ", 0);
+            }
+        }
+        else
+            puts("Error: no sector number specified", 1);
     }
     else if (strlen(cmd) > 0)
     {
@@ -601,8 +576,17 @@ void kernel_main(void)
         if (inb(0x64) & 1)
         {
             unsigned char scancode = inb(0x60);
+            if (scancode == 0xE0)
+            {
+                extended = 1;
+                continue;
+            }
             if (!(scancode & 0x80))
             {
+                /*if (extended) // 0x48 - UP, 0x50 - DOWN, 0x4B - LEFT, 0x4D - RIGHT
+                {
+                    // if(...) {...; continue;} <- REMEMBER ABOUT CONTINUE
+                }*/
                 if (scancode == 0x2A || scancode == 0x36)
                 {
                     shift_pressed = 1;
@@ -685,6 +669,9 @@ void pmm_init(multiboot_info_t *mbi)
 
     memset(bitmap, 0xFF, (total_frames / 8));
 
+    if (!(mbi->flags & (1 << 6)))
+        panic("no memory map from bootloader");
+
     multiboot_memory_map_t *mmap = (multiboot_memory_map_t *)mbi->mmap_addr;
     uint32_t mmap_end = mbi->mmap_addr + mbi->mmap_length;
 
@@ -713,11 +700,9 @@ void pmm_init(multiboot_info_t *mbi)
 
 void start_kernel(long magic, uint32_t mboot_info_addr)
 {
-    asm volatile("clts");
     if (magic != MULTIBOOT_BOOTLOADER_MAGIC)
-    {
         panic("invalid multiboot signature");
-    }
+
     update_hardware_cursor();
     box(0, 0, VER);
     set_cursor(0, 3);
@@ -727,13 +712,17 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     uint64_t ram = multiboot_get_ram(mbi, 2); // RAM size in MB
     itoa(ram, RAM_MB, 10);
     if (ram == 0)
-        panic("error while getting RAM ammount");
+        panic("error while getting RAM amount");
+    else if (ram < 64)
+        panic("too little RAM");
 
     puts("Type ", 0);
     set_color(0x0F, 0x00);
     puts("help", 0);
     set_color(0x07, 0x00);
     puts(" for commands list", 2);
+
+    // FPU and SSE are for better operations on floats
     fpu_enable();
     sse_enable();
 

@@ -10,6 +10,7 @@ uint8_t detect_ata_drive(uint8_t slave);
 void get_drive_model(uint8_t slave, char *buffer);
 void ata_read_sector(uint32_t lba, uint16_t *buf);
 void ata_write_sector(uint32_t lba, uint16_t *buf);
+void ata_erase_sector(uint32_t lba);
 uint32_t get_ata_capacity_sectors(uint8_t slave);
 
 #endif

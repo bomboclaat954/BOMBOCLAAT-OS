@@ -25,5 +25,5 @@ run:
 	qemu-system-i386 -cdrom bomboclaat-os.iso -hda disk.img -boot d
 
 disk-img:
-	qemu-img create -f raw disk.img 16M
-	mkfs.fat -f 32 disk.img
+	qemu-img create -f raw disk.img 256M
+	mkfs.fat -F 32 disk.img

@@ -71,6 +71,7 @@ void ata_read_sector(uint32_t lba, uint16_t *buf)
     for (int i = 0; i < 256; i++)
     {
         buf[i] = inw(0x1F0);
+        ata_wait_ready();
     }
 }
 
@@ -106,6 +107,16 @@ void ata_write_sector(uint32_t lba, uint16_t *buf)
     outb(ATA_PRIMARY_COMMAND, 0xE7);
     while (inb(ATA_PRIMARY_COMMAND) & 0x80)
         ;
+}
+
+void ata_erase_sector(uint32_t lba)
+{
+    uint16_t buf[256];
+    for (int i = 0; i < 256; i++)
+    {
+        buf[i] = 0x00;
+    }
+    ata_write_sector(lba, buf);
 }
 
 uint32_t get_ata_capacity_sectors(uint8_t slave)
