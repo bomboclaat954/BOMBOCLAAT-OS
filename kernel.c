@@ -244,6 +244,8 @@ void execute_command(char *cmd_line)
 
     if (strcmp(cmd, "help") == 0)
     {
+        cls();
+        draw_main_screen();
         puts("Available commands:", 1);
         puts("cls                   - clear commands output", 1);
         puts("info                  - informations about software and hardware", 1);
@@ -262,6 +264,7 @@ void execute_command(char *cmd_line)
         puts("read_sector <lba>     - reads and prints all data from a sector", 1);
         puts("(beta) timer <m:s>    - sets a countdown timer to <m> minutes and <s> seconds", 1);
         puts("beep <freq>           - beeps with provided frequency for 1s", 1);
+        puts("song                  - play an example song", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
