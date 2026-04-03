@@ -1,6 +1,7 @@
-// BOMBOCLAAT-OS IO
-// Here you can find functions which can talk with the hardware
-#include "../include/io.h"
+/*
+    BOMBOCLAAT-OS IO
+*/
+#include <io.h>
 
 void outb(unsigned short port, unsigned char val)
 {

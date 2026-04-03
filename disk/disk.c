@@ -1,5 +1,8 @@
-#include "../include/disk.h"
-#include "../include/io.h"
+/*
+    BOMBOCLAAT-OS DISK SUPPORT
+*/
+#include <disk.h>
+#include <io.h>
 
 uint8_t detect_ata_drive(uint8_t slave)
 {

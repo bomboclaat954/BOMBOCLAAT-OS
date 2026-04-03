@@ -3,98 +3,30 @@
     The most important file of the OS
 */
 #include <stdint.h>
-#include "include/keyboard.h"
-#include "include/io.h"
-#include "include/string.h"
-#include "include/screen.h"
-#include "include/api.h"
-#include "include/calc.h"
-#include "include/disk.h"
-#include "include/fat32.h"
+#include <keyboard.h>
+#include <io.h>
+#include <string.h>
+#include <screen.h>
+#include <api.h>
+#include <calc.h>
+#include <disk.h>
+#include <fat32.h>
+#include <ram.h>
+#include <int.h>
+#include <music.h>
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
-#define PAGE_SIZE 4096
 #define MULTIBOOT_INFO_MEM_MAP 0x40
-#define MULTIBOOT_MEMORY_AVAILABLE 1
-
-typedef struct multiboot_info
-{
-    uint32_t flags;
-
-    uint32_t mem_lower;
-    uint32_t mem_upper;
-
-    uint32_t boot_device;
-    uint32_t cmdline;
-
-    uint32_t mods_count;
-    uint32_t mods_addr;
-
-    uint32_t syms[4];
-
-    uint32_t mmap_length;
-    uint32_t mmap_addr;
-
-    uint32_t drives_length;
-    uint32_t drives_addr;
-
-    uint32_t config_table;
-    uint32_t boot_loader_name;
-    uint32_t apm_table;
-
-    uint32_t vbe_control_info;
-    uint32_t vbe_mode_info;
-    uint16_t vbe_mode;
-    uint16_t vbe_interface_seg;
-    uint16_t vbe_interface_off;
-    uint16_t vbe_interface_len;
-
-} multiboot_info_t;
-
-typedef struct multiboot_memory_map
-{
-    uint32_t size;
-    uint64_t addr;
-    uint64_t len;
-    uint32_t type;
-} multiboot_memory_map_t;
-
-extern uint32_t _kernel_start;
-extern uint32_t _kernel_end;
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.5";
+char *VER = "BOMBOCLAAT-OS 1.6b1";
 char RAM_MB[10];
-
-uint32_t *bitmap;
-uint32_t total_frames;
-uint32_t used_frames;
 
 extern uint32_t stack_guard;
 
 uint16_t reverse_endian(uint16_t nb)
 {
     return (nb >> 8) | (nb << 8);
-}
-
-void bitmap_set(uint32_t frame)
-{
-    bitmap[frame / 32] |= (1 << (frame % 32));
-}
-
-void bitmap_unset(uint32_t frame)
-{
-    bitmap[frame / 32] &= ~(1 << (frame % 32));
-}
-
-uint32_t get_free_ram_kb()
-{
-    return (total_frames - used_frames) * 4;
-}
-
-uint32_t get_used_ram_kb()
-{
-    return used_frames * 4;
 }
 
 void fpu_enable()
@@ -261,6 +193,13 @@ void draw_main_screen(void)
     update_clock();
 }
 
+static inline void cpuid(uint32_t leaf, uint32_t *a, uint32_t *b, uint32_t *c, uint32_t *d)
+{
+    __asm__ volatile("cpuid"
+                     : "=a"(*a), "=b"(*b), "=c"(*c), "=d"(*d)
+                     : "a"(leaf));
+}
+
 void get_cpu_model(char *model)
 {
     unsigned int eax, ebx, ecx, edx;
@@ -268,9 +207,7 @@ void get_cpu_model(char *model)
     for (unsigned int i = 0; i < 3; i++)
     {
         unsigned int function = 0x80000002 + i;
-        __asm__ volatile("cpuid"
-                         : "=a"(eax), "=b"(ebx), "=c"(ecx), "=d"(edx)
-                         : "a"(function));
+        cpuid(function, &eax, &ebx, &ecx, &edx);
         ptr[i * 4 + 0] = eax;
         ptr[i * 4 + 1] = ebx;
         ptr[i * 4 + 2] = ecx;
@@ -323,6 +260,8 @@ void execute_command(char *cmd_line)
         puts("overflow              - cause stack overflow and see how deep it can get", 1);
         puts("erase_sector <lba>    - erases all data on a sector", 1);
         puts("read_sector <lba>     - reads and prints all data from a sector", 1);
+        puts("(beta) timer <m:s>    - sets a countdown timer to <m> minutes and <s> seconds", 1);
+        puts("beep <freq>           - beeps with provided frequency for 1s", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -420,10 +359,14 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 2/04/2026", 1);
+        puts("Last update date: 3/04/2026", 1);
         puts("What's new:", 1);
-        puts("  - new commands: erase_sector, read_sector", 1);
-        puts("  - shortened color command", 1);
+        puts("  - added interrupt handling", 1);
+        puts("  - added speaker support", 1);
+        puts("  - new commands: timer (beta), beep, song", 1);
+        puts("  - changed includes in the code to <>", 1);
+        puts("  - removed unused files from the code", 1);
+        puts("This is the biggest and the most important update so far", 1);
     }
     else if (strcmp(cmd, "source") == 0)
         puts("Get the source code at: https://www.github.com/bomboclaat954/bomboclaat-os", 1);
@@ -541,6 +484,146 @@ void execute_command(char *cmd_line)
         else
             puts("Error: no sector number specified", 1);
     }
+    else if (strcmp(cmd, "timer") == 0)
+    {
+        if (strlen(arg) > 0)
+        {
+            cls();
+            draw_main_screen();
+            char m[3], s[3];
+            int _m, _s;
+            char buf[4];
+            if (arg[2] == ':')
+            {
+
+                m[0] = arg[0];
+                m[1] = arg[1];
+                s[0] = arg[3];
+                s[1] = arg[4];
+            }
+            else
+            {
+                m[0] = arg[0];
+                s[0] = arg[2];
+                s[1] = arg[3];
+            }
+            m[2] = '\0';
+            s[2] = '\0';
+            _m = atoi(m);
+            _s = atoi(s);
+            int ms = (_m * 60000) + (_s * 1000);
+            _s = ms / 1000;
+            _m = 0;
+            while (ms)
+            {
+                if (_s >= 60)
+                {
+                    _s -= 60;
+                    _m++;
+                }
+                if (ms % 1000 == 0)
+                {
+                    cls();
+                    draw_main_screen();
+                    if (_s != 0)
+                        _s--;
+                    itoa(_m, buf, 10);
+                    puts(buf, 0);
+                    clear_str(buf);
+                    puts(":", 0);
+                    itoa(_s, buf, 10);
+                    puts(buf, 0);
+                }
+                else if (_s % 60 == 0)
+                {
+                    if (_m != 0)
+                        _m--;
+                }
+                delay_ms(1);
+                ms--;
+            }
+            puts("", 1);
+            puts("Time's up!", 1);
+            tone(1000);
+            delay_ms(500);
+            noTone();
+        }
+        else
+            puts("Error: time not specified or in bad format", 1);
+    }
+    else if (strcmp(cmd, "beep") == 0)
+    {
+        if (strlen(arg) > 0)
+        {
+            int freq = atoi(arg);
+            tone(freq);
+            delay_ms(1000);
+            noTone();
+        }
+        else
+            puts("Error: no frequency provided", 1);
+    }
+    else if (strcmp(cmd, "song") == 0)
+    {
+        // Example song: Eric Clapton - Layla (intro). 116 BPM, 4/4
+        puts("Note: if you're using VirtualBox, you probably won't hear anything", 1);
+        melody_t m[] = {
+            {NOTE_A4, 16},
+            {NOTE_C5, 16},
+            {NOTE_D5, 16},
+            {NOTE_F5, 16},
+            {NOTE_D5, 16},
+            {NOTE_C5, 16},
+            {NOTE_D5, 4},
+            {REST, 8},
+            {NOTE_G5, 4},
+            {NOTE_F5, 4},
+            {NOTE_E5, 4},
+            {NOTE_C5, 4},
+            {NOTE_D5, 4},
+            {NOTE_A4, 16},
+            {NOTE_C5, 16},
+            {NOTE_D5, 16},
+            {NOTE_F5, 16},
+            {NOTE_D5, 16},
+            {NOTE_C5, 16},
+            {NOTE_D5, 4},
+            {REST, 8},
+            {NOTE_A5, 4},
+            {NOTE_G5, 4},
+            {NOTE_E5, 4},
+            {NOTE_C5, 4},
+            {NOTE_D5, 4},
+            {NOTE_A4, 16},
+            {NOTE_C5, 16},
+            {NOTE_D5, 16},
+            {NOTE_F5, 16},
+            {NOTE_D5, 16},
+            {NOTE_C5, 16},
+            {NOTE_D5, 4},
+            {REST, 8},
+            {NOTE_G5, 4},
+            {NOTE_F5, 4},
+            {NOTE_E5, 4},
+            {NOTE_C5, 4},
+            {NOTE_D5, 4},
+            {NOTE_A4, 16},
+            {NOTE_C5, 16},
+            {NOTE_D5, 16},
+            {NOTE_F5, 16},
+            {NOTE_D5, 16},
+            {NOTE_C5, 16},
+            {NOTE_D5, 4},
+            {REST, 8},
+            {NOTE_A5, 4},
+            {NOTE_G5, 4},
+            {NOTE_E5, 4},
+            {NOTE_C5, 4},
+            {NOTE_C5, 16},
+            {NOTE_CS5, 2},
+        };
+        play_song(m, ARRAY_SIZE(m), 116);
+    }
     else if (strlen(cmd) > 0)
     {
         puts("Unknown command: ", 0);
@@ -631,73 +714,6 @@ void kernel_main(void)
     }
 }
 
-uint64_t multiboot_get_ram(multiboot_info_t *mbi, int unit) // 0 - B, 1 - kB, 2 - MB
-{
-    uint64_t total_ram = 0;
-
-    if (!(mbi->flags & (1 << 6)))
-        return 0;
-
-    uint32_t mmap_end = mbi->mmap_addr + mbi->mmap_length;
-
-    multiboot_memory_map_t *mmap =
-        (multiboot_memory_map_t *)mbi->mmap_addr;
-
-    while ((uint32_t)mmap < mmap_end)
-    {
-        if (mmap->type == 1)
-            total_ram += mmap->len;
-
-        mmap = (multiboot_memory_map_t *)((uint32_t)mmap + mmap->size + sizeof(mmap->size));
-    }
-
-    if (unit == 0 || unit > 2)
-        return total_ram;
-    else if (unit == 1)
-        return total_ram / 1024;
-    else if (unit == 2)
-        return total_ram / (1024 * 1024);
-}
-
-void pmm_init(multiboot_info_t *mbi)
-{
-    bitmap = (uint32_t *)&_kernel_end;
-
-    uint64_t mem_size = multiboot_get_ram(mbi, 0);
-    total_frames = mem_size / PAGE_SIZE;
-    used_frames = total_frames;
-
-    memset(bitmap, 0xFF, (total_frames / 8));
-
-    if (!(mbi->flags & (1 << 6)))
-        panic("no memory map from bootloader");
-
-    multiboot_memory_map_t *mmap = (multiboot_memory_map_t *)mbi->mmap_addr;
-    uint32_t mmap_end = mbi->mmap_addr + mbi->mmap_length;
-
-    while ((uint32_t)mmap < mmap_end)
-    {
-        if (mmap->type == MULTIBOOT_MEMORY_AVAILABLE)
-        {
-            for (uint64_t addr = mmap->addr; addr < mmap->addr + mmap->len; addr += PAGE_SIZE)
-            {
-                bitmap_unset(addr / PAGE_SIZE);
-                used_frames--;
-            }
-        }
-        mmap = (multiboot_memory_map_t *)((uint32_t)mmap + mmap->size + sizeof(mmap->size));
-    }
-
-    uint32_t kernel_start_frame = (uint32_t)&_kernel_start / PAGE_SIZE;
-    uint32_t kernel_end_frame = ((uint32_t)bitmap + (total_frames / 8)) / PAGE_SIZE;
-
-    for (uint32_t f = kernel_start_frame; f <= kernel_end_frame; f++)
-    {
-        bitmap_set(f);
-        used_frames++;
-    }
-}
-
 void start_kernel(long magic, uint32_t mboot_info_addr)
 {
     if (magic != MULTIBOOT_BOOTLOADER_MAGIC)
@@ -721,6 +737,10 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     puts("help", 0);
     set_color(0x07, 0x00);
     puts(" for commands list", 2);
+
+    // init interrupts and timer
+    idt_init();
+    pit_init();
 
     // FPU and SSE are for better operations on floats
     fpu_enable();

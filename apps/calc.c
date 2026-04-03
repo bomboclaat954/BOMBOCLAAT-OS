@@ -1,11 +1,12 @@
-// BOMBOCLAAT-OS CALCULATOR
-// Works but not perfect
-// TODO: multiple expressions (like 2*2*2*2), numbers with decimal point
-#include "../include/string.h"
-#include "../include/screen.h"
-#include "../include/api.h"
-#include "../include/keyboard.h"
-#include "../include/io.h"
+/*
+    BOMBOCLAAT-OS CALCULATOR
+    TODO: multiple expressions (like 2*2*2*2), numbers with decimal point
+*/
+#include <string.h>
+#include <screen.h>
+#include <api.h>
+#include <keyboard.h>
+#include <io.h>
 
 int pow(int base, int exponent)
 {

@@ -1,3 +1,5 @@
+CFLAGS = -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -Iinclude
+
 all:
 	rm -rf build
 	rm -rf iso
@@ -6,15 +8,22 @@ all:
 	mkdir iso/boot
 	mkdir iso/boot/grub
 	nasm boot.asm -f elf32 -o build/boot.o
+	nasm int/isr.asm -f elf32 -o build/isr_asm.o
 
-	gcc kernel.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/kernel.o -O0
-	gcc drivers/keyboard.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/keyboard.o -O0
-	gcc drivers/io.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/io.o -O0
-	gcc drivers/screen.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/screen.o -O0
-	gcc lib/string.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/string.o -O0
-	gcc apps/gui.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/gui.o -O0
-	gcc apps/calc.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/calc.o -O0
-	gcc disk/disk.c -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -o build/disk.o -O0
+	gcc kernel.c $(CFLAGS) -o build/kernel.o
+	gcc drivers/keyboard.c $(CFLAGS) -o build/keyboard.o
+	gcc drivers/io.c $(CFLAGS) -o build/io.o
+	gcc drivers/screen.c $(CFLAGS) -o build/screen.o
+	gcc lib/string.c $(CFLAGS) -o build/string.o
+	gcc apps/calc.c $(CFLAGS) -o build/calc.o
+	gcc disk/disk.c $(CFLAGS) -o build/disk.o
+	gcc memory/ram.c $(CFLAGS) -o build/ram.o
+	gcc int/idt.c $(CFLAGS) -o build/idt.o
+	gcc int/isr.c $(CFLAGS) -o build/isr_c.o
+	gcc int/pic.c $(CFLAGS) -o build/pic.o
+	gcc int/irq.c $(CFLAGS) -o build/irq.o
+	gcc int/pit.c $(CFLAGS) -o build/pit.o
+	gcc music/music.c $(CFLAGS) -o build/music.o
 
 	ld -m elf_i386 -T link.ld -o build/kernel.bin build/*.o
 	cp grub.cfg iso/boot/grub
@@ -22,7 +31,7 @@ all:
 	grub-mkrescue -o bomboclaat-os.iso iso
 
 run:
-	qemu-system-i386 -cdrom bomboclaat-os.iso -hda disk.img -boot d
+	qemu-system-i386 -cdrom bomboclaat-os.iso -hda disk.img -boot d -audiodev pa,id=speaker -machine pcspk-audiodev=speaker
 
 disk-img:
 	qemu-img create -f raw disk.img 256M

@@ -1,8 +1,9 @@
-// BOMBOCLAAT-OS SCREEN DRIVER
-// These functions are responsible for what you see while using this OS
-#include "../include/screen.h"
-#include "../include/string.h"
-#include "../include/io.h"
+/*
+    BOMBOCLAAT-OS SCREEN DRIVER
+*/
+#include <screen.h>
+#include <string.h>
+#include <io.h>
 
 /*
 COLOR CODES

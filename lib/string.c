@@ -1,6 +1,7 @@
-// BOMBOCLAAT-OS STRING LIBRARY
-// Some string tools
-#include "../include/string.h"
+/*
+    BOMBOCLAAT-OS STRING LIBRARY
+*/
+#include <string.h>
 
 int strlen(const char *str)
 {
@@ -186,4 +187,14 @@ void *memset(void *ptr, int value, uint32_t num)
         *p++ = (unsigned char)value;
     }
     return ptr;
+}
+
+void *clear_str(char *str)
+{
+    int len = strlen(str);
+    for (int i = 0; i < len; i++)
+    {
+        str[i] = ' ';
+    }
+    str[len - 1] = '\0';
 }
