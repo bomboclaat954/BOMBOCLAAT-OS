@@ -15,6 +15,7 @@ all:
 	gcc drivers/io.c $(CFLAGS) -o build/io.o
 	gcc drivers/screen.c $(CFLAGS) -o build/screen.o
 	gcc lib/string.c $(CFLAGS) -o build/string.o
+	gcc lib/math.c $(CFLAGS) -o build/math.o
 	gcc apps/calc.c $(CFLAGS) -o build/calc.o
 	gcc disk/disk.c $(CFLAGS) -o build/disk.o
 	gcc memory/ram.c $(CFLAGS) -o build/ram.o

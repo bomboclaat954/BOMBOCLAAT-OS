@@ -14,12 +14,13 @@
 #include <ram.h>
 #include <int.h>
 #include <music.h>
+#include <math.h>
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define MULTIBOOT_INFO_MEM_MAP 0x40
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.6b1";
+char *VER = "BOMBOCLAAT-OS 1.6";
 char RAM_MB[10];
 
 extern uint32_t stack_guard;
@@ -125,12 +126,63 @@ void shutdown()
     __asm__ volatile("cli; hlt");
 }
 
-void panic(char *msg)
+void reg_dump(registers_t *r)
+{
+    __asm__ volatile(
+        "mov %%eax, %0\n"
+        "mov %%ebx, %1\n"
+        "mov %%ecx, %2\n"
+        "mov %%edx, %3\n"
+        "mov %%esp, %4\n"
+        "mov %%ebp, %5\n"
+        "mov %%esi, %6\n"
+        "mov %%edi, %7\n"
+        : "=m"(r->eax), "=m"(r->ebx), "=m"(r->ecx), "=m"(r->edx),
+          "=m"(r->esp), "=m"(r->ebp), "=m"(r->esi), "=m"(r->edi));
+
+    __asm__ volatile(
+        "call 1f\n"
+        "1: pop %0\n"
+        : "=r"(r->eip));
+
+    __asm__ volatile(
+        "mov %%cs, %0\n"
+        "mov %%ds, %1\n"
+        "mov %%es, %2\n"
+        "mov %%fs, %3\n"
+        "mov %%gs, %4\n"
+        : "=m"(r->cs), "=m"(r->ds), "=m"(r->es), "=m"(r->fs), "=m"(r->gs));
+}
+
+void panic(char *msg, registers_t *r, int from_cpu)
 {
     set_color(0x04, 0x00);
-    puts("KERNEL PANIC!", 1);
+    puts("*** KERNEL PANIC ***", 1);
     puts("Reason: ", 0);
     puts(msg, 1);
+
+    if (!r)
+        reg_dump(r);
+
+    char buf[16];
+    puts("EIP: 0x", 0);
+    itoa(r->eip, buf, 16);
+    puts(buf, 1);
+    puts("ESP: 0x", 0);
+    itoa(r->esp, buf, 16);
+    puts(buf, 1);
+    puts("EAX: 0x", 0);
+    itoa(r->eax, buf, 16);
+    puts(buf, 1);
+    if (from_cpu)
+    {
+        puts("ERR: 0x", 0);
+        itoa(r->err_code, buf, 16);
+        puts(buf, 1);
+        puts("CS:  0x", 0);
+        itoa(r->cs, buf, 16);
+        puts(buf, 1);
+    }
     puts("Press ESC to shut down or ENTER to reboot", 1);
     while (1)
     {
@@ -155,21 +207,9 @@ void check_stack()
     asm volatile("mov %%esp, %0" : "=r"(esp));
     if (esp <= (uint32_t)&stack_guard || (esp - (uint32_t)&stack_guard) < 512)
     {
-        panic("stack overflow");
+        registers_t *r;
+        panic("stack overflow", NULL, 0);
     }
-}
-
-void cause_stack_overflow(int depth)
-{
-    check_stack();
-    if (depth % 10 == 0)
-    {
-        char tmp[16];
-        itoa(depth, tmp, 10);
-        puts("Depth: ", 0);
-        puts(tmp, 1);
-    }
-    cause_stack_overflow(depth + 1);
 }
 
 void update_clock()
@@ -256,13 +296,11 @@ void execute_command(char *cmd_line)
         puts("shutdown, exit        - shut down your computer", 1);
         puts("color <color>         - change text color", 1);
         puts("updates               - check what's new in BOMBOCLAAT-OS", 1);
-        puts("source                - get informations about this OS source code", 1);
         puts("panic <msg>           - makes a kernel panic with your message", 1);
         puts("bootable              - check if installed disk has boot signature (0xAA55)", 1);
-        puts("overflow              - cause stack overflow and see how deep it can get", 1);
         puts("erase_sector <lba>    - erases all data on a sector", 1);
         puts("read_sector <lba>     - reads and prints all data from a sector", 1);
-        puts("(beta) timer <m:s>    - sets a countdown timer to <m> minutes and <s> seconds", 1);
+        puts("timer <m:s>           - sets a countdown timer to <m> minutes and <s> seconds", 1);
         puts("beep <freq>           - beeps with provided frequency for 1s", 1);
         puts("song                  - play an example song", 1);
     }
@@ -358,28 +396,34 @@ void execute_command(char *cmd_line)
             puts("a/b divide", 1);
             puts("a^b power", 1);
             puts("a%b percent (a% of b)", 1);
+            puts("$a  square root of a", 1);
         }
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 3/04/2026", 1);
-        puts("What's new:", 1);
+        puts("Last update date: 4/04/2026", 1);
+        puts("What's new (1.6b1): ", 1);
         puts("  - added interrupt handling", 1);
         puts("  - added speaker support", 1);
         puts("  - new commands: timer (beta), beep, song", 1);
         puts("  - changed includes in the code to <>", 1);
         puts("  - removed unused files from the code", 1);
+        puts("  - updated Makefile", 1);
+        puts("What's new (1.6):", 1);
+        puts("  - fixed timer", 1);
+        puts("  - updated kernel panic", 1);
+        puts("  - added CPU exceptions handling", 1);
+        puts("  - removed commands: overflow, source", 1);
+        puts("  - added math library", 1);
+        puts("  - added square roots to calculator", 1);
         puts("This is the biggest and the most important update so far", 1);
     }
-    else if (strcmp(cmd, "source") == 0)
-        puts("Get the source code at: https://www.github.com/bomboclaat954/bomboclaat-os", 1);
-
     else if (strcmp(cmd, "panic") == 0)
     {
         if (strlen(arg) > 0)
-            panic(arg);
+            panic(arg, NULL, 0);
         else
-            panic("no reason");
+            panic("no reason", NULL, 0);
     }
     else if (strcmp(cmd, "info") == 0)
     {
@@ -428,8 +472,6 @@ void execute_command(char *cmd_line)
         else
             puts("Disk is not bootable", 1);
     }
-    else if (strcmp(cmd, "overflow") == 0)
-        cause_stack_overflow(1);
     else if (strcmp(cmd, "erase_sector") == 0)
     {
         if (strlen(arg) > 0)
@@ -514,37 +556,35 @@ void execute_command(char *cmd_line)
             s[2] = '\0';
             _m = atoi(m);
             _s = atoi(s);
+
             int ms = (_m * 60000) + (_s * 1000);
-            _s = ms / 1000;
-            _m = 0;
-            while (ms)
+            int total_s = ms / 1000;
+
+            while (total_s >= 0)
             {
-                if (_s >= 60)
-                {
-                    _s -= 60;
-                    _m++;
-                }
-                if (ms % 1000 == 0)
-                {
-                    cls();
-                    draw_main_screen();
-                    if (_s != 0)
-                        _s--;
-                    itoa(_m, buf, 10);
-                    puts(buf, 0);
-                    clear_str(buf);
-                    puts(":", 0);
-                    itoa(_s, buf, 10);
-                    puts(buf, 0);
-                }
-                else if (_s % 60 == 0)
-                {
-                    if (_m != 0)
-                        _m--;
-                }
-                delay_ms(1);
-                ms--;
+                int disp_m = total_s / 60;
+                int disp_s = total_s % 60;
+
+                cls();
+                draw_main_screen();
+
+                char buf[8];
+                itoa(disp_m, buf, 10);
+                puts(buf, 0);
+                puts(":", 0);
+
+                if (disp_s < 10)
+                    puts("0", 0);
+                itoa(disp_s, buf, 10);
+                puts(buf, 0);
+
+                if (total_s == 0)
+                    break;
+
+                delay_ms(1000);
+                total_s--;
             }
+
             puts("", 1);
             puts("Time's up!", 1);
             tone(1000);
@@ -570,7 +610,8 @@ void execute_command(char *cmd_line)
     {
         // Example song: Eric Clapton - Layla (intro). 116 BPM, 4/4
         puts("Note: if you're using VirtualBox, you probably won't hear anything", 1);
-        melody_t m[] = {
+        puts("\x0E Eric Clapton - Layla", 1);
+        melody_t layla[] = {
             {NOTE_A4, 16},
             {NOTE_C5, 16},
             {NOTE_D5, 16},
@@ -625,7 +666,7 @@ void execute_command(char *cmd_line)
             {NOTE_C5, 16},
             {NOTE_CS5, 2},
         };
-        play_song(m, ARRAY_SIZE(m), 116);
+        play_song(layla, ARRAY_SIZE(layla), 116);
     }
     else if (strlen(cmd) > 0)
     {
@@ -720,7 +761,7 @@ void kernel_main(void)
 void start_kernel(long magic, uint32_t mboot_info_addr)
 {
     if (magic != MULTIBOOT_BOOTLOADER_MAGIC)
-        panic("invalid multiboot signature");
+        panic("invalid multiboot signature", NULL, 0);
 
     update_hardware_cursor();
     box(0, 0, VER);
@@ -731,9 +772,9 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     uint64_t ram = multiboot_get_ram(mbi, 2); // RAM size in MB
     itoa(ram, RAM_MB, 10);
     if (ram == 0)
-        panic("error while getting RAM amount");
+        panic("error while getting RAM amount", NULL, 0);
     else if (ram < 64)
-        panic("too little RAM");
+        panic("too little RAM", NULL, 0);
 
     puts("Type ", 0);
     set_color(0x0F, 0x00);

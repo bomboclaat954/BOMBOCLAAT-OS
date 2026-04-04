@@ -68,7 +68,7 @@ void pmm_init(multiboot_info_t *mbi)
     memset(bitmap, 0xFF, (total_frames / 8));
 
     if (!(mbi->flags & (1 << 6)))
-        panic("no memory map from bootloader");
+        panic("no memory map from bootloader", NULL, 0);
 
     multiboot_memory_map_t *mmap = (multiboot_memory_map_t *)mbi->mmap_addr;
     uint32_t mmap_end = mbi->mmap_addr + mbi->mmap_length;
