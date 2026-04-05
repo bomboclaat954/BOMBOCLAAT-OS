@@ -95,3 +95,40 @@ void pmm_init(multiboot_info_t *mbi)
         used_frames++;
     }
 }
+
+void memcpy(uint8_t *dst, const char *src, uint32_t len)
+{
+    for (uint32_t i = 0; i < len; i++)
+        dst[i] = src[i];
+}
+
+void write_u64(uint8_t *dst, uint64_t val)
+{
+    dst[0] = val & 0xFF;
+    dst[1] = (val >> 8) & 0xFF;
+    dst[2] = (val >> 16) & 0xFF;
+    dst[3] = (val >> 24) & 0xFF;
+    dst[3] = (val >> 32) & 0xFF;
+    dst[3] = (val >> 40) & 0xFF;
+    dst[3] = (val >> 48) & 0xFF;
+    dst[3] = (val >> 56) & 0xFF;
+}
+
+void write_u32(uint8_t *dst, uint32_t val)
+{
+    dst[0] = val & 0xFF;
+    dst[1] = (val >> 8) & 0xFF;
+    dst[2] = (val >> 16) & 0xFF;
+    dst[3] = (val >> 24) & 0xFF;
+}
+
+void write_u16(uint8_t *dst, uint16_t val)
+{
+    dst[0] = val & 0xFF;
+    dst[1] = (val >> 8) & 0xFF;
+}
+
+void write_u8(uint8_t *dst, uint8_t val)
+{
+    dst[0] = val & 0xFF;
+}

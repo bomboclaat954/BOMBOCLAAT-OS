@@ -33,6 +33,13 @@ You can run it on VirtualBox or any other virtual machine if you want. Also it's
 
 1. I strongly recomend using QEMU for running this OS. Why? Because VirtualBox is a bit dumb and using speaker on it is totally fucked. If you use VBox you'll just hear nothing from commands that make sound.
 
+# TODO
+
+1. Installation to disk
+2. FAT32 or ext2
+3. Own filesystem
+4. Multitasking
+
 # License
 
 You can do with this code whatever you want, I don't give a shit.

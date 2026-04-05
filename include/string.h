@@ -15,5 +15,6 @@ char *join(char *str1, char *str2, char *output_str, int n);
 int is_number(char *x);
 void *memset(void *ptr, int value, uint32_t num);
 void *clear_str(char *str);
+void *input(char *buf, int len);
 
 #endif

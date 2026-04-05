@@ -15,13 +15,17 @@
 #include <int.h>
 #include <music.h>
 #include <math.h>
+#include <bfs.h>
+#include <rand.h>
+#include <diskman.h>
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define MULTIBOOT_INFO_MEM_MAP 0x40
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.6";
+char *VER = "BOMBOCLAAT-OS 1.7";
 char RAM_MB[10];
+char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
 
 extern uint32_t stack_guard;
 
@@ -284,8 +288,6 @@ void execute_command(char *cmd_line)
 
     if (strcmp(cmd, "help") == 0)
     {
-        cls();
-        draw_main_screen();
         puts("Available commands:", 1);
         puts("cls                   - clear commands output", 1);
         puts("info                  - informations about software and hardware", 1);
@@ -297,12 +299,10 @@ void execute_command(char *cmd_line)
         puts("color <color>         - change text color", 1);
         puts("updates               - check what's new in BOMBOCLAAT-OS", 1);
         puts("panic <msg>           - makes a kernel panic with your message", 1);
-        puts("bootable              - check if installed disk has boot signature (0xAA55)", 1);
-        puts("erase_sector <lba>    - erases all data on a sector", 1);
-        puts("read_sector <lba>     - reads and prints all data from a sector", 1);
         puts("timer <m:s>           - sets a countdown timer to <m> minutes and <s> seconds", 1);
         puts("beep <freq>           - beeps with provided frequency for 1s", 1);
         puts("song                  - play an example song", 1);
+        puts("diskman <opt>         - disk manager (type diskman for option list)", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -401,22 +401,12 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 4/04/2026", 1);
-        puts("What's new (1.6b1): ", 1);
-        puts("  - added interrupt handling", 1);
-        puts("  - added speaker support", 1);
-        puts("  - new commands: timer (beta), beep, song", 1);
-        puts("  - changed includes in the code to <>", 1);
-        puts("  - removed unused files from the code", 1);
-        puts("  - updated Makefile", 1);
-        puts("What's new (1.6):", 1);
-        puts("  - fixed timer", 1);
-        puts("  - updated kernel panic", 1);
-        puts("  - added CPU exceptions handling", 1);
-        puts("  - removed commands: overflow, source", 1);
-        puts("  - added math library", 1);
-        puts("  - added square roots to calculator", 1);
-        puts("This is the biggest and the most important update so far", 1);
+        puts("Last update date: 5/04/2026", 1);
+        puts("What's new: ", 1);
+        puts("  - added BFS (BOMBOCLAAT File System)", 1);
+        puts("  - new command: diskman", 1);
+        puts("  - deleted commands: read_sector, erase_sector, bootable", 1);
+        puts("  - added random numbers generating", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -462,72 +452,6 @@ void execute_command(char *cmd_line)
             puts(size_str, 0);
             puts(" MB", 1);
         }
-    }
-    else if (strcmp(cmd, "bootable") == 0)
-    {
-        uint16_t data[256];
-        ata_read_sector(0, data);
-        if (data[255] == 0xAA55)
-            puts("Disk is bootable", 1);
-        else
-            puts("Disk is not bootable", 1);
-    }
-    else if (strcmp(cmd, "erase_sector") == 0)
-    {
-        if (strlen(arg) > 0)
-        {
-            uint16_t tmp = atoi(arg);
-            puts("Are you sure? All data on sector ", 0);
-            puts(arg, 0);
-            puts(" will be destroyed", 1);
-            puts("ENTER - YES, ESC - NO", 1);
-            while (1)
-            {
-                if (inb(0x64) & 1)
-                {
-                    unsigned char sc = inb(0x60);
-                    if (sc == 0x1C)
-                    {
-                        puts("Erasing...", 1);
-                        ata_erase_sector(tmp);
-                        puts("Done", 1);
-                        break;
-                    }
-                    else if (sc == 0x01)
-                    {
-                        puts("Abort", 1);
-                        break;
-                    }
-                }
-            }
-        }
-        else
-            puts("Error: no sector number specified", 1);
-    }
-    else if (strcmp(cmd, "read_sector") == 0)
-    {
-        if (strlen(arg) > 0)
-        {
-            uint16_t arg_ = atoi(arg);
-            uint16_t buf[256];
-            ata_read_sector(arg_, buf);
-            char *tmp = "";
-            for (int i = 0; i < 256; i++)
-            {
-                tmp = "";
-                itoa(reverse_endian(buf[i]), tmp, 16);
-                if (strlen(tmp) == 1)
-                    tmp = join("000", tmp, tmp, 0);
-                else if (strlen(tmp) == 2)
-                    tmp = join("00", tmp, tmp, 0);
-                else if (strlen(tmp) == 3)
-                    tmp = join("0", tmp, tmp, 0);
-                puts(tmp, 0);
-                puts(" ", 0);
-            }
-        }
-        else
-            puts("Error: no sector number specified", 1);
     }
     else if (strcmp(cmd, "timer") == 0)
     {
@@ -668,6 +592,13 @@ void execute_command(char *cmd_line)
         };
         play_song(layla, ARRAY_SIZE(layla), 116);
     }
+    else if (strcmp(cmd, "diskman") == 0)
+    {
+        if (arg > 0)
+            diskman(arg);
+        else
+            diskman("h");
+    }
     else if (strlen(cmd) > 0)
     {
         puts("Unknown command: ", 0);
@@ -715,13 +646,9 @@ void kernel_main(void)
                     // if(...) {...; continue;} <- REMEMBER ABOUT CONTINUE
                 }*/
                 if (scancode == 0x2A || scancode == 0x36)
-                {
                     shift_pressed = 1;
-                }
                 else if (scancode == 0x3A)
-                {
                     caps_lock = !caps_lock;
-                }
                 else
                 {
                     char c = get_ascii(scancode);
@@ -750,9 +677,69 @@ void kernel_main(void)
             {
                 unsigned char released_code = scancode & 0x7F;
                 if (released_code == 0x2A || released_code == 0x36)
-                {
                     shift_pressed = 0;
+            }
+        }
+    }
+}
+
+void passwd(char *passwd)
+{
+    char buf[128];
+    int buf_idx = 0;
+    puts("Password: ", 0);
+    while (1) // not using input() here because it does putc(c) instead of putc('*')
+    {
+        if (inb(0x64) & 1)
+        {
+            unsigned char scancode = inb(0x60);
+            if (!(scancode & 0x80))
+            {
+                if (scancode == 0x2A || scancode == 0x36)
+                    shift_pressed = 1;
+                else if (scancode == 0x3A)
+                    caps_lock = !caps_lock;
+                else
+                {
+                    char c = get_ascii(scancode);
+                    if (c == '\n')
+                    {
+                        buf[buf_idx] = '\0';
+                        buf_idx = 0;
+                        if (strcmp(buf, passwd) == 0)
+                        {
+                            puts("", 1);
+                            puts("Welcome!", 1);
+                            break;
+                        }
+                        else
+                        {
+                            puts("", 1);
+                            puts("Incorrect password", 1);
+                            puts("Password: ", 0);
+                            continue;
+                        }
+                    }
+                    else if (c == '\b')
+                    {
+                        if (buf_idx > 0)
+                        {
+                            buf_idx--;
+                            putc('\b');
+                        }
+                    }
+                    else if (c > 0 && buf_idx < 127)
+                    {
+                        buf[buf_idx++] = c;
+                        putc('*');
+                    }
                 }
+            }
+            else
+            {
+                unsigned char released_code = scancode & 0x7F;
+                if (released_code == 0x2A || released_code == 0x36)
+                    shift_pressed = 0;
             }
         }
     }
@@ -763,10 +750,6 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     if (magic != MULTIBOOT_BOOTLOADER_MAGIC)
         panic("invalid multiboot signature", NULL, 0);
 
-    update_hardware_cursor();
-    box(0, 0, VER);
-    set_cursor(0, 3);
-
     multiboot_info_t *mbi = (multiboot_info_t *)mboot_info_addr;
     pmm_init(mbi);
     uint64_t ram = multiboot_get_ram(mbi, 2); // RAM size in MB
@@ -776,12 +759,6 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     else if (ram < 64)
         panic("too little RAM", NULL, 0);
 
-    puts("Type ", 0);
-    set_color(0x0F, 0x00);
-    puts("help", 0);
-    set_color(0x07, 0x00);
-    puts(" for commands list", 2);
-
     // init interrupts and timer
     idt_init();
     pit_init();
@@ -789,6 +766,19 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     // FPU and SSE are for better operations on floats
     fpu_enable();
     sse_enable();
+
+    puts("Welcome to BOMBOCLAAT-OS!", 1);
+    // passwd("BOMBOCLAAT");
+    cls();
+    update_hardware_cursor();
+    box(0, 0, VER);
+    set_cursor(0, 3);
+
+    puts("Type ", 0);
+    set_color(0x0F, 0x00);
+    puts("help", 0);
+    set_color(0x07, 0x00);
+    puts(" for commands list", 2);
 
     kernel_main();
 }

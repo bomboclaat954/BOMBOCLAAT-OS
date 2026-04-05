@@ -16,7 +16,9 @@ all:
 	gcc drivers/screen.c $(CFLAGS) -o build/screen.o
 	gcc lib/string.c $(CFLAGS) -o build/string.o
 	gcc lib/math.c $(CFLAGS) -o build/math.o
+	gcc lib/rand.c $(CFLAGS) -o build/rand.o
 	gcc apps/calc.c $(CFLAGS) -o build/calc.o
+	gcc apps/diskman.c $(CFLAGS) -o build/diskman.o
 	gcc disk/disk.c $(CFLAGS) -o build/disk.o
 	gcc memory/ram.c $(CFLAGS) -o build/ram.o
 	gcc int/idt.c $(CFLAGS) -o build/idt.o
@@ -25,6 +27,7 @@ all:
 	gcc int/irq.c $(CFLAGS) -o build/irq.o
 	gcc int/pit.c $(CFLAGS) -o build/pit.o
 	gcc music/music.c $(CFLAGS) -o build/music.o
+	gcc bfs/bfs.c $(CFLAGS) -o build/bfs.o
 
 	ld -m elf_i386 -T link.ld -o build/kernel.bin build/*.o
 	cp grub.cfg iso/boot/grub

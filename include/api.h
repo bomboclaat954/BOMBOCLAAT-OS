@@ -6,11 +6,13 @@
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 extern char *VER;
 
+extern char letters_digits[37];
 uint16_t reverse_endian(uint16_t nb);
 void return_to_kernel(void);
 int is_update_in_progress();
 int bcd_to_bin(unsigned char bcd);
 char *datetime(int type);
 void panic(char *msg, registers_t *r, int from_cpu);
+void draw_main_screen();
 
 #endif

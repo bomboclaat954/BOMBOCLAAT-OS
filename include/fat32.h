@@ -9,7 +9,7 @@ typedef struct
     char oem[8];
     uint16_t bytes_per_sector;
     uint8_t bytes_per_cluster;
-    uint16_t reserver_sectors;
+    uint16_t reserved_sectors;
     uint8_t num_FATs;
     uint16_t root_dir_entries; // always 0 for FAT32
     uint16_t total_sectors_16; // also always 0
