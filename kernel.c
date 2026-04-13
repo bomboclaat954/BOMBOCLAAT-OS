@@ -1,6 +1,5 @@
 /*
     BOMBOCLAAT-OS KERNEL
-    The most important file of the OS
 */
 #include <stdint.h>
 #include <keyboard.h>
@@ -23,7 +22,7 @@
 #define MULTIBOOT_INFO_MEM_MAP 0x40
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.7";
+char *VER = "BOMBOCLAAT-OS 1.7.1";
 char RAM_MB[10];
 char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
 
@@ -289,20 +288,20 @@ void execute_command(char *cmd_line)
     if (strcmp(cmd, "help") == 0)
     {
         puts("Available commands:", 1);
-        puts("cls                   - clear commands output", 1);
-        puts("info                  - informations about software and hardware", 1);
-        puts("box <text>            - show a box with yout text", 1);
-        puts("time                  - show current time (HH:MM:SS)", 1);
-        puts("date                  - show current date (DD.MM.YY)", 1);
-        puts("reboot                - reboot your computer", 1);
-        puts("shutdown, exit        - shut down your computer", 1);
-        puts("color <color>         - change text color", 1);
-        puts("updates               - check what's new in BOMBOCLAAT-OS", 1);
-        puts("panic <msg>           - makes a kernel panic with your message", 1);
-        puts("timer <m:s>           - sets a countdown timer to <m> minutes and <s> seconds", 1);
-        puts("beep <freq>           - beeps with provided frequency for 1s", 1);
-        puts("song                  - play an example song", 1);
-        puts("diskman <opt>         - disk manager (type diskman for option list)", 1);
+        puts("cls                - clear commands output", 1);
+        puts("info               - informations about software and hardware", 1);
+        puts("box       <text>   - show a box with yout text", 1);
+        puts("time               - show current time (HH:MM:SS)", 1);
+        puts("date               - show current date (DD.MM.YY)", 1);
+        puts("reboot             - reboot your computer", 1);
+        puts("shutdown, exit     - shut down your computer", 1);
+        puts("color     <color>  - change text color", 1);
+        puts("updates            - check what's new in BOMBOCLAAT-OS", 1);
+        puts("panic     <msg>    - makes a kernel panic with your message", 1);
+        puts("timer     <m:s>    - sets a countdown timer to <m> minutes and <s> seconds", 1);
+        puts("beep      <freq>   - beeps with provided frequency for 1s", 1);
+        puts("song               - play an example song", 1);
+        puts("diskman   <opt>    - disk manager (type diskman h for option list)", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -403,10 +402,9 @@ void execute_command(char *cmd_line)
     {
         puts("Last update date: 5/04/2026", 1);
         puts("What's new: ", 1);
-        puts("  - added BFS (BOMBOCLAAT File System)", 1);
-        puts("  - new command: diskman", 1);
-        puts("  - deleted commands: read_sector, erase_sector, bootable", 1);
-        puts("  - added random numbers generating", 1);
+        puts("  - moved disk.c to drivers/", 1);
+        puts("  - updated README", 1);
+        puts("  - updated diskman", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -435,17 +433,17 @@ void execute_command(char *cmd_line)
         puts(used_ram, 0);
         puts(" kB", 1);
 
-        uint8_t disk_detected = detect_ata_drive(0);
+        uint8_t disk_detected = detect_ata_drive();
         if (disk_detected == 0)
             puts("Disk not detected", 1);
         else
         {
             puts("Disk model: ", 0);
             char disk[64];
-            get_drive_model(0, disk);
+            get_drive_model(disk);
             puts(disk, 1);
             puts("Total disk capacity: ", 0);
-            uint32_t sectors = get_ata_capacity_sectors(0);
+            uint32_t sectors = get_ata_capacity_sectors();
             uint32_t size_mb = (sectors * 512) / (1024 * 1024);
             char size_str[16];
             itoa(size_mb, size_str, 10);
@@ -685,63 +683,15 @@ void kernel_main(void)
 
 void passwd(char *passwd)
 {
-    char buf[128];
-    int buf_idx = 0;
-    puts("Password: ", 0);
-    while (1) // not using input() here because it does putc(c) instead of putc('*')
+    char buf[20];
+    while (1)
     {
-        if (inb(0x64) & 1)
-        {
-            unsigned char scancode = inb(0x60);
-            if (!(scancode & 0x80))
-            {
-                if (scancode == 0x2A || scancode == 0x36)
-                    shift_pressed = 1;
-                else if (scancode == 0x3A)
-                    caps_lock = !caps_lock;
-                else
-                {
-                    char c = get_ascii(scancode);
-                    if (c == '\n')
-                    {
-                        buf[buf_idx] = '\0';
-                        buf_idx = 0;
-                        if (strcmp(buf, passwd) == 0)
-                        {
-                            puts("", 1);
-                            puts("Welcome!", 1);
-                            break;
-                        }
-                        else
-                        {
-                            puts("", 1);
-                            puts("Incorrect password", 1);
-                            puts("Password: ", 0);
-                            continue;
-                        }
-                    }
-                    else if (c == '\b')
-                    {
-                        if (buf_idx > 0)
-                        {
-                            buf_idx--;
-                            putc('\b');
-                        }
-                    }
-                    else if (c > 0 && buf_idx < 127)
-                    {
-                        buf[buf_idx++] = c;
-                        putc('*');
-                    }
-                }
-            }
-            else
-            {
-                unsigned char released_code = scancode & 0x7F;
-                if (released_code == 0x2A || released_code == 0x36)
-                    shift_pressed = 0;
-            }
-        }
+        puts("Password: ", 0);
+        input_passwd(buf, 20);
+        if (strcmp(passwd, buf) == 0)
+            break;
+        else
+            puts("Incorrect password", 1);
     }
 }
 
@@ -769,6 +719,7 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
 
     puts("Welcome to BOMBOCLAAT-OS!", 1);
     // passwd("BOMBOCLAAT");
+
     cls();
     update_hardware_cursor();
     box(0, 0, VER);

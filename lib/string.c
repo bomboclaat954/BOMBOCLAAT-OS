@@ -251,3 +251,53 @@ void *input(char *buf, int len)
         }
     }
 }
+
+void *input_passwd(char *buf, int len)
+{
+    int buf_idx = 0;
+
+    while (1)
+    {
+        if (inb(0x64) & 1)
+        {
+            unsigned char scancode = inb(0x60);
+            if (!(scancode & 0x80))
+            {
+                if (scancode == 0x2A || scancode == 0x36)
+                    shift_pressed = 1;
+                else if (scancode == 0x3A)
+                    caps_lock = !caps_lock;
+                else
+                {
+                    char c = get_ascii(scancode);
+                    if (c == '\n')
+                    {
+                        buf[buf_idx] = '\0';
+                        buf_idx = 0;
+                        putc('\n');
+                        break;
+                    }
+                    else if (c == '\b')
+                    {
+                        if (buf_idx > 0)
+                        {
+                            buf_idx--;
+                            putc('\b');
+                        }
+                    }
+                    else if (c > 0 && buf_idx < 127 && buf_idx < len)
+                    {
+                        buf[buf_idx++] = c;
+                        putc('*');
+                    }
+                }
+            }
+            else
+            {
+                unsigned char released_code = scancode & 0x7F;
+                if (released_code == 0x2A || released_code == 0x36)
+                    shift_pressed = 0;
+            }
+        }
+    }
+}

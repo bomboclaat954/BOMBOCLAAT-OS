@@ -3,10 +3,28 @@
 */
 #include <disk.h>
 #include <io.h>
+#include <api.h>
 
-uint8_t detect_ata_drive(uint8_t slave)
+uint8_t ata_wait_drq(void)
 {
-    outb(0x1F6, slave ? 0xB0 : 0xA0);
+    uint8_t status;
+    while (1)
+    {
+        status = inb(ATA_PRIMARY_COMMAND);
+        if (status & 0x01)
+            return 0;
+        if (status & 0x20)
+            return 0;
+        if (status & 0x80)
+            continue;
+        if (status & 0x08)
+            return 1;
+    }
+}
+
+uint8_t detect_ata_drive()
+{
+    outb(0x1F6, 0xE0);
     outb(ATA_PRIMARY_COMMAND, ATA_CMD_IDENTIFY);
     uint8_t status = inb(ATA_PRIMARY_COMMAND);
     if (status == 0)
@@ -27,9 +45,9 @@ void ata_wait_ready()
         ;
 }
 
-void get_drive_model(uint8_t slave, char *buffer)
+void get_drive_model(char *buffer)
 {
-    outb(0x1F6, slave ? 0xB0 : 0xA0);
+    outb(0x1F6, 0xE0);
     outb(0x1F7, ATA_CMD_IDENTIFY);
 
     uint8_t status = inb(0x1F7);
@@ -67,15 +85,15 @@ void ata_read_sector(uint32_t lba, uint16_t *buf)
 
     outb(ATA_PRIMARY_COMMAND, 0x20); // READ
 
-    while ((inb(ATA_PRIMARY_COMMAND) & 0x88) != 0x08)
-        ;
+    if (!ata_wait_drq())
+        panic("ATA read error", NULL, 0);
 
     // read data
     for (int i = 0; i < 256; i++)
     {
         buf[i] = inw(0x1F0);
-        ata_wait_ready();
     }
+    ata_wait_ready();
 }
 
 void ata_write_sector(uint32_t lba, uint16_t *buf)
@@ -122,9 +140,9 @@ void ata_erase_sector(uint32_t lba)
     ata_write_sector(lba, buf);
 }
 
-uint32_t get_ata_capacity_sectors(uint8_t slave)
+uint32_t get_ata_capacity_sectors()
 {
-    outb(0x1F6, slave ? 0xB0 : 0xA0);
+    outb(0x1F6, 0xE0);
     outb(ATA_PRIMARY_COMMAND, ATA_CMD_IDENTIFY);
 
     while (inb(ATA_PRIMARY_COMMAND) & 0x80)

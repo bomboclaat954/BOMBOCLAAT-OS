@@ -6,7 +6,7 @@
 
 int check_bfs(int slave) {}
 
-void format_bfs(uint32_t total_sectors, uint64_t f_p_start, uint64_t f_p_sectors, char label[8], int erase)
+void format_bfs(uint32_t total_sectors, char label[8], int erase)
 {
     if (erase)
     {
@@ -27,20 +27,18 @@ void format_bfs(uint32_t total_sectors, uint64_t f_p_start, uint64_t f_p_sectors
     write_u16(b + 11, 512);           // bytes per sector
     write_u32(b + 13, total_sectors); // total sectors
     write_u8(b + 17, 2);              // sectors per cluster
-    write_u64(b + 18, f_p_start);     // first partition start lba
-    write_u64(b + 25, f_p_sectors);   // first prtition sectors number
 
     char uuid[8];
     random_seed();
     for (int i = 0; i < 8; i++)
         uuid[i] = letters_digits[rand() % ARRAY_SIZE(letters_digits)];
 
-    memcpy(b + 32, label, 8); // disk label
-    memcpy(b + 40, uuid, 8);  // disk unique ID
+    memcpy(b + 18, label, 8); // disk label
+    memcpy(b + 26, uuid, 8);  // disk unique ID
 
     for (int i = 0; i < 463; i++)
     {
-        write_u8(b + i + 48, 0x00);
+        write_u8(b + i + 34, 0x00);
     }
 
     ata_write_sector(0, sector);
