@@ -722,7 +722,6 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     fpu_enable();
     sse_enable();
 
-    puts("Welcome to BOMBOCLAAT-OS!", 1);
     // passwd("BOMBOCLAAT");
 
     cls();
