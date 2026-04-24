@@ -7,7 +7,7 @@ There's as little assembly as possible because this language is a nightmare and 
 
 # Main features
 
-1. Own "filesystem" (rather a joke than a real fs)
+1. ~~Own "filesystem" (rather a joke than a real fs)~~ discontinued because FAT32 is easier
 2. Interrupts (this shit broke my mind, please don't do it at home)
 3. PC speaker support and music
 4. Password option (even a chimp would break in)
