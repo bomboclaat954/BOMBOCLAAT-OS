@@ -50,8 +50,7 @@ You can run it on VirtualBox or any other virtual machine if you want. Also it's
 
 1. Installation to disk
 2. FAT32 or ext2
-3. Own filesystem *partially done*
-4. Multitasking
+3. Multitasking
 
 # Contact
 
