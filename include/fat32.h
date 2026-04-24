@@ -35,6 +35,6 @@ typedef struct
     char filesystem[8];
     uint8_t bootloader[420];
     uint16_t boot_signature; // must be 0xAA55 if drive is bootable
-} __attribute__((packed)) fat32_t;
+} __attribute__((packed)) bpb_t;
 
 #endif

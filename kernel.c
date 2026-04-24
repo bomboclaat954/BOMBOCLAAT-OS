@@ -14,7 +14,6 @@
 #include <int.h>
 #include <music.h>
 #include <math.h>
-#include <bfs.h>
 #include <rand.h>
 #include <diskman.h>
 
@@ -597,10 +596,16 @@ void execute_command(char *cmd_line)
         else
             diskman("h");
     }
+    else if (strcmp(cmd, "fat-init") == 0)
+    {
+        uint16_t buf[256];
+        ata_read_sector(0, buf);
+        bpb_t *bootsector = (bpb_t *)buf;
+    }
     else if (strlen(cmd) > 0)
     {
-        puts("Unknown command: ", 0);
-        puts(cmd, 1);
+        puts(cmd, 0);
+        puts(": command not found", 1);
     }
     puts(prompt, 0);
 }

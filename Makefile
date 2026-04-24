@@ -27,7 +27,6 @@ all:
 	gcc int/irq.c $(CFLAGS) -o build/irq.o
 	gcc int/pit.c $(CFLAGS) -o build/pit.o
 	gcc music/music.c $(CFLAGS) -o build/music.o
-	gcc bfs/bfs.c $(CFLAGS) -o build/bfs.o
 
 	ld -m elf_i386 -T link.ld -o build/kernel.bin build/*.o
 	cp grub.cfg iso/boot/grub
