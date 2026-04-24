@@ -1,3 +1,6 @@
+/*
+    BOMBOCLAAT-OS MUSIC LIBRARY
+*/
 #include <music.h>
 #include <io.h>
 #include <int.h>
