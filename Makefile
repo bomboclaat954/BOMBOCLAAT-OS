@@ -21,6 +21,7 @@ all:
 	gcc apps/calc.c $(CFLAGS) -o build/calc.o
 	gcc apps/diskman.c $(CFLAGS) -o build/diskman.o
 	gcc memory/ram.c $(CFLAGS) -o build/ram.o
+	gcc memory/kmalloc.c $(CFLAGS) -o build/kmalloc.o
 	gcc int/idt.c $(CFLAGS) -o build/idt.o
 	gcc int/isr.c $(CFLAGS) -o build/isr_c.o
 	gcc int/pic.c $(CFLAGS) -o build/pic.o

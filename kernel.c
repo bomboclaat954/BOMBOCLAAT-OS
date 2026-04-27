@@ -16,12 +16,16 @@
 #include <math.h>
 #include <rand.h>
 #include <diskman.h>
+#include <kmalloc.h>
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define MULTIBOOT_INFO_MEM_MAP 0x40
+#define HEAP_SIZE (2048 * 2048) // 4 MB
+
+uint8_t system_memory_pool[HEAP_SIZE];
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.7.1";
+char *VER = "BOMBOCLAAT-OS 1.8";
 char RAM_MB[10];
 char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
 
@@ -399,11 +403,10 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 5/04/2026", 1);
+        puts("Last update date: 27/04/2026", 1);
         puts("What's new: ", 1);
-        puts("  - moved disk.c to drivers/", 1);
-        puts("  - updated README", 1);
-        puts("  - updated diskman", 1);
+        puts("  - added kmalloc, kfree and 4MB heap", 1);
+        puts("  - from now info displays used RAM size as MB if it's larger than 1024 kB", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -426,11 +429,18 @@ void execute_command(char *cmd_line)
         puts("Total RAM: ", 0);
         puts(RAM_MB, 0);
         puts(" MB", 1);
-        char used_ram[16];
-        itoa(get_used_ram_kb(), used_ram, 10);
+        char used_ram_str[16];
+        double used_ram = get_used_ram_kb();
+        char *unit = " kB";
+        if (used_ram > 1024)
+        {
+            used_ram = used_ram / 1024;
+            unit = " MB";
+        }
+        dtoa(used_ram, used_ram_str, 2);
         puts("Used RAM: ", 0);
-        puts(used_ram, 0);
-        puts(" kB", 1);
+        puts(used_ram_str, 0);
+        puts(unit, 1);
 
         uint8_t disk_detected = detect_ata_drive();
         if (disk_detected == 0)
@@ -734,6 +744,8 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     puts("help", 0);
     set_color(0x07, 0x00);
     puts(" for commands list", 2);
+
+    heap_init(system_memory_pool, HEAP_SIZE);
 
     kernel_main();
 }
