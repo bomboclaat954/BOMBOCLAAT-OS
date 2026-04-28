@@ -54,7 +54,7 @@ You can run it on VirtualBox or any other virtual machine if you want. Also it's
 
 # Versioning system
 
-1.x - major update (new command, functions or library)
+1.x - major update (new command, functions or library) <br>
 1.x.x - minor update (bug fix, small changes)
 
 # Contact
