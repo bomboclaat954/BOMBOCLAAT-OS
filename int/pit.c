@@ -1,6 +1,6 @@
 #include <stdint.h>
-#include <io.h>
-#include <int.h>
+#include <drivers/io.h>
+#include <int/int.h>
 
 #define PIT_CHANNEL0 0x40
 #define PIT_CMD 0x43

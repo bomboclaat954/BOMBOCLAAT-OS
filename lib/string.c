@@ -1,10 +1,11 @@
 /*
     BOMBOCLAAT-OS STRING LIBRARY
 */
-#include <string.h>
-#include <keyboard.h>
-#include <screen.h>
-#include <io.h>
+#include <lib/string.h>
+#include <drivers/keyboard.h>
+#include <drivers/screen.h>
+#include <drivers/io.h>
+#include <bomboclaat-os/api.h>
 
 int strlen(const char *str)
 {
@@ -40,13 +41,22 @@ void to_upper_case(char *str)
 
 int atoi(char *str) // ascii to int
 {
-    int res = 0;
-    while (*str >= '0' && *str <= '9')
+    int acum = 0;
+    int factor = 1;
+
+    if (*str == '-')
     {
-        res = res * 10 + (*str - '0');
+        factor = -1;
         str++;
     }
-    return res;
+
+    while ((*str >= '0') && (*str <= '9'))
+    {
+        acum = acum * 10;
+        acum = acum + (*str- 48);
+        str++;
+    }
+    return (factor * acum);
 }
 
 int contains(char *str, char c)
@@ -300,4 +310,29 @@ void *input_passwd(char *buf, int len)
             }
         }
     }
+}
+
+char *strchr(const char *s, int c)
+{
+    for (; *s != '\0' && *s != c; ++s)
+        ;
+
+    return *s == c ? (char *)s : NULL;
+}
+
+int index(char *str, char x)
+{
+    char *y = strchr(str, x);
+    return (int)(y - str);
+}
+
+void delete_char(char *str, int index)
+{
+    int len = strlen(str);
+
+    if (index >= len || index < 0)
+        return;
+
+    for (int i = index; i < len; i++)
+        str[i] = str[i + 1];
 }

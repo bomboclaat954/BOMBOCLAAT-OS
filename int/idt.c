@@ -1,4 +1,4 @@
-#include <int.h>
+#include <int/int.h>
 
 __attribute__((aligned(0x10))) static idt_entry_t idt[256];
 

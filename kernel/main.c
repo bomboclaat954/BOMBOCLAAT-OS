@@ -1,22 +1,21 @@
 /*
-    BOMBOCLAAT-OS KERNEL
+    BOMBOCLAAT-OS KERNEL MAIN FILE
 */
 #include <stdint.h>
-#include <keyboard.h>
-#include <io.h>
-#include <string.h>
-#include <screen.h>
-#include <api.h>
-#include <calc.h>
-#include <disk.h>
-#include <fat32.h>
-#include <ram.h>
-#include <int.h>
-#include <music.h>
-#include <math.h>
-#include <rand.h>
-#include <diskman.h>
-#include <kmalloc.h>
+#include <bomboclaat-os/api.h>
+#include <drivers/keyboard.h>
+#include <drivers/io.h>
+#include <drivers/disk.h>
+#include <drivers/screen.h>
+#include <lib/string.h>
+#include <lib/music.h>
+#include <lib/math.h>
+#include <lib/rand.h>
+#include <apps/calc.h>
+#include <apps/diskman.h>
+#include <memory/kmalloc.h>
+#include <memory/ram.h>
+#include <int/int.h>
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define MULTIBOOT_INFO_MEM_MAP 0x40
@@ -25,11 +24,13 @@
 uint8_t system_memory_pool[HEAP_SIZE];
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.8";
+char *VER = "BOMBOCLAAT-OS 1.9";
 char RAM_MB[10];
 char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
 
 extern uint32_t stack_guard;
+
+global_settings settings;
 
 uint16_t reverse_endian(uint16_t nb)
 {
@@ -65,6 +66,12 @@ int bcd_to_bin(unsigned char bcd)
     return ((bcd / 16) * 10) + (bcd & 0xf);
 }
 
+void set_default_settings()
+{
+    settings.h_shift = 0;
+    settings.m_shift = 0;
+}
+
 char *datetime(int type)
 {
     static char buf[16];
@@ -72,11 +79,24 @@ char *datetime(int type)
         ;
 
     unsigned char second = bcd_to_bin(read_cmos(0x00));
-    unsigned char minute = bcd_to_bin(read_cmos(0x02));
-    unsigned char hour = bcd_to_bin(read_cmos(0x04));
+    unsigned char minute = bcd_to_bin(read_cmos(0x02)) + settings.m_shift;
+    unsigned char hour = bcd_to_bin(read_cmos(0x04)) + settings.h_shift;
     unsigned char day = bcd_to_bin(read_cmos(0x07));
     unsigned char month = bcd_to_bin(read_cmos(0x08));
     unsigned char year = bcd_to_bin(read_cmos(0x09));
+
+    if (settings.m_shift < 0 && settings.m_shift < minute)
+    {
+        minute += 60;
+        hour -= 1;
+    }
+    else if (minute >= 60)
+    {
+        minute -= 60;
+        hour += 1;
+    }
+
+    hour -= hour >= 24 ? 24 : 0; // if hour >= 24, hour -= 1; else hour -= 0;
 
     if (type == 0)
     { // HH:MM:SS
@@ -196,13 +216,9 @@ void panic(char *msg, registers_t *r, int from_cpu)
         {
             int scancode = inb(0x60);
             if (scancode == 0x01)
-            {
                 shutdown();
-            }
             else if (scancode == 0x1C)
-            {
                 reboot();
-            }
         }
     }
 }
@@ -239,7 +255,7 @@ void draw_main_screen(void)
     update_clock();
 }
 
-static inline void cpuid(uint32_t leaf, uint32_t *a, uint32_t *b, uint32_t *c, uint32_t *d)
+void cpuid(uint32_t leaf, uint32_t *a, uint32_t *b, uint32_t *c, uint32_t *d)
 {
     __asm__ volatile("cpuid"
                      : "=a"(*a), "=b"(*b), "=c"(*c), "=d"(*d)
@@ -291,20 +307,21 @@ void execute_command(char *cmd_line)
     if (strcmp(cmd, "help") == 0)
     {
         puts("Available commands:", 1);
-        puts("cls                - clear commands output", 1);
-        puts("info               - informations about software and hardware", 1);
-        puts("box       <text>   - show a box with yout text", 1);
-        puts("time               - show current time (HH:MM:SS)", 1);
-        puts("date               - show current date (DD.MM.YY)", 1);
-        puts("reboot             - reboot your computer", 1);
-        puts("shutdown, exit     - shut down your computer", 1);
-        puts("color     <color>  - change text color", 1);
-        puts("updates            - check what's new in BOMBOCLAAT-OS", 1);
-        puts("panic     <msg>    - makes a kernel panic with your message", 1);
-        puts("timer     <m:s>    - sets a countdown timer to <m> minutes and <s> seconds", 1);
-        puts("beep      <freq>   - beeps with provided frequency for 1s", 1);
-        puts("song               - play an example song", 1);
-        puts("diskman   <opt>    - disk manager (type diskman h for option list)", 1);
+        puts("cls                 - clear commands output", 1);
+        puts("info                - informations about software and hardware", 1);
+        puts("box       <text>    - show a box with yout text", 1);
+        puts("time                - show current time (HH:MM:SS)", 1);
+        puts("date                - show current date (DD.MM.YY)", 1);
+        puts("reboot              - reboot your computer", 1);
+        puts("shutdown, exit      - shut down your computer", 1);
+        puts("color     <color>   - change text color", 1);
+        puts("updates             - check what's new in BOMBOCLAAT-OS", 1);
+        puts("panic     <msg>     - makes a kernel panic with your message", 1);
+        puts("timer     <m:s>     - sets a countdown timer to <m> minutes and <s> seconds", 1);
+        puts("beep      <freq>    - beeps with provided frequency for 1s", 1);
+        puts("song                - play an example song", 1);
+        puts("diskman   <opt>     - disk manager (type diskman h for option list)", 1);
+        puts("timeshift <+-h:+-m> - change system time (0:0 to reset)", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -403,10 +420,10 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 27/04/2026", 1);
+        puts("Last update date: 28/04/2026", 1);
         puts("What's new: ", 1);
-        puts("  - added kmalloc, kfree and 4MB heap", 1);
-        puts("  - from now info displays used RAM size as MB if it's larger than 1024 kB", 1);
+        puts("  - include folder is now divided into categories", 1);
+        puts("  - new command: timeshift", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -606,11 +623,50 @@ void execute_command(char *cmd_line)
         else
             diskman("h");
     }
-    else if (strcmp(cmd, "fat-init") == 0)
+    else if (strcmp(cmd, "timeshift") == 0)
     {
-        uint16_t buf[256];
-        ata_read_sector(0, buf);
-        bpb_t *bootsector = (bpb_t *)buf;
+        if (strlen(arg) > 0)
+        {
+            if (strcmp(arg, "0:0") == 0)
+            {
+                settings.h_shift = 0;
+                settings.m_shift = 0;
+                update_clock();
+                puts(prompt, 0);
+                return;
+            }
+            char *h = kmalloc(4);
+            char *m = kmalloc(4);
+            int x = index(arg, ':');
+
+            for (int i = 0; i < x; i++)
+                h[i] = arg[i];
+            for (int i = 0; i < strlen(arg) - strlen(h); i++)
+                m[i] = arg[i + strlen(h) + 1];
+
+            if (contains(h, '+'))
+                delete_char(h, 0);
+
+            if (contains(m, '+'))
+                delete_char(m, 0);
+
+            int _h = atoi(h);
+            int _m = atoi(m);
+
+            if (_h > 23 || _h < -23 || _m > 59 || _m < -59)
+            {
+                puts("Error: too big shift", 1);
+                puts(prompt, 0);
+                return;
+            }
+
+            settings.h_shift += _h;
+            settings.m_shift += _m;
+
+            update_clock();
+        }
+        else
+            puts("Usage: timeshift <+-h:+-m>", 1);
     }
     else if (strlen(cmd) > 0)
     {

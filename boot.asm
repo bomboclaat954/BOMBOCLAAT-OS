@@ -1,6 +1,6 @@
 ;BOMBOCLAAT-OS boot.asm 
 ;This is the entry point of the system. It tells GRUB that there's a kernel to load and jumps into it.
-;Some of this code is probably useless but it works so don't touch it
+;Some of this code is probably useless but it works so I don't touch it
 
 [BITS 32]
 
@@ -36,7 +36,7 @@ start:
     push esi        ; mboot_info
     push edi        ; magic
     EXTERN start_kernel
-    call start_kernel ;jump into kernel_main function passing magic and mboot_info
+    call start_kernel ;jump into start_kernel function passing magic and mboot_info address
     cli
 .hang:
     hlt

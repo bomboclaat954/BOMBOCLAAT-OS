@@ -1,7 +1,7 @@
 /*
     BOMBOCLAAT-OS KMALLOC
 */
-#include <kmalloc.h>
+#include <memory/kmalloc.h>
 #include <stddef.h>
 #include <stdint.h>
 

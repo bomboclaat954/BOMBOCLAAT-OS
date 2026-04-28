@@ -3,8 +3,8 @@
 */
 #ifndef INT_H
 #define INT_H
-#include <stdint.h>
 #define IDT_MAX_DESCRIPTORS 256
+#include <stdint.h>
 
 typedef struct
 {

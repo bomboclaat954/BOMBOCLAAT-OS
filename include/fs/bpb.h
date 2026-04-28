@@ -1,5 +1,5 @@
-#ifndef FAT32_H
-#define FAT32_h
+#ifndef BPB_H
+#define BPB_h
 #include <stdint.h>
 
 typedef struct

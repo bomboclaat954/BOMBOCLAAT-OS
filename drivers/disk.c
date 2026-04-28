@@ -1,9 +1,9 @@
 /*
     BOMBOCLAAT-OS DISK SUPPORT
 */
-#include <disk.h>
-#include <io.h>
-#include <api.h>
+#include <drivers/disk.h>
+#include <drivers/io.h>
+#include <bomboclaat-os/api.h>
 
 uint8_t ata_wait_drq(void)
 {

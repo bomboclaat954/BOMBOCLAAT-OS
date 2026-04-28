@@ -1,9 +1,9 @@
 /*
     BOMBOCLAAT-OS MUSIC LIBRARY
 */
-#include <music.h>
-#include <io.h>
-#include <int.h>
+#include <lib/music.h>
+#include <drivers/io.h>
+#include <int/int.h>
 
 void tone(uint32_t freq)
 {

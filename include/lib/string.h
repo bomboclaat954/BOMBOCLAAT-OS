@@ -17,5 +17,8 @@ void *memset(void *ptr, int value, uint32_t num);
 void *clear_str(char *str);
 void *input(char *buf, int len);
 void *input_passwd(char *buf, int len);
+char *strchr(const char *s, int c);
+int index(char *str, char x);
+void delete_char(char *str, int index);
 
 #endif

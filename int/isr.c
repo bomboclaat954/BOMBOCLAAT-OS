@@ -1,7 +1,7 @@
-#include <int.h>
-#include <api.h>
-#include <screen.h>
-#include <string.h>
+#include <int/int.h>
+#include <bomboclaat-os/api.h>
+#include <drivers/screen.h>
+#include <lib/string.h>
 
 void exception_handler(registers_t *r)
 {

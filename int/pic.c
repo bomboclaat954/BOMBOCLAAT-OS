@@ -1,5 +1,5 @@
-#include <io.h>
-#include <int.h>
+#include <drivers/io.h>
+#include <int/int.h>
 
 static inline void io_wait(void)
 {

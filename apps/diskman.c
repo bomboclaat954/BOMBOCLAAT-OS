@@ -1,10 +1,10 @@
-#include <diskman.h>
-#include <disk.h>
-#include <screen.h>
-#include <ram.h>
-#include <string.h>
-#include <io.h>
-#include <api.h>
+#include <apps/diskman.h>
+#include <drivers/disk.h>
+#include <drivers/screen.h>
+#include <memory/ram.h>
+#include <lib/string.h>
+#include <drivers/io.h>
+#include <bomboclaat-os/api.h>
 
 void diskman(char *opt)
 {

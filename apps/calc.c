@@ -2,12 +2,13 @@
     BOMBOCLAAT-OS CALCULATOR
     TODO: multiple expressions (like 2*2*2*2), numbers with decimal point
 */
-#include <string.h>
-#include <screen.h>
-#include <api.h>
-#include <keyboard.h>
-#include <io.h>
-#include <math.h>
+#include <lib/string.h>
+#include <drivers/screen.h>
+#include <bomboclaat-os/api.h>
+#include <drivers/keyboard.h>
+#include <drivers/io.h>
+#include <lib/math.h>
+#include <apps/calc.h>
 
 int find_operator(char *x, char *op)
 {

@@ -52,6 +52,11 @@ You can run it on VirtualBox or any other virtual machine if you want. Also it's
 2. FAT32 or ext2
 3. Multitasking
 
+# Versioning system
+
+1.x - major update (new command, functions or library)
+1.x.x - minor update (bug fix, small changes)
+
 # Contact
 
 If you have anything useful to tell me, text me on Discord (bomboclaat954) or [Telegram](https://www.t.me/bomboclaat954).

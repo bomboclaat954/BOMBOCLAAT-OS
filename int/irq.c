@@ -1,6 +1,6 @@
-#include <int.h>
-#include <keyboard.h>
-#include <io.h>
+#include <int/int.h>
+#include <drivers/keyboard.h>
+#include <drivers/io.h>
 
 void irq_handler(registers_t *r)
 {

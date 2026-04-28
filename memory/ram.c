@@ -1,9 +1,9 @@
 /*
     BOMBOCLAAT-OS RAM MANAGEMENT
 */
-#include <ram.h>
-#include <string.h>
-#include <api.h>
+#include <memory/ram.h>
+#include <lib/string.h>
+#include <bomboclaat-os/api.h>
 
 uint32_t *bitmap;
 uint32_t total_frames;

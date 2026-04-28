@@ -1,4 +1,4 @@
-#include <rand.h>
+#include <lib/rand.h>
 
 uint32_t rand_state = 1;
 

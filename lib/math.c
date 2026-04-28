@@ -1,4 +1,4 @@
-#include <math.h>
+#include <lib/math.h>
 
 int pow(int base, int exponent)
 {

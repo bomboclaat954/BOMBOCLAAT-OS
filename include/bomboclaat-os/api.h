@@ -1,6 +1,6 @@
 #ifndef API_H
 #define API_H
-#include <int.h>
+#include <int/int.h>
 
 #define NULL ((void *)0)
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
@@ -14,5 +14,11 @@ int bcd_to_bin(unsigned char bcd);
 char *datetime(int type);
 void panic(char *msg, registers_t *r, int from_cpu);
 void draw_main_screen();
+
+typedef struct
+{
+    int h_shift;
+    int m_shift;
+} global_settings;
 
 #endif

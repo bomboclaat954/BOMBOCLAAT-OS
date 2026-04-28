@@ -1,9 +1,9 @@
 /*
     BOMBOCLAAT-OS SCREEN DRIVER
 */
-#include <screen.h>
-#include <string.h>
-#include <io.h>
+#include <drivers/screen.h>
+#include <lib/string.h>
+#include <drivers/io.h>
 
 /*
 COLOR CODES

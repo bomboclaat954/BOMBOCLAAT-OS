@@ -1,7 +1,7 @@
 /*
     BOMBOCLAAT-OS KEYBOARD DRIVER
 */
-#include <keyboard.h>
+#include <drivers/keyboard.h>
 
 int shift_pressed = 0;
 int caps_lock = 0;

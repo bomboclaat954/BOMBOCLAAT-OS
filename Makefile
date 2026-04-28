@@ -10,7 +10,7 @@ all:
 	nasm boot.asm -f elf32 -o build/boot.o
 	nasm int/isr.asm -f elf32 -o build/isr_asm.o
 
-	gcc kernel.c $(CFLAGS) -o build/kernel.o
+	gcc kernel/main.c $(CFLAGS) -o build/main.o
 	gcc drivers/keyboard.c $(CFLAGS) -o build/keyboard.o
 	gcc drivers/io.c $(CFLAGS) -o build/io.o
 	gcc drivers/screen.c $(CFLAGS) -o build/screen.o
@@ -18,6 +18,7 @@ all:
 	gcc lib/string.c $(CFLAGS) -o build/string.o
 	gcc lib/math.c $(CFLAGS) -o build/math.o
 	gcc lib/rand.c $(CFLAGS) -o build/rand.o
+	gcc lib/music.c $(CFLAGS) -o build/music.o
 	gcc apps/calc.c $(CFLAGS) -o build/calc.o
 	gcc apps/diskman.c $(CFLAGS) -o build/diskman.o
 	gcc memory/ram.c $(CFLAGS) -o build/ram.o
@@ -27,7 +28,6 @@ all:
 	gcc int/pic.c $(CFLAGS) -o build/pic.o
 	gcc int/irq.c $(CFLAGS) -o build/irq.o
 	gcc int/pit.c $(CFLAGS) -o build/pit.o
-	gcc music/music.c $(CFLAGS) -o build/music.o
 
 	ld -m elf_i386 -T link.ld -o build/kernel.bin build/*.o
 	cp grub.cfg iso/boot/grub
