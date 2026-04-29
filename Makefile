@@ -1,42 +1,61 @@
-CFLAGS = -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -c -Iinclude
+# BOMBOCLAAT-OS MAKEFILE v2
 
-all:
-	rm -rf build
-	rm -rf iso
-	mkdir build
-	mkdir iso
-	mkdir iso/boot
-	mkdir iso/boot/grub
-	nasm boot.asm -f elf32 -o build/boot.o
-	nasm int/isr.asm -f elf32 -o build/isr_asm.o
+CFLAGS = -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -Iinclude
+LDFLAGS = -m elf_i386 -T link.ld --no-warn-rwx-segments
 
-	gcc kernel/main.c $(CFLAGS) -o build/main.o
-	gcc drivers/keyboard.c $(CFLAGS) -o build/keyboard.o
-	gcc drivers/io.c $(CFLAGS) -o build/io.o
-	gcc drivers/screen.c $(CFLAGS) -o build/screen.o
-	gcc drivers/disk.c $(CFLAGS) -o build/disk.o
-	gcc lib/string.c $(CFLAGS) -o build/string.o
-	gcc lib/math.c $(CFLAGS) -o build/math.o
-	gcc lib/rand.c $(CFLAGS) -o build/rand.o
-	gcc lib/music.c $(CFLAGS) -o build/music.o
-	gcc apps/calc.c $(CFLAGS) -o build/calc.o
-	gcc apps/diskman.c $(CFLAGS) -o build/diskman.o
-	gcc memory/ram.c $(CFLAGS) -o build/ram.o
-	gcc memory/kmalloc.c $(CFLAGS) -o build/kmalloc.o
-	gcc int/idt.c $(CFLAGS) -o build/idt.o
-	gcc int/isr.c $(CFLAGS) -o build/isr_c.o
-	gcc int/pic.c $(CFLAGS) -o build/pic.o
-	gcc int/irq.c $(CFLAGS) -o build/irq.o
-	gcc int/pit.c $(CFLAGS) -o build/pit.o
+C_SOURCES = $(shell find . -path "./iso" -prune -o -path "./include" -prune -o -name "*.c" -print)
+ASM_SOURCES = $(shell find . -path "./iso" -prune -o -path "./include" -prune -o -name "*.asm" -print)
 
-	ld -m elf_i386 -T link.ld -o build/kernel.bin build/*.o
-	cp grub.cfg iso/boot/grub
-	cp build/kernel.bin iso/boot
-	grub-mkrescue -o bomboclaat-os.iso iso
+C_OBJECTS = $(patsubst ./%, build/%.o, $(C_SOURCES))
+ASM_OBJECTS = $(patsubst ./%, build/%.o, $(ASM_SOURCES))
+ALL_OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
+
+BUILD_NO := $(shell [ -f build_no.txt ] && cat build_no.txt || echo 0)
+COMMIT_NO := $(shell git rev-parse --short HEAD)
+NEW_BUILD_NO := $(shell echo $$(($(BUILD_NO) + 1)))
+
+all: prepare $(ALL_OBJECTS) link iso_gen
+	@echo "Done"
+
+prepare:
+	@echo "╔════════════════════════╗"
+	@echo "║ BOMBOCLAAT-OS BUILD v2 ║"
+	@echo "╚════════════════════════╝"
+	@echo "Build no: $(NEW_BUILD_NO)"
+	@echo $(NEW_BUILD_NO) > build_no.txt
+	@rm -rf build iso
+	@mkdir -p build iso/boot/grub
+	@find . -path "./iso" -prune -o -path "./include" -prune -o -path "./build" -prune -o -type d -not -name "." -exec mkdir -p build/{} \;
+
+build/%.c.o: %.c
+	@echo "  CC  $<"
+	@gcc $(CFLAGS) -D BUILD_NUMBER=$(NEW_BUILD_NO) -D COMMIT_NUMBER=0x$(COMMIT_NO) -c $< -o $@ 
+
+build/%.asm.o: %.asm
+	@echo "  AS  $<"
+	@nasm -f elf32 $< -o $@
+
+link:
+	$(eval ALL_OBJ := $(shell find build -name "*.o"))
+	$(eval BOOT_OBJ := $(shell find build -name "boot.asm.o"))
+	$(eval OTHER_OBJ := $(filter-out $(BOOT_OBJ), $(ALL_OBJ)))
+	@ld $(LDFLAGS) -o build/kernel.bin $(BOOT_OBJ) $(OTHER_OBJ)
+
+iso_gen:
+	@cp grub.cfg iso/boot/grub
+	@cp build/kernel.bin iso/boot
+	@grub-mkrescue -o bomboclaat-os.iso iso > /dev/null 2>&1
 
 run:
-	qemu-system-i386 -cdrom bomboclaat-os.iso -hda disk.img -boot d -audiodev pa,id=speaker -machine pcspk-audiodev=speaker
+	@echo "Running in QEMU"
+	@qemu-system-i386 \
+	-cdrom bomboclaat-os.iso \
+	-hda disk.img \
+	-boot d \
+	-audiodev pa,id=speaker \
+	-machine pcspk-audiodev=speaker \
+	> /dev/null 2>&1
 
 disk-img:
-	qemu-img create -f raw disk.img 256M
-	mkfs.fat -F 32 disk.img
+	@qemu-img create -f raw disk.img 256M
+	@mkfs.fat -F 32 disk.img

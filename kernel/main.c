@@ -24,7 +24,7 @@
 uint8_t system_memory_pool[HEAP_SIZE];
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.9";
+char *VER = "BOMBOCLAAT-OS 1.9.1";
 char RAM_MB[10];
 char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
 
@@ -64,12 +64,6 @@ int is_update_in_progress()
 int bcd_to_bin(unsigned char bcd)
 {
     return ((bcd / 16) * 10) + (bcd & 0xf);
-}
-
-void set_default_settings()
-{
-    settings.h_shift = 0;
-    settings.m_shift = 0;
 }
 
 char *datetime(int type)
@@ -420,10 +414,11 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 28/04/2026", 1);
+        puts("Last update date: 29/04/2026", 1);
         puts("What's new: ", 1);
-        puts("  - include folder is now divided into categories", 1);
-        puts("  - new command: timeshift", 1);
+        puts("  - new Makefile", 1);
+        puts("  - build number and git revision (check info)", 1);
+        puts("  - updated README.md", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -434,9 +429,17 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "info") == 0)
     {
+        char build[10];
+        char commit[10];
+        itoa(BUILD_NUMBER, build, 10); // Check Makefile line 29
+        itoa(COMMIT_NUMBER, commit, 16);
         puts("Software informations", 1);
         puts("Version: ", 0);
         puts(VER, 1);
+        puts("Build number: ", 0);
+        puts(build, 1);
+        puts("Git revision: ", 0);
+        puts(commit, 1);
         puts("", 1);
         puts("Hardware informations", 1);
         puts("CPU: ", 0);
