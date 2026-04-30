@@ -4,6 +4,7 @@
 
 int strlen(const char *str);
 int strcmp(const char *s1, const char *s2);
+void strcpy(char *s, char *p);
 int atoi(char *str);
 int contains(char *str, char c);
 char *dtoa(double num, char *str, int precision);

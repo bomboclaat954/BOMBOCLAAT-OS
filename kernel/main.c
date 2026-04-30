@@ -15,6 +15,7 @@
 #include <apps/diskman.h>
 #include <memory/kmalloc.h>
 #include <memory/ram.h>
+#include <memory/stack.h>
 #include <int/int.h>
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
@@ -22,13 +23,13 @@
 #define HEAP_SIZE (2048 * 2048) // 4 MB
 
 uint8_t system_memory_pool[HEAP_SIZE];
+stack_t stack;
+extern uint32_t stack_guard;
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.9.1";
+char *VER = "BOMBOCLAAT-OS 1.9.2";
 char RAM_MB[10];
 char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
-
-extern uint32_t stack_guard;
 
 global_settings settings;
 
@@ -305,7 +306,7 @@ void execute_command(char *cmd_line)
         puts("info                - informations about software and hardware", 1);
         puts("box       <text>    - show a box with yout text", 1);
         puts("time                - show current time (HH:MM:SS)", 1);
-        puts("date                - show current date (DD.MM.YY)", 1);
+        puts("date                - show current date (DD/MM/YY)", 1);
         puts("reboot              - reboot your computer", 1);
         puts("shutdown, exit      - shut down your computer", 1);
         puts("color     <color>   - change text color", 1);
@@ -414,11 +415,10 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 29/04/2026", 1);
+        puts("Last update date: 30/04/2026", 1);
         puts("What's new: ", 1);
-        puts("  - new Makefile", 1);
-        puts("  - build number and git revision (check info)", 1);
-        puts("  - updated README.md", 1);
+        puts("  - now you can use up arrow to execute last used command", 1);
+        puts("  - added general purpose stack", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -685,6 +685,7 @@ void kernel_main(void)
     int buf_idx = 0;
     int last_minute = -1;
     int extended = 0;
+    int printed_last_cmd = 0;
 
     puts(prompt, 0);
 
@@ -713,10 +714,19 @@ void kernel_main(void)
             }
             if (!(scancode & 0x80))
             {
-                /*if (extended) // 0x48 - UP, 0x50 - DOWN, 0x4B - LEFT, 0x4D - RIGHT
+                if (extended)
                 {
-                    // if(...) {...; continue;} <- REMEMBER ABOUT CONTINUE
-                }*/
+                    if (scancode == ARROW_UP && printed_last_cmd == 0)
+                    {
+                        printed_last_cmd = 1;
+                        char *last_cmd = (char *)pop(&stack);
+                        delete_char(last_cmd, strlen(last_cmd));
+                        int last_buf_idx = pop(&stack);
+                        strcpy(command_buffer, last_cmd);
+                        buf_idx = last_buf_idx;
+                        puts(command_buffer, 0);
+                    }
+                }
                 if (scancode == 0x2A || scancode == 0x36)
                     shift_pressed = 1;
                 else if (scancode == 0x3A)
@@ -726,6 +736,9 @@ void kernel_main(void)
                     char c = get_ascii(scancode);
                     if (c == '\n')
                     {
+                        printed_last_cmd = 0;
+                        push(&stack, buf_idx);
+                        push(&stack, (int)command_buffer);
                         command_buffer[buf_idx] = '\0';
                         execute_command(command_buffer);
                         buf_idx = 0;
@@ -791,6 +804,7 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     fpu_enable();
     sse_enable();
 
+    enable_cursor(0x0E, 0x0F);
     // passwd("BOMBOCLAAT");
 
     cls();
@@ -805,6 +819,7 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     puts(" for commands list", 2);
 
     heap_init(system_memory_pool, HEAP_SIZE);
+    stack_init(&stack);
 
     kernel_main();
 }

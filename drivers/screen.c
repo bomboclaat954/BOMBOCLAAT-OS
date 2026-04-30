@@ -172,6 +172,7 @@ void set_cursor(int x, int y)
 {
     cursor_x = x;
     cursor_y = y;
+    update_hardware_cursor();
 }
 
 void cls()

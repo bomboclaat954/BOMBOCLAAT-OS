@@ -27,6 +27,19 @@ int strcmp(const char *s1, const char *s2)
     return *(unsigned char *)s1 - *(unsigned char *)s2;
 }
 
+void strcpy(char *s, char *p)
+{
+    char *temp1 = s;
+    char *temp2 = p;
+    while (*temp1 != '\0')
+    {
+        *temp2 = *temp1;
+        temp1++;
+        temp2++;
+    }
+    *temp2 = '\0';
+}
+
 void to_lower_case(char *str)
 {
     for (char *p = str; *p; ++p)
@@ -53,7 +66,7 @@ int atoi(char *str) // ascii to int
     while ((*str >= '0') && (*str <= '9'))
     {
         acum = acum * 10;
-        acum = acum + (*str- 48);
+        acum = acum + (*str - 48);
         str++;
     }
     return (factor * acum);

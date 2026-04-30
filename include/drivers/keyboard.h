@@ -1,6 +1,11 @@
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
 
+#define ARROW_UP 0x48
+#define ARROW_DOWN 0x50
+#define ARROW_LEFT 0x4B
+#define ARROW_RIGHT 0x4D
+
 extern int shift_pressed;
 extern int caps_lock;
 
