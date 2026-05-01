@@ -14,7 +14,6 @@ void to_lower_case(char *str);
 void to_upper_case(char *str);
 char *join(char *str1, char *str2, char *output_str, int n);
 int is_number(char *x);
-void *memset(void *ptr, int value, uint32_t num);
 void *clear_str(char *str);
 void *input(char *buf, int len);
 void *input_passwd(char *buf, int len);

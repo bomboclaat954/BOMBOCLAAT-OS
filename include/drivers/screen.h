@@ -13,10 +13,10 @@ extern int current_bgc;
 
 void putc(char c);
 void puts(char *s, int endl);
+void info(char *s);
 void update_hardware_cursor();
 void scroll();
 void box(int x, int y, char *text);
-void print_multiline(char *text, int x, int y, int w, int h);
 void set_color(int fg, int bg);
 void set_cursor(int x, int y);
 void cls();

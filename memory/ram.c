@@ -102,6 +102,16 @@ void memcpy(uint8_t *dst, const char *src, uint32_t len)
         dst[i] = src[i];
 }
 
+void *memset(void *ptr, int value, uint32_t num)
+{
+    unsigned char *p = (unsigned char *)ptr;
+    while (num--)
+    {
+        *p++ = (unsigned char)value;
+    }
+    return ptr;
+}
+
 void write_u64(uint8_t *dst, uint64_t val)
 {
     dst[0] = val & 0xFF;

@@ -27,11 +27,13 @@ stack_t stack;
 extern uint32_t stack_guard;
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.9.2";
+char *VER = "BOMBOCLAAT-OS 1.9.3";
 char RAM_MB[10];
 char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
 
 global_settings settings;
+
+extern void jump_usermode(void);
 
 uint16_t reverse_endian(uint16_t nb)
 {
@@ -415,10 +417,9 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 30/04/2026", 1);
+        puts("Last update date: 1/05/2026", 1);
         puts("What's new: ", 1);
-        puts("  - now you can use up arrow to execute last used command", 1);
-        puts("  - added general purpose stack", 1);
+        puts("  - added logs at the start of the OS", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -784,9 +785,15 @@ void passwd(char *passwd)
 
 void start_kernel(long magic, uint32_t mboot_info_addr)
 {
+    cls();
+    update_hardware_cursor();
+    box(0, 0, VER);
+
+    info("Checking multiboot signature");
     if (magic != MULTIBOOT_BOOTLOADER_MAGIC)
         panic("invalid multiboot signature", NULL, 0);
 
+    info("Getting RAM informations");
     multiboot_info_t *mbi = (multiboot_info_t *)mboot_info_addr;
     pmm_init(mbi);
     uint64_t ram = multiboot_get_ram(mbi, 2); // RAM size in MB
@@ -797,29 +804,28 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
         panic("too little RAM", NULL, 0);
 
     // init interrupts and timer
+    info("Initializing IDT and PIT");
     idt_init();
     pit_init();
 
     // FPU and SSE are for better operations on floats
+    info("Enabling FPU and SSE");
     fpu_enable();
     sse_enable();
 
     enable_cursor(0x0E, 0x0F);
     // passwd("BOMBOCLAAT");
 
-    cls();
-    update_hardware_cursor();
-    box(0, 0, VER);
-    set_cursor(0, 3);
+    info("Initializing heap and stack");
+    heap_init(system_memory_pool, HEAP_SIZE);
+    stack_init(&stack);
 
+    info("All done, starting CLI");
     puts("Type ", 0);
     set_color(0x0F, 0x00);
     puts("help", 0);
     set_color(0x07, 0x00);
     puts(" for commands list", 2);
-
-    heap_init(system_memory_pool, HEAP_SIZE);
-    stack_init(&stack);
 
     kernel_main();
 }

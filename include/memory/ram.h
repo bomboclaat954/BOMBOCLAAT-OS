@@ -56,6 +56,7 @@ uint32_t get_used_ram_kb();
 uint64_t multiboot_get_ram(multiboot_info_t *mbi, int unit);
 void pmm_init(multiboot_info_t *mbi);
 void memcpy(uint8_t *dst, const char *src, uint32_t len);
+void *memset(void *ptr, int value, uint32_t num);
 void write_u64(uint8_t *dst, uint64_t val);
 void write_u32(uint8_t *dst, uint32_t val);
 void write_u16(uint8_t *dst, uint16_t val);

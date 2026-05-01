@@ -78,9 +78,15 @@ void puts(char *s, int endl)
     while (*s)
         putc(*s++);
     for (int i = 0; i < endl; i++)
-    {
         putc('\n');
-    }
+}
+
+void info(char *s)
+{
+    set_color(0x03, 0x00);
+    puts("INFO ", 0);
+    set_color(0x07, 0x00);
+    puts(s, 1);
 }
 
 void update_hardware_cursor()
@@ -129,36 +135,6 @@ void box(int x, int y, char *text)
         puts("\xCD", 0);
     }
     puts("\xBC", 1);
-}
-
-void print_multiline(char *text, int x, int y, int w, int h)
-{
-    int cx = 0;
-    int cy = 0;
-    set_cursor(x, y);
-    for (int i = 0; text[i] != '\0'; i++)
-    {
-        if (text[i] == '\n')
-        {
-            cx = 0;
-            cy++;
-        }
-        else
-        {
-            putc(text[i]);
-            cx++;
-        }
-        if (cx >= w)
-        {
-            cx = 0;
-            cy++;
-        }
-        if (cy >= h)
-        {
-            break;
-        }
-        set_cursor(x + cx, y + cy);
-    }
 }
 
 void set_color(int fg, int bg)
