@@ -8,7 +8,7 @@
 
 void diskman(char *opt)
 {
-    puts("Diskman v0.2.1", 1);
+    puts("Diskman v0.2.2", 1);
 
     if (strcmp(opt, "r") == 0)
     {
@@ -65,10 +65,8 @@ void diskman(char *opt)
     else if (strcmp(opt, "h") == 0)
     {
         puts("Available options:", 1);
-        puts("  - diskman f: format disk", 1);
         puts("  - diskman r: read sector", 1);
         puts("  - diskman e: erase sector", 1);
-        puts("  - diskman c: check if disk is formatted to BFS", 1);
     }
     else
     {

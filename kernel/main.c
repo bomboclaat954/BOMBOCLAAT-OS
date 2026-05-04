@@ -17,6 +17,9 @@
 #include <memory/ram.h>
 #include <memory/stack.h>
 #include <int/int.h>
+#include <fonts/bombofont.h>
+#include <fonts/default.h>
+#include <bomboclaat-os/kprintf.h>
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define MULTIBOOT_INFO_MEM_MAP 0x40
@@ -27,7 +30,7 @@ stack_t stack;
 extern uint32_t stack_guard;
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.9.3";
+char *VER = "BOMBOCLAAT-OS 1.10";
 char RAM_MB[10];
 char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
 
@@ -179,33 +182,23 @@ void reg_dump(registers_t *r)
 
 void panic(char *msg, registers_t *r, int from_cpu)
 {
+    cls();
+    set_cursor(0, 0);
+    set_color(0x00, 0x04);
+    puts("                            ***  KERNEL PANIC  ***                              ", 0);
     set_color(0x04, 0x00);
-    puts("*** KERNEL PANIC ***", 1);
     puts("Reason: ", 0);
     puts(msg, 1);
 
     if (!r)
         reg_dump(r);
 
-    char buf[16];
-    puts("EIP: 0x", 0);
-    itoa(r->eip, buf, 16);
-    puts(buf, 1);
-    puts("ESP: 0x", 0);
-    itoa(r->esp, buf, 16);
-    puts(buf, 1);
-    puts("EAX: 0x", 0);
-    itoa(r->eax, buf, 16);
-    puts(buf, 1);
+    kprintf("EIP: %x\n", r->eip);
+    kprintf("ESP: %x\n", r->esp);
+    kprintf("EAX: %x\n", r->eax);
     if (from_cpu)
-    {
-        puts("ERR: 0x", 0);
-        itoa(r->err_code, buf, 16);
-        puts(buf, 1);
-        puts("CS:  0x", 0);
-        itoa(r->cs, buf, 16);
-        puts(buf, 1);
-    }
+        kprintf("CS: %x\n", r->cs);
+
     puts("Press ESC to shut down or ENTER to reboot", 1);
     while (1)
     {
@@ -319,6 +312,7 @@ void execute_command(char *cmd_line)
         puts("song                - play an example song", 1);
         puts("diskman   <opt>     - disk manager (type diskman h for option list)", 1);
         puts("timeshift <+-h:+-m> - change system time (0:0 to reset)", 1);
+        puts("font      <font>    - change system font", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -417,9 +411,12 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 1/05/2026", 1);
+        puts("Last update date: 4/05/2026", 1);
         puts("What's new: ", 1);
-        puts("  - added logs at the start of the OS", 1);
+        puts("  - added custom font", 1);
+        puts("  - new command: font", 1);
+        puts("  - added kprintf", 1);
+        puts("  - updated kernel panic", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -432,7 +429,7 @@ void execute_command(char *cmd_line)
     {
         char build[10];
         char commit[10];
-        itoa(BUILD_NUMBER, build, 10); // Check Makefile line 29
+        itoa(BUILD_NUMBER, build, 10); // Check Makefile line 37
         itoa(COMMIT_NUMBER, commit, 16);
         puts("Software informations", 1);
         puts("Version: ", 0);
@@ -672,6 +669,25 @@ void execute_command(char *cmd_line)
         else
             puts("Usage: timeshift <+-h:+-m>", 1);
     }
+    else if (strcmp(cmd, "font") == 0)
+    {
+        if (strlen(arg) > 0)
+        {
+            if (strcmp(arg, "0") == 0)
+                load_font(default_font);
+            else if (strcmp(arg, "1") == 0)
+                load_font(bombofont);
+            else
+                puts("Invalid font number", 1);
+        }
+        else
+        {
+            puts("Usage: font <font>", 1);
+            puts("Available fonts:", 1);
+            puts("0 - Default", 1);
+            puts("1 - BOMBOFONT", 1);
+        }
+    }
     else if (strlen(cmd) > 0)
     {
         puts(cmd, 0);
@@ -785,6 +801,7 @@ void passwd(char *passwd)
 
 void start_kernel(long magic, uint32_t mboot_info_addr)
 {
+    load_font(default_font);
     cls();
     update_hardware_cursor();
     box(0, 0, VER);
@@ -821,11 +838,10 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     stack_init(&stack);
 
     info("All done, starting CLI");
-    puts("Type ", 0);
-    set_color(0x0F, 0x00);
-    puts("help", 0);
-    set_color(0x07, 0x00);
-    puts(" for commands list", 2);
+
+    kprintf("Type ");
+    kprintf("%ahelp", 0xF0);
+    kprintf("%a for commands list\n\n", 0x70);
 
     kernel_main();
 }

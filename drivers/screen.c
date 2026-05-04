@@ -42,9 +42,8 @@ void putc(char c)
     else if (c == '\b')
     {
         if (cursor_x > 0)
-        {
             cursor_x--;
-        }
+
         else if (cursor_y > 3)
         {
             cursor_y--;
@@ -67,9 +66,8 @@ void putc(char c)
     }
 
     if (cursor_y > ROWS)
-    {
         scroll();
-    }
+
     update_hardware_cursor();
 }
 
@@ -101,9 +99,7 @@ void update_hardware_cursor()
 void scroll()
 {
     for (int i = 0; i < (ROWS - 1) * COLUMNS * 2; i++)
-    {
         video_fb[i] = video_fb[i + COLUMNS * 2];
-    }
     for (int i = (ROWS - 1) * COLUMNS * 2; i < ROWS * COLUMNS * 2; i += 2)
     {
         video_fb[i] = ' ';
@@ -118,9 +114,7 @@ void box(int x, int y, char *text)
     set_cursor(x, y);
     puts("\xC9", 0);
     for (int i = 0; i < strlen(text) + 2; i++)
-    {
         puts("\xCD", 0);
-    }
     puts("\xBB", 1);
     set_cursor(x, y + 1);
     puts("\xBA", 0);
@@ -131,9 +125,7 @@ void box(int x, int y, char *text)
     set_cursor(x, y + 2);
     puts("\xC8", 0);
     for (int i = 0; i < strlen(text) + 2; i++)
-    {
         puts("\xCD", 0);
-    }
     puts("\xBC", 1);
 }
 
@@ -183,4 +175,46 @@ void enable_cursor(unsigned char start, unsigned char end)
     outb(0x3D5, start & 0x1F);
     outb(0x3D4, 0x0B);
     outb(0x3D5, end & 0x1F);
+}
+
+void load_font(unsigned char *font)
+{
+    outb(0x3C4, 0x00);
+    outb(0x3C5, 0x01);
+    outb(0x3C4, 0x02);
+    outb(0x3C5, 0x04);
+    outb(0x3C4, 0x04);
+    outb(0x3C5, 0x06);
+    outb(0x3C4, 0x00);
+    outb(0x3C5, 0x03);
+    outb(0x3CE, 0x04);
+    outb(0x3CF, 0x02);
+    outb(0x3CE, 0x05);
+    outb(0x3CF, 0x00);
+    outb(0x3CE, 0x06);
+    outb(0x3CF, 0x00);
+
+    volatile unsigned char *vga_mem = (volatile unsigned char *)0xA0000;
+    for (int i = 0; i < 256; i++)
+    {
+        for (int j = 0; j < 16; j++)
+        {
+            vga_mem[i * 32 + j] = font[i * 16 + j];
+        }
+    }
+
+    outb(0x3C4, 0x00);
+    outb(0x3C5, 0x01);
+    outb(0x3C4, 0x02);
+    outb(0x3C5, 0x03);
+    outb(0x3C4, 0x04);
+    outb(0x3C5, 0x03);
+    outb(0x3C4, 0x00);
+    outb(0x3C5, 0x03);
+    outb(0x3CE, 0x04);
+    outb(0x3CF, 0x00);
+    outb(0x3CE, 0x05);
+    outb(0x3CF, 0x10);
+    outb(0x3CE, 0x06);
+    outb(0x3CF, 0x0E);
 }

@@ -27,6 +27,11 @@ prepare:
 	@mkdir -p build iso/boot/grub
 	@find . -path "./iso" -prune -o -path "./include" -prune -o -path "./build" -prune -o -type d -not -name "." -exec mkdir -p build/{} \;
 
+font:
+	@echo "Parsing font"
+	@python3 fonts.py bombofont.psf
+	@mv font.h include/fonts/bombofont.h
+
 build/%.c.o: %.c
 	@echo "  CC  $<"
 	@gcc $(CFLAGS) -D BUILD_NUMBER=$(NEW_BUILD_NO) -D COMMIT_NUMBER=0x$(COMMIT_NO) -c $< -o $@ 

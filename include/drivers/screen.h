@@ -23,5 +23,6 @@ void cls();
 void disable_vga_blink();
 void disable_cursor();
 void enable_cursor(unsigned char start, unsigned char end);
+void load_font(unsigned char *font);
 
 #endif
