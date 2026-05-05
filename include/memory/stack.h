@@ -9,11 +9,20 @@ typedef struct
     int top;
 } stack_t;
 
-void stack_init(stack_t *stack_t);
-int isEmpty(stack_t *stack_t);
-int isFull(stack_t *stack_t);
-void push(stack_t *stack_t, int value);
-int pop(stack_t *stack_t);
-int top(stack_t *stack_t);
+#ifdef __cplusplus
+extern "C"
+{
+
+#endif
+    void stack_init(stack_t *stack_t);
+    int isEmpty(stack_t *stack_t);
+    int isFull(stack_t *stack_t);
+    void push(stack_t *stack_t, int value);
+    int pop(stack_t *stack_t);
+    int top(stack_t *stack_t);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

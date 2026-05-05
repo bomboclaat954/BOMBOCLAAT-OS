@@ -1,14 +1,16 @@
-# BOMBOCLAAT-OS MAKEFILE v2
+# BOMBOCLAAT-OS MAKEFILE v2.1
 
 CFLAGS = -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -Iinclude
 LDFLAGS = -m elf_i386 -T link.ld --no-warn-rwx-segments
 
 C_SOURCES = $(shell find . -path "./iso" -prune -o -path "./include" -prune -o -name "*.c" -print)
+CPP_SOURCES = $(shell find . -path "./iso" -prune -o -path "./include" -prune -o -name "*.cpp" -print)
 ASM_SOURCES = $(shell find . -path "./iso" -prune -o -path "./include" -prune -o -name "*.asm" -print)
 
 C_OBJECTS = $(patsubst ./%, build/%.o, $(C_SOURCES))
+CPP_OBJECTS = $(patsubst ./%, build/%.o, $(CPP_SOURCES))
 ASM_OBJECTS = $(patsubst ./%, build/%.o, $(ASM_SOURCES))
-ALL_OBJECTS = $(C_OBJECTS) $(ASM_OBJECTS)
+ALL_OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS) $(ASM_OBJECTS)
 
 BUILD_NO := $(shell [ -f build_no.txt ] && cat build_no.txt || echo 0)
 COMMIT_NO := $(shell git rev-parse --short HEAD)
@@ -33,11 +35,15 @@ font:
 	@mv font.h include/fonts/bombofont.h
 
 build/%.c.o: %.c
-	@echo "  CC  $<"
+	@echo "  GCC  $<"
 	@gcc $(CFLAGS) -D BUILD_NUMBER=$(NEW_BUILD_NO) -D COMMIT_NUMBER=0x$(COMMIT_NO) -c $< -o $@ 
 
+build/%.cpp.o: %.cpp
+	@echo "  G++  $<"
+	@g++ $(CFLAGS) -c $< -o $@ 
+
 build/%.asm.o: %.asm
-	@echo "  AS  $<"
+	@echo "  ASM  $<"
 	@nasm -f elf32 $< -o $@
 
 link:

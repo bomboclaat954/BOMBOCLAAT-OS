@@ -102,6 +102,27 @@ void memcpy(uint8_t *dst, const char *src, uint32_t len)
         dst[i] = src[i];
 }
 
+void *memmove(void *dst, const void *src, size_t len)
+{
+    uint8_t *dp = (uint8_t *)dst;
+    const uint8_t *sp = (const uint8_t *)src;
+
+    if (sp < dp && sp + len > dp)
+    {
+        sp += len;
+        dp += len;
+        while (len-- > 0)
+            *--dp = *--sp;
+    }
+    else
+    {
+        while (len-- > 0)
+            *dp++ = *sp++;
+    }
+
+    return dst;
+}
+
 void *memset(void *ptr, int value, uint32_t num)
 {
     unsigned char *p = (unsigned char *)ptr;

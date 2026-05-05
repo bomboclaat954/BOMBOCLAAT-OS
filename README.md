@@ -45,6 +45,7 @@ You can run it on VirtualBox or any other virtual machine if you want. Also it's
 # Notes
 
 1. I strongly recomend using QEMU for running this OS. Why? Because VirtualBox is a bit dumb and the speaker doesn't speak. If you use VBox you'll just hear nothing from commands that make sound.
+2. Some part of the code is in C++ instead of C. To distinguish which headers are for C and wich for C++, the C ones end with **.h**, and the C++ ones end with **.hpp**.
 
 # TODO
 

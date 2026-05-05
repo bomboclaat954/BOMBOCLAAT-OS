@@ -13,6 +13,7 @@
 #include <lib/rand.h>
 #include <apps/calc.h>
 #include <apps/diskman.h>
+#include <apps/scripter.h>
 #include <memory/kmalloc.h>
 #include <memory/ram.h>
 #include <memory/stack.h>
@@ -30,13 +31,11 @@ stack_t stack;
 extern uint32_t stack_guard;
 
 char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.10";
+char *VER = "BOMBOCLAAT-OS 1.11";
 char RAM_MB[10];
 char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
 
 global_settings settings;
-
-extern void jump_usermode(void);
 
 uint16_t reverse_endian(uint16_t nb)
 {
@@ -213,17 +212,6 @@ void panic(char *msg, registers_t *r, int from_cpu)
     }
 }
 
-void check_stack()
-{
-    uint32_t esp;
-    asm volatile("mov %%esp, %0" : "=r"(esp));
-    if (esp <= (uint32_t)&stack_guard || (esp - (uint32_t)&stack_guard) < 512)
-    {
-        registers_t *r;
-        panic("stack overflow", NULL, 0);
-    }
-}
-
 void update_clock()
 {
     int old_x = cursor_x;
@@ -313,6 +301,7 @@ void execute_command(char *cmd_line)
         puts("diskman   <opt>     - disk manager (type diskman h for option list)", 1);
         puts("timeshift <+-h:+-m> - change system time (0:0 to reset)", 1);
         puts("font      <font>    - change system font", 1);
+        puts("scripter            - write scripts", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -411,12 +400,11 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 4/05/2026", 1);
+        puts("Last update date: 5/05/2026", 1);
         puts("What's new: ", 1);
-        puts("  - added custom font", 1);
-        puts("  - new command: font", 1);
-        puts("  - added kprintf", 1);
-        puts("  - updated kernel panic", 1);
+        puts("  - new command: scripter", 1);
+        puts("  - from now it's possible to write the code in C++", 1);
+        puts("  - updated Makefile", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -429,7 +417,7 @@ void execute_command(char *cmd_line)
     {
         char build[10];
         char commit[10];
-        itoa(BUILD_NUMBER, build, 10); // Check Makefile line 37
+        itoa(BUILD_NUMBER, build, 10);
         itoa(COMMIT_NUMBER, commit, 16);
         puts("Software informations", 1);
         puts("Version: ", 0);
@@ -665,6 +653,9 @@ void execute_command(char *cmd_line)
             settings.m_shift += _m;
 
             update_clock();
+
+            kfree(h);
+            kfree(m);
         }
         else
             puts("Usage: timeshift <+-h:+-m>", 1);
@@ -688,6 +679,8 @@ void execute_command(char *cmd_line)
             puts("1 - BOMBOFONT", 1);
         }
     }
+    else if (strcmp(cmd, "scripter") == 0)
+        scripter_main();
     else if (strlen(cmd) > 0)
     {
         puts(cmd, 0);
@@ -708,8 +701,6 @@ void kernel_main(void)
 
     while (1)
     {
-        // check if stack isn't overflowed
-        check_stack();
         // CLOCK UPDATE
         if (!is_update_in_progress())
         {

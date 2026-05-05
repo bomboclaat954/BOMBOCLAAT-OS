@@ -6,6 +6,8 @@
 #include <drivers/screen.h>
 #include <drivers/io.h>
 #include <bomboclaat-os/api.h>
+#include <memory/kmalloc.h>
+#include <memory/ram.h>
 
 int strlen(const char *str)
 {
@@ -27,6 +29,19 @@ int strcmp(const char *s1, const char *s2)
     return *(unsigned char *)s1 - *(unsigned char *)s2;
 }
 
+int strncmp(const char *s1, const char *s2, int n)
+{
+    while (n > 0 && *s1 && (*s1 == *s2))
+    {
+        s1++;
+        s2++;
+        n--;
+    }
+    if (n == 0)
+        return 0;
+    return *(unsigned char *)s1 - *(unsigned char *)s2;
+}
+
 void strcpy(char *s, char *p)
 {
     char *temp1 = s;
@@ -38,6 +53,77 @@ void strcpy(char *s, char *p)
         temp2++;
     }
     *temp2 = '\0';
+}
+
+char *strstr(char *str, char *substring)
+{
+    const char *a;
+    const char *b;
+
+    b = substring;
+
+    if (*b == 0)
+        return (char *)str;
+
+    for (; *str != 0; str += 1)
+    {
+        if (*str != *b)
+            continue;
+
+        a = str;
+        while (1)
+        {
+            if (*b == 0)
+                return (char *)str;
+
+            if (*a++ != *b++)
+                break;
+        }
+        b = substring;
+    }
+
+    return NULL;
+}
+
+char *strtok(char *s, char *delm)
+{
+    static int currIndex = 0;
+    if (!s || !delm || s[currIndex] == '\0')
+        return NULL;
+    char *W = (char *)kmalloc(sizeof(char) * 100);
+    int i = currIndex, k = 0, j = 0;
+
+    while (s[i] != '\0')
+    {
+        j = 0;
+        while (delm[j] != '\0')
+        {
+            if (s[i] != delm[j])
+                W[k] = s[i];
+            else
+                goto It;
+            j++;
+        }
+
+        i++;
+        k++;
+    }
+It:
+    W[i] = 0;
+    currIndex = i + 1;
+    return W;
+}
+
+void strrem(char *str, char *substr)
+{
+    char *pos = strstr(str, substr);
+    int sublen = strlen(substr);
+    for (int i = pos - str;; i++)
+    {
+        str[i] = str[i + sublen];
+        if (str[i] == '\0')
+            break;
+    }
 }
 
 void to_lower_case(char *str)
@@ -82,9 +168,7 @@ int contains(char *str, char c)
             break;
         }
         else
-        {
             continue;
-        }
     }
     return 0;
 }
@@ -213,6 +297,19 @@ void *clear_str(char *str)
         str[i] = ' ';
     }
     str[len - 1] = '\0';
+}
+
+int input_key()
+{
+    while (1)
+    {
+        if (inb(0x64) & 1)
+        {
+            unsigned char scancode = inb(0x60);
+            if (!(scancode & 0x80))
+                return scancode;
+        }
+    }
 }
 
 void *input(char *buf, int len)

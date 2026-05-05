@@ -68,8 +68,7 @@ static void print_hex(unsigned int value, unsigned int width, char *buf, int *pt
     }
 }
 
-size_t
-vasprintf(char *buf, const char *fmt, va_list args)
+size_t vasprintf(char *buf, const char *fmt, va_list args)
 {
     int i = 0;
     char *s;
@@ -99,9 +98,7 @@ vasprintf(char *buf, const char *fmt, va_list args)
         case 's':
             s = (char *)va_arg(args, char *);
             while (*s)
-            {
                 buf[ptr++] = *s++;
-            }
             break;
         case 'c':
             buf[ptr++] = (char)va_arg(args, int);

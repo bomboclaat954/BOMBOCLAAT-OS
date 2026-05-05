@@ -33,14 +33,23 @@ static idtr_t idtr;
 static int vectors[IDT_MAX_DESCRIPTORS];
 extern void *isr_stub_table[];
 
-void exception_handler(registers_t *r);
-void idt_set_descriptor(uint8_t vector, void *isr, uint8_t flags);
-void idt_init(void);
-static inline void io_wait(void);
-void pic_remap(void);
-void pit_init(void);
-void pit_tick(void);
-uint32_t pit_get_ticks(void);
-void delay_ms(uint32_t ms);
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+    void exception_handler(registers_t *r);
+    void idt_set_descriptor(uint8_t vector, void *isr, uint8_t flags);
+    void idt_init(void);
+    static inline void io_wait(void);
+    void pic_remap(void);
+    void pit_init(void);
+    void pit_tick(void);
+    uint32_t pit_get_ticks(void);
+    void delay_ms(uint32_t ms);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
