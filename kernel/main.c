@@ -21,6 +21,7 @@
 #include <fonts/bombofont.h>
 #include <fonts/default.h>
 #include <bomboclaat-os/kprintf.h>
+#include <fs/fat32.h>
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define MULTIBOOT_INFO_MEM_MAP 0x40
@@ -30,10 +31,11 @@ uint8_t system_memory_pool[HEAP_SIZE];
 stack_t stack;
 extern uint32_t stack_guard;
 
-char *prompt = "$ ";
-char *VER = "BOMBOCLAAT-OS 1.11";
+char *dir = "~";
+char *VER = "BOMBOCLAAT-OS 1.12";
 char RAM_MB[10];
 char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
+int fat32 = 0;
 
 global_settings settings;
 
@@ -69,6 +71,13 @@ int is_update_in_progress()
 int bcd_to_bin(unsigned char bcd)
 {
     return ((bcd / 16) * 10) + (bcd & 0xf);
+}
+
+void prompt()
+{
+    char out[48];
+    join(dir, "$ ", out, 0);
+    puts(out, 0);
 }
 
 char *datetime(int type)
@@ -302,6 +311,8 @@ void execute_command(char *cmd_line)
         puts("timeshift <+-h:+-m> - change system time (0:0 to reset)", 1);
         puts("font      <font>    - change system font", 1);
         puts("scripter            - write scripts", 1);
+        puts("ls                  - list all files in current directory", 1);
+        puts("read      <file>    - read file content", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -400,11 +411,10 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 5/05/2026", 1);
+        puts("Last update date: 11/05/2026", 1);
         puts("What's new: ", 1);
-        puts("  - new command: scripter", 1);
-        puts("  - from now it's possible to write the code in C++", 1);
-        puts("  - updated Makefile", 1);
+        puts("  - added partial FAT32 support (read only for now)", 1);
+        puts("  - new commands: ls, read", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -621,7 +631,7 @@ void execute_command(char *cmd_line)
                 settings.h_shift = 0;
                 settings.m_shift = 0;
                 update_clock();
-                puts(prompt, 0);
+                prompt();
                 return;
             }
             char *h = kmalloc(4);
@@ -645,7 +655,7 @@ void execute_command(char *cmd_line)
             if (_h > 23 || _h < -23 || _m > 59 || _m < -59)
             {
                 puts("Error: too big shift", 1);
-                puts(prompt, 0);
+                prompt();
                 return;
             }
 
@@ -681,12 +691,28 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "scripter") == 0)
         scripter_main();
+    else if (strcmp(cmd, "ls") == 0)
+    {
+        if (fat32)
+            list_root_directory();
+        else
+            puts("The disk isn't formatted or has unknown filesystem", 1);
+    }
+    else if (strcmp(cmd, "read") == 0)
+    {
+        if (strlen(arg) > 0 && fat32)
+            read(arg);
+        else if (!fat32)
+            puts("The disk isn't formatted or has unknown filesystem", 1);
+        else
+            puts("File name wasn't specified", 1);
+    }
     else if (strlen(cmd) > 0)
     {
         puts(cmd, 0);
         puts(": command not found", 1);
     }
-    puts(prompt, 0);
+    prompt();
 }
 
 void kernel_main(void)
@@ -697,7 +723,7 @@ void kernel_main(void)
     int extended = 0;
     int printed_last_cmd = 0;
 
-    puts(prompt, 0);
+    prompt();
 
     while (1)
     {
@@ -811,6 +837,14 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     else if (ram < 64)
         panic("too little RAM", NULL, 0);
 
+    info("Initializing heap and stack");
+    heap_init(system_memory_pool, HEAP_SIZE);
+    stack_init(&stack);
+
+    fat32 = init_fat32();
+    if (fat32)
+        info("Found a disk with FAT32");
+
     // init interrupts and timer
     info("Initializing IDT and PIT");
     idt_init();
@@ -823,10 +857,6 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
 
     enable_cursor(0x0E, 0x0F);
     // passwd("BOMBOCLAAT");
-
-    info("Initializing heap and stack");
-    heap_init(system_memory_pool, HEAP_SIZE);
-    stack_init(&stack);
 
     info("All done, starting CLI");
 

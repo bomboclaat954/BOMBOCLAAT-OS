@@ -59,6 +59,7 @@ void pmm_init(multiboot_info_t *mbi);
 void memcpy(uint8_t *dst, const char *src, uint32_t len);
 void *memmove(void *dst, const void *src, size_t len);
 void *memset(void *ptr, int value, uint32_t num);
+int memcmp(const void *buf1, const void *buf2, size_t count);
 void write_u64(uint8_t *dst, uint64_t val);
 void write_u32(uint8_t *dst, uint32_t val);
 void write_u16(uint8_t *dst, uint16_t val);

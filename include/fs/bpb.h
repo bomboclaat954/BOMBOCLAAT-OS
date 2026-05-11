@@ -4,22 +4,20 @@
 
 typedef struct
 {
-    // common FAT offsets
     uint8_t jmp[3];
     char oem[8];
     uint16_t bytes_per_sector;
-    uint8_t bytes_per_cluster;
+    uint8_t sectors_per_cluster;
     uint16_t reserved_sectors;
     uint8_t num_FATs;
-    uint16_t root_dir_entries; // always 0 for FAT32
-    uint16_t total_sectors_16; // also always 0
+    uint16_t root_dir_entries;
+    uint16_t total_sectors_16;
     uint8_t media_type;
-    uint16_t sectors_per_fat; // used in FAT12/FAT16, in FAT32 always 0
+    uint16_t sectors_per_fat;
     uint16_t sectors_per_track;
     uint16_t heads;
     uint32_t hidden_sectors;
     uint32_t total_sectors;
-    // offsets specific for FAT32
     uint32_t FAT_size;
     uint16_t flags;
     uint16_t fs_ver;
@@ -29,7 +27,7 @@ typedef struct
     uint32_t reserved[3];
     uint8_t int13_drive_number;
     uint8_t reserved1;
-    uint8_t sig1;
+    uint8_t sig;
     uint32_t volume_id;
     char volume_label[11];
     char filesystem[8];

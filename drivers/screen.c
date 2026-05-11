@@ -39,6 +39,11 @@ void putc(char c)
         cursor_x = 0;
         cursor_y++;
     }
+    else if (c == '\t')
+    {
+        cursor_x = cursor_x;
+        cursor_y = cursor_y;
+    }
     else if (c == '\b')
     {
         if (cursor_x > 0)

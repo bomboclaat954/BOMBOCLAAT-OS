@@ -133,6 +133,21 @@ void *memset(void *ptr, int value, uint32_t num)
     return ptr;
 }
 
+int memcmp(const void *buf1, const void *buf2, size_t count)
+{
+    const unsigned char *s1 = (const unsigned char *)buf1;
+    const unsigned char *s2 = (const unsigned char *)buf2;
+
+    for (size_t i = 0; i < count; i++)
+    {
+        if (s1[i] < s2[i])
+            return -1;
+        else if (s1[i] > s2[i])
+            return 1;
+    }
+    return 0;
+}
+
 void write_u64(uint8_t *dst, uint64_t val)
 {
     dst[0] = val & 0xFF;

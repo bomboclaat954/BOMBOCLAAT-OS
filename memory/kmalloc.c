@@ -102,9 +102,7 @@ void kfree(void *ptr)
             void *raw_ptr = (void *)(*raw_addr);
 
             if ((uint8_t *)raw_ptr >= heap_start && (uint8_t *)raw_ptr < heap_end)
-            {
                 ptr = raw_ptr;
-            }
         }
     }
 
