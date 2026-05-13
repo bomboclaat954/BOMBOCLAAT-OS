@@ -70,6 +70,10 @@ run:
 disk-img:
 	@qemu-img create -f raw disk.img 256M
 	@mkfs.fat -F 32 disk.img
-	@echo "Hello from BOMBOCLAAT-OS!" > hello.txt
+	@mkdir data
+	@echo "Hello from data folder!" > data/hello.txt
+	@mcopy -i disk.img -s data ::/
+	@echo "Hello from the root directory!" > hello.txt
 	@mcopy -i disk.img hello.txt ::hello.txt
+	@rm -rf data
 	@rm hello.txt

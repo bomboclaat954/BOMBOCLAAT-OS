@@ -14,6 +14,12 @@
 int data_start = 0;
 int root_lba = 0;
 bpb_t *bpb = 0;
+uint32_t curr_dir_clus = 0;
+
+uint32_t get_root_clus()
+{
+    return bpb->root_cluster;
+}
 
 int cluster_to_lba(int cluster)
 {
@@ -39,6 +45,11 @@ uint32_t get_next_cluster(uint32_t current_cluster)
 
 void format_to_83(const char *input, char *output)
 {
+    if (strcmp(input, "..") == 0)
+    {
+        strcpy("..         ", output);
+        return;
+    }
     for (int i = 0; i < 11; i++)
         output[i] = ' ';
 
@@ -92,9 +103,11 @@ char *attr_to_txt(uint8_t attr)
         return "[ ??? ]";
 }
 
-void list_root_directory()
+void lsdir_cluster(uint32_t dir_cluster)
 {
-    uint32_t current_cluster = bpb->root_cluster;
+    if (dir_cluster == 0)
+        dir_cluster = curr_dir_clus;
+    uint32_t current_cluster = dir_cluster;
     uint16_t sector_buffer[256];
 
     while (current_cluster < 0x0FFFFFF8)
@@ -117,20 +130,31 @@ void list_root_directory()
                 if (entry[i].attr == ATTR_LFN)
                     continue;
 
-                char name_buf[12];
-                memcpy(name_buf, entry[i].name, 11);
-                name_buf[11] = '\0';
-                char name_formatted[12];
-                format_from_83(name_buf, name_formatted);
-                char *attr = attr_to_txt(entry[i].attr);
-                kprintf("%s   %dB   %s\n", name_formatted, entry[i].size, attr);
+                if (entry[i].attr == ATTR_DIRECTORY)
+                {
+                    char name_buf[12];
+                    memcpy(name_buf, entry[i].name, 11);
+                    name_buf[11] = '\0';
+                    char *attr = attr_to_txt(entry[i].attr);
+                    kprintf("%s       %s\n", name_buf, attr);
+                }
+                else
+                {
+                    char name_buf[12];
+                    memcpy(name_buf, entry[i].name, 11);
+                    name_buf[11] = '\0';
+                    char name_formatted[12];
+                    format_from_83(name_buf, name_formatted);
+                    char *attr = attr_to_txt(entry[i].attr); // useless but looks better that way
+                    kprintf("%s   %dB   %s\n", name_formatted, entry[i].size, attr);
+                }
             }
         }
         current_cluster = get_next_cluster(current_cluster);
     }
 }
 
-dir_entry_t *find_file(const char *name, uint32_t dir_cluster)
+dir_entry_t *find(const char *name, uint32_t dir_cluster, uint8_t attr)
 {
     char fat_name[11];
     format_to_83(name, fat_name);
@@ -163,6 +187,24 @@ dir_entry_t *find_file(const char *name, uint32_t dir_cluster)
     return 0;
 }
 
+uint32_t chdir(const char *name, uint32_t current_dir) // ik the names are a bit fucked up but ignore it
+{
+    dir_entry_t *dir = find(name, current_dir, ATTR_DIRECTORY);
+    if (dir->attr == ATTR_DIRECTORY)
+    {
+        uint32_t new_clus = (dir->cluster_hi << 16) | dir->cluster_lo;
+        if (new_clus == 0)
+        {
+            curr_dir_clus = bpb->root_cluster;
+            return curr_dir_clus;
+        }
+        curr_dir_clus = new_clus;
+        return ((dir->cluster_hi << 16) | dir->cluster_lo);
+    }
+    else
+        return current_dir;
+}
+
 void read_file_content(dir_entry_t *file, void *output_buffer)
 {
     uint32_t current_cluster = ((uint32_t)file->cluster_hi << 16) | file->cluster_lo;
@@ -190,11 +232,11 @@ void read_file_content(dir_entry_t *file, void *output_buffer)
 
 void read(char *name)
 {
-    dir_entry_t *file = find_file(name, bpb->root_cluster);
+    dir_entry_t *file = find(name, curr_dir_clus, ATTR_ARCHIVE);
 
     if (!file)
     {
-        puts("File not found!", 1);
+        puts("File not found", 1);
         return;
     }
 
@@ -208,7 +250,7 @@ void read(char *name)
     kfree(buf);
 }
 
-int init_fat32()
+uint32_t init_fat32()
 {
     bpb = (bpb_t *)kmalloc(512);
     if (bpb == 0)
@@ -217,11 +259,12 @@ int init_fat32()
     ata_read_sector(0, (uint16_t *)bpb);
     data_start = bpb->reserved_sectors + (bpb->num_FATs * bpb->FAT_size);
     root_lba = data_start + (bpb->root_cluster - 2) * bpb->sectors_per_cluster;
+    curr_dir_clus = bpb->root_cluster;
     char fs[9];
     memcpy(fs, bpb->filesystem, 8);
     fs[8] = '\0';
     if (strcmp(fs, "FAT32   ") == 0 && bpb->boot_signature == 0xAA55)
-        return 1;
+        return curr_dir_clus;
     else
         return 0;
 }

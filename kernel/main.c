@@ -31,11 +31,14 @@ uint8_t system_memory_pool[HEAP_SIZE];
 stack_t stack;
 extern uint32_t stack_guard;
 
-char *dir = "~";
-char *VER = "BOMBOCLAAT-OS 1.12";
+char *VER = "BOMBOCLAAT-OS 1.12.1";
 char RAM_MB[10];
 char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
 int fat32 = 0;
+
+uint32_t current_dir_cluster = 0;
+uint32_t root_cluster = 0;
+char current_dir_name[12];
 
 global_settings settings;
 
@@ -76,7 +79,7 @@ int bcd_to_bin(unsigned char bcd)
 void prompt()
 {
     char out[48];
-    join(dir, "$ ", out, 0);
+    join(current_dir_name, " $ ", out, 0);
     puts(out, 0);
 }
 
@@ -294,25 +297,9 @@ void execute_command(char *cmd_line)
     if (strcmp(cmd, "help") == 0)
     {
         puts("Available commands:", 1);
-        puts("cls                 - clear commands output", 1);
-        puts("info                - informations about software and hardware", 1);
-        puts("box       <text>    - show a box with yout text", 1);
-        puts("time                - show current time (HH:MM:SS)", 1);
-        puts("date                - show current date (DD/MM/YY)", 1);
-        puts("reboot              - reboot your computer", 1);
-        puts("shutdown, exit      - shut down your computer", 1);
-        puts("color     <color>   - change text color", 1);
-        puts("updates             - check what's new in BOMBOCLAAT-OS", 1);
-        puts("panic     <msg>     - makes a kernel panic with your message", 1);
-        puts("timer     <m:s>     - sets a countdown timer to <m> minutes and <s> seconds", 1);
-        puts("beep      <freq>    - beeps with provided frequency for 1s", 1);
-        puts("song                - play an example song", 1);
-        puts("diskman   <opt>     - disk manager (type diskman h for option list)", 1);
-        puts("timeshift <+-h:+-m> - change system time (0:0 to reset)", 1);
-        puts("font      <font>    - change system font", 1);
-        puts("scripter            - write scripts", 1);
-        puts("ls                  - list all files in current directory", 1);
-        puts("read      <file>    - read file content", 1);
+        puts("cls, info, box <txt>, time, date, reboot, shutdown, color <color>, updates,", 1);
+        puts("panic <msg>, timer <m:s>, beep <freq> song, diskman <opt>, timeshift <+-h:+-m>,", 1);
+        puts("font <font>, scripter, ls, read <file>, cd <dir>", 1);
     }
     else if (strcmp(cmd, "cls") == 0)
     {
@@ -411,10 +398,11 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 11/05/2026", 1);
+        puts("Last update date: 13/05/2026", 1);
         puts("What's new: ", 1);
-        puts("  - added partial FAT32 support (read only for now)", 1);
-        puts("  - new commands: ls, read", 1);
+        puts("  - updated FAT32 support", 1);
+        puts("  - new command: cd", 1);
+        puts("  - fixed kernel panic after typing beep 0", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -539,19 +527,25 @@ void execute_command(char *cmd_line)
             noTone();
         }
         else
-            puts("Error: time not specified or in bad format", 1);
+            puts("Usage: timer <+-h:+-m>", 1);
     }
     else if (strcmp(cmd, "beep") == 0)
     {
         if (strlen(arg) > 0)
         {
             int freq = atoi(arg);
+            if (freq == 0)
+            {
+                puts("Error: frequency can't be 0", 1);
+                prompt();
+                return;
+            }
             tone(freq);
             delay_ms(1000);
             noTone();
         }
         else
-            puts("Error: no frequency provided", 1);
+            puts("Usage: beep <freq>", 1);
     }
     else if (strcmp(cmd, "song") == 0)
     {
@@ -694,7 +688,7 @@ void execute_command(char *cmd_line)
     else if (strcmp(cmd, "ls") == 0)
     {
         if (fat32)
-            list_root_directory();
+            lsdir_cluster(current_dir_cluster);
         else
             puts("The disk isn't formatted or has unknown filesystem", 1);
     }
@@ -706,6 +700,21 @@ void execute_command(char *cmd_line)
             puts("The disk isn't formatted or has unknown filesystem", 1);
         else
             puts("File name wasn't specified", 1);
+    }
+    else if (strcmp(cmd, "cd") == 0)
+    {
+        uint32_t new_clus = chdir(arg, current_dir_cluster);
+        if (new_clus == current_dir_cluster)
+        {
+            kprintf("Directory not found\n");
+            prompt();
+            return;
+        }
+        current_dir_cluster = new_clus;
+        if (new_clus == 0 || new_clus == 2)
+            strcpy("~", current_dir_name);
+        else
+            strcpy(arg, current_dir_name);
     }
     else if (strlen(cmd) > 0)
     {
@@ -841,9 +850,14 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     heap_init(system_memory_pool, HEAP_SIZE);
     stack_init(&stack);
 
-    fat32 = init_fat32();
+    current_dir_cluster = init_fat32();
+    fat32 = current_dir_cluster == 0 ? 0 : 1;
     if (fat32)
+    {
         info("Found a disk with FAT32");
+        root_cluster = get_root_clus();
+    }
+    strcpy("~", current_dir_name);
 
     // init interrupts and timer
     info("Initializing IDT and PIT");

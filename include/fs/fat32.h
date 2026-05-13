@@ -27,9 +27,11 @@ typedef struct
     uint32_t size;
 } __attribute__((packed)) dir_entry_t;
 
-void list_root_directory();
+uint32_t get_root_clus();
+void lsdir_cluster(uint32_t dir_cluster);
 void read_file_content(dir_entry_t *file, void *output_buffer);
 void read(char *name);
-int init_fat32();
+uint32_t chdir(const char *name, uint32_t current_dir);
+uint32_t init_fat32();
 
 #endif
