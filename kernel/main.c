@@ -33,7 +33,6 @@ extern uint32_t stack_guard;
 
 char *VER = "BOMBOCLAAT-OS 1.12.1";
 char RAM_MB[10];
-char letters_digits[37] = "QWERTYUIOPASDFGHJKLZXCVBNM0123456789";
 int fat32 = 0;
 
 uint32_t current_dir_cluster = 0;
@@ -41,6 +40,12 @@ uint32_t root_cluster = 0;
 char current_dir_name[12];
 
 global_settings settings;
+
+uintptr_t __stack_chk_guard = 0xC17F18;
+void __stack_chk_fail(void)
+{
+    panic("stack error", 0, 0);
+}
 
 uint16_t reverse_endian(uint16_t nb)
 {
@@ -160,7 +165,8 @@ void shutdown()
     outw(0xB004, 0x2000); // QEMU
     outw(0x604, 0x2000);  // QEMU / Bochs
     outw(0x4004, 0x3400); // VirtualBox
-    __asm__ volatile("cli; hlt");
+    __asm__ volatile("cli");
+    __asm__ volatile("hlt");
 }
 
 void reg_dump(registers_t *r)

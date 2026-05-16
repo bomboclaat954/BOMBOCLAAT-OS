@@ -11,7 +11,6 @@ extern "C"
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
     extern char *VER;
 
-    extern char letters_digits[37];
     uint16_t reverse_endian(uint16_t nb);
     void return_to_kernel(void);
     int is_update_in_progress();
