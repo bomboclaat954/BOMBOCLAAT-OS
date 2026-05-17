@@ -2,6 +2,7 @@
 #include <lib/string.h>
 #include <drivers/io.h>
 #include <drivers/screen.h>
+#include <memory/kmalloc.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
@@ -124,7 +125,7 @@ size_t vasprintf(char *buf, const char *fmt, va_list args)
 
 int kprintf(const char *fmt, ...)
 {
-    char buf[1024] = {-1};
+    char *buf = kmalloc(1024);
     va_list args;
     va_start(args, fmt);
     int out = vasprintf(buf, fmt, args);

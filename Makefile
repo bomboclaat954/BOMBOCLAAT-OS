@@ -1,7 +1,7 @@
 # BOMBOCLAAT-OS MAKEFILE v2.2
 # I switched to Arch Linux from Ubuntu and there were some issues with build and QEMU but I fixed it
 
-CFLAGS = -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -Iinclude -march=i386
+CFLAGS = -m32 -O2 -fno-pie -fno-builtin -fomit-frame-pointer -ffreestanding -Iinclude -march=i386 -fno-stack-protector
 LDFLAGS = -m elf_i386 -T link.ld --no-warn-rwx-segments
 
 C_SOURCES = $(shell find . -path "./iso" -prune -o -path "./include" -prune -o -name "*.c" -print)

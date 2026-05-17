@@ -25,27 +25,21 @@
 
 #define MULTIBOOT_BOOTLOADER_MAGIC 0x2BADB002
 #define MULTIBOOT_INFO_MEM_MAP 0x40
-#define HEAP_SIZE (2048 * 2048) // 4 MB
+#define HEAP_SIZE 16 * (1024 * 1024) // 16 MB
 
 uint8_t system_memory_pool[HEAP_SIZE];
 stack_t stack;
 extern uint32_t stack_guard;
 
-char *VER = "BOMBOCLAAT-OS 1.12.1";
+char *VER = "BOMBOCLAAT-OS 1.12.2";
 char RAM_MB[10];
 int fat32 = 0;
 
 uint32_t current_dir_cluster = 0;
 uint32_t root_cluster = 0;
-char current_dir_name[12];
+char current_path[64];
 
 global_settings settings;
-
-uintptr_t __stack_chk_guard = 0xC17F18;
-void __stack_chk_fail(void)
-{
-    panic("stack error", 0, 0);
-}
 
 uint16_t reverse_endian(uint16_t nb)
 {
@@ -84,7 +78,7 @@ int bcd_to_bin(unsigned char bcd)
 void prompt()
 {
     char out[48];
-    join(current_dir_name, " $ ", out, 0);
+    join(current_path, " $ ", out, 0);
     puts(out, 0);
 }
 
@@ -404,11 +398,12 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 13/05/2026", 1);
+        puts("Last update date: 17/05/2026", 1);
         puts("What's new: ", 1);
-        puts("  - updated FAT32 support", 1);
-        puts("  - new command: cd", 1);
-        puts("  - fixed kernel panic after typing beep 0", 1);
+        puts("  - removed current diskman code (it'll be written from scratch)", 1);
+        puts("  - added -fno-stack-protector flag to prevent build issues", 1);
+        puts("  - expanded heap to 16 MB", 1);
+        puts("  - fixed some pointers", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -718,9 +713,14 @@ void execute_command(char *cmd_line)
         }
         current_dir_cluster = new_clus;
         if (new_clus == 0 || new_clus == 2)
-            strcpy("~", current_dir_name);
+            strcpy("~", current_path);
         else
-            strcpy(arg, current_dir_name);
+        {
+            char tmp[12];
+            join(current_path, "/", tmp, 0);
+            join(tmp, arg, tmp, 0);
+            strcpy(tmp, current_path);
+        }
     }
     else if (strlen(cmd) > 0)
     {
@@ -863,7 +863,7 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
         info("Found a disk with FAT32");
         root_cluster = get_root_clus();
     }
-    strcpy("~", current_dir_name);
+    strcpy("~", current_path);
 
     // init interrupts and timer
     info("Initializing IDT and PIT");
@@ -876,7 +876,6 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     sse_enable();
 
     enable_cursor(0x0E, 0x0F);
-    // passwd("BOMBOCLAAT");
 
     info("All done, starting CLI");
 

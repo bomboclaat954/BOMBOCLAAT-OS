@@ -9,6 +9,7 @@
 #include <drivers/io.h>
 #include <lib/math.h>
 #include <apps/calc.h>
+#include <memory/kmalloc.h>
 
 int find_operator(char *x, char *op)
 {
@@ -88,17 +89,19 @@ void calc_main(char *x)
         break;
     case '%':
         result = ((double)a / (double)100) * b;
-        char *buf;
+        char *buf = kmalloc(64);
         dtoa(result, buf, 2);
         puts(buf, 1);
+        kfree(buf);
         already_printed = 1;
         break;
     }
 
     if (!already_printed)
     {
-        char *res;
+        char *res = kmalloc(64);
         itoa(result, res, 10);
         puts(res, 1);
+        kfree(res);
     }
 }

@@ -15,6 +15,7 @@ int data_start = 0;
 int root_lba = 0;
 bpb_t *bpb = 0;
 uint32_t curr_dir_clus = 0;
+uint32_t total_clusters = 0;
 
 uint32_t get_root_clus()
 {
@@ -250,6 +251,28 @@ void read(char *name)
     kfree(buf);
 }
 
+uint32_t find_free_cluster(void)
+{
+    for (uint32_t cluster = 2; cluster < total_clusters; cluster++)
+    {
+        uint32_t byte_offset = cluster * 4;
+        uint32_t sector = bpb->reserved_sectors + (byte_offset / bpb->bytes_per_sector);
+        uint32_t offset = byte_offset % bpb->bytes_per_sector;
+
+        uint16_t buf[bpb->bytes_per_sector / 2];
+        ata_read_sector(sector, buf);
+
+        uint8_t *raw = (uint8_t *)buf;
+        uint32_t entry = 0;
+        memcpy((uint8_t *)&entry, raw + offset, 4);
+        entry &= 0x0FFFFFFF;
+
+        if (entry == 0)
+            return cluster;
+    }
+    return 0;
+}
+
 uint32_t init_fat32()
 {
     bpb = (bpb_t *)kmalloc(512);
@@ -260,6 +283,8 @@ uint32_t init_fat32()
     data_start = bpb->reserved_sectors + (bpb->num_FATs * bpb->FAT_size);
     root_lba = data_start + (bpb->root_cluster - 2) * bpb->sectors_per_cluster;
     curr_dir_clus = bpb->root_cluster;
+    total_clusters = (bpb->total_sectors - bpb->reserved_sectors - bpb->FAT_size) / (bpb->sectors_per_cluster * bpb->bytes_per_sector);
+    kprintf("%d\n", find_free_cluster());
     char fs[9];
     memcpy(fs, bpb->filesystem, 8);
     fs[8] = '\0';
