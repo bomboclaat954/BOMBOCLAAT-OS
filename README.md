@@ -1,3 +1,7 @@
+# About updates
+
+The updates are currently suspended due to BOMBOCLAAT-OS 2.0 development. I write the code alone so it may take a while to the new release but be patient, it's worth it!
+
 # BOMBOCLAAT-OS
 
 BOMBOCLAAT-OS is a really simple and dumb operating system (it doesn't even deserve to be called an OS) written in C for fun and to learn low-level programming. It uses the simplest possible monolithic kernel. <br>
