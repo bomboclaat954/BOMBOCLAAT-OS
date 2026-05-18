@@ -81,6 +81,7 @@ disk-img:
 	@qemu-img create -f raw disk.img 256M
 	@mkfs.fat -F 32 disk.img
 	@mkdir data
+	@mkdir data/info
 	@echo "Hello from data folder!" > data/hello.txt
 	@mcopy -i disk.img -s data ::/
 	@echo "Hello from the root directory!" > hello.txt

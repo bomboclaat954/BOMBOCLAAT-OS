@@ -31,7 +31,7 @@ uint8_t system_memory_pool[HEAP_SIZE];
 stack_t stack;
 extern uint32_t stack_guard;
 
-char *VER = "BOMBOCLAAT-OS 1.12.2";
+char *VER = "BOMBOCLAAT-OS 1.12.2.1";
 char RAM_MB[10];
 int fat32 = 0;
 
@@ -398,12 +398,12 @@ void execute_command(char *cmd_line)
     }
     else if (strcmp(cmd, "updates") == 0)
     {
-        puts("Last update date: 17/05/2026", 1);
+        puts("Last update date: 18/05/2026", 1);
         puts("What's new: ", 1);
-        puts("  - removed current diskman code (it'll be written from scratch)", 1);
-        puts("  - added -fno-stack-protector flag to prevent build issues", 1);
-        puts("  - expanded heap to 16 MB", 1);
-        puts("  - fixed some pointers", 1);
+        puts("  - moved drivers, int and memory to kernel/", 1);
+        puts("Info: this is the last version of BOMBOCLAAT-OS 1.x.x. Version 2.0 is being", 1);
+        puts("developed. The main change will be limine instead of GRUB and UEFI support.", 1);
+        puts("New version development will take a while so be patient.", 1);
     }
     else if (strcmp(cmd, "panic") == 0)
     {
@@ -716,10 +716,20 @@ void execute_command(char *cmd_line)
             strcpy("~", current_path);
         else
         {
-            char tmp[12];
-            join(current_path, "/", tmp, 0);
-            join(tmp, arg, tmp, 0);
-            strcpy(tmp, current_path);
+            if (strcmp(arg, "..") == 0)
+            {
+                /*
+                    When you're in ~/data/info and type "cd .." the path becomes "~/data/info/.."
+                    TODO: fix this here
+                */
+            }
+            else
+            {
+                char tmp[64];
+                join(current_path, "/", tmp, 0);
+                join(tmp, arg, tmp, 0);
+                strcpy(tmp, current_path);
+            }
         }
     }
     else if (strlen(cmd) > 0)
@@ -856,15 +866,6 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     heap_init(system_memory_pool, HEAP_SIZE);
     stack_init(&stack);
 
-    current_dir_cluster = init_fat32();
-    fat32 = current_dir_cluster == 0 ? 0 : 1;
-    if (fat32)
-    {
-        info("Found a disk with FAT32");
-        root_cluster = get_root_clus();
-    }
-    strcpy("~", current_path);
-
     // init interrupts and timer
     info("Initializing IDT and PIT");
     idt_init();
@@ -875,13 +876,24 @@ void start_kernel(long magic, uint32_t mboot_info_addr)
     fpu_enable();
     sse_enable();
 
+    current_dir_cluster = init_fat32();
+    fat32 = current_dir_cluster == 0 ? 0 : 1;
+    if (fat32)
+    {
+        info("Found a disk with FAT32");
+        root_cluster = get_root_clus();
+    }
+    strcpy("~", current_path);
+
     enable_cursor(0x0E, 0x0F);
 
     info("All done, starting CLI");
 
-    kprintf("Type ");
-    kprintf("%ahelp", 0xF0);
-    kprintf("%a for commands list\n\n", 0x70);
+    kprintf("Type");
+    set_color(0x0F, 0x00);
+    kprintf(" help ");
+    set_color(0x07, 0x00);
+    kprintf("for commands list\n\n");
 
     kernel_main();
 }

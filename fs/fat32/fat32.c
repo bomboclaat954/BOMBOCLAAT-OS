@@ -280,16 +280,18 @@ uint32_t init_fat32()
         panic("memory error while initializing FAT32", 0, 0);
 
     ata_read_sector(0, (uint16_t *)bpb);
-    data_start = bpb->reserved_sectors + (bpb->num_FATs * bpb->FAT_size);
-    root_lba = data_start + (bpb->root_cluster - 2) * bpb->sectors_per_cluster;
-    curr_dir_clus = bpb->root_cluster;
-    total_clusters = (bpb->total_sectors - bpb->reserved_sectors - bpb->FAT_size) / (bpb->sectors_per_cluster * bpb->bytes_per_sector);
-    kprintf("%d\n", find_free_cluster());
     char fs[9];
     memcpy(fs, bpb->filesystem, 8);
     fs[8] = '\0';
     if (strcmp(fs, "FAT32   ") == 0 && bpb->boot_signature == 0xAA55)
+    { // moved all these calculations here bc system showed kernel panic if there wasn't a hard disk
+        data_start = bpb->reserved_sectors + (bpb->num_FATs * bpb->FAT_size);
+        root_lba = data_start + (bpb->root_cluster - 2) * bpb->sectors_per_cluster;
+        curr_dir_clus = bpb->root_cluster;
+        // kernel panic occured right here bc without a disk formatted to FAT32 it was division by 0 (CPU-EXC 0)
+        total_clusters = (bpb->total_sectors - bpb->reserved_sectors - bpb->FAT_size) / (bpb->sectors_per_cluster * bpb->bytes_per_sector);
         return curr_dir_clus;
+    }
     else
         return 0;
 }
