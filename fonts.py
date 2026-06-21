@@ -1,40 +1,52 @@
+"""
+ * BOMBOCLAAT-OS - simple x86_64 operating system
+ * Copyright (C) 2026  Jakub Fietko <fietkojakub@proton.me>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+"""
+
 import sys
+import struct
 
+if len(sys.argv) < 2:
+    print("Usage: python3 fonts.py file.psf")
+    sys.exit(1)
 
-def convert_psf_to_c(input_file, output_file):
-    with open(input_file, "rb") as f:
-        data = f.read()
+with open(sys.argv[1], "rb") as f:
+    header = f.read(32)
+    magic, version, headersize, flags, length, charsize, height, width = struct.unpack("<IIIIIIII", header)
+    
+    if magic != 0x864ab572:
+        print("Not a valid PSF2 font")
+        sys.exit(1)
 
-    if data[0] != 0x36 or data[1] != 0x04:
-        print("It's not a PSF1 file")
-        return
+    f.seek(headersize)
+    
+    glyph_data = f.read(length * charsize)
 
-    mode = data[2]
-    char_size = data[3]
-    font_data = data[4:]
-
-    num_chars = 512 if (mode & 0x01) else 256
-
-    with open(output_file, "w") as f:
-        f.write(f"// Font generated from {input_file}\n")
-        f.write(f"// Character height: {char_size}px\n\n")
-        f.write(f"unsigned char font[4096] = {{\n")
-
-        for i in range(256):
-            f.write(f"    // Character {i}\n    ")
-            for j in range(char_size):
-                byte = font_data[i * char_size + j]
-                f.write(f"0x{byte:02X}, ")
-            if char_size < 16:
-                for _ in range(16 - char_size):
-                    f.write("0x00, ")
-            f.write("\n")
-        f.write("};\n")
-    print(f"Done")
-
-
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python3 fonts.py <file.psf>")
-    else:
-        convert_psf_to_c(sys.argv[1], "font.h")
+with open("font.h", "w") as out:
+    out.write("#pragma once\n")
+    out.write("#include <stdint.h>\n\n")
+    out.write(f"#define FONT_WIDTH {width}\n")
+    out.write(f"#define FONT_HEIGHT {height}\n")
+    out.write(f"#define FONT_CHARSIZE {charsize}\n\n")
+    out.write("static const uint8_t embedded_font[] = {\n")
+    
+    for i, byte in enumerate(glyph_data):
+        out.write(f"0x{byte:02X}, ")
+        if (i + 1) % 16 == 0:
+            out.write("\n")
+            
+    out.write("\n};\n")
+print(f"Parsed font: {width}x{height}. {length} characters")

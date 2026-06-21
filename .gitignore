@@ -1,5 +1,11 @@
-/build
-/iso
-bomboclaat-os.iso
+build/
+iso/
 disk.img
-build_no.txt
+bomboclaat-os.iso
+OVMF_VARS.fd
+.vscode/
+initramfs.img
+init/initramfs.img
+qemu.log
+install.sh
+initramfs.cpio

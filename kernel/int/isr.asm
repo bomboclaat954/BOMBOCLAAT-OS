@@ -1,46 +1,201 @@
+; * BOMBOCLAAT-OS - simple x86_64 operating system
+; * Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
+; *
+; * This program is free software: you can redistribute it and/or modify
+; * it under the terms of the GNU General Public License as published by
+; * the Free Software Foundation, either version 3 of the License, or
+; * (at your option) any later version.
+; *
+; * This program is distributed in the hope that it will be useful,
+; * but WITHOUT ANY WARRANTY; without even the implied warranty of
+; * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+; * GNU General Public License for more details.
+; *
+; * You should have received a copy of the GNU General Public License
+; * along with this program. If not, see <https://www.gnu.org/licenses/>.
+
+bits 64
+
 %macro isr_no_err_stub 1
 isr_stub_%1:
     cli
-    push dword 0
-    push dword %1
+    push qword 0
+    push qword %1
     jmp isr_common_stub
 %endmacro
 
 %macro isr_err_stub 1
 isr_stub_%1:
     cli
-    push dword %1
+    push qword %1
     jmp isr_common_stub
 %endmacro
 
 extern irq_handler
 extern exception_handler
+extern schedule
+extern syscall_handler  
 
-global isr_stub_32
-global isr_stub_33
 global isr_stub_default
+global isr_stub_128
+global syscall_exit
+
+isr_stub_128:
+    cli
+    push qword 0
+    push qword 128
+    jmp syscall_common_stub
+
+syscall_common_stub:
+    cli
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+    
+    sub rsp, 8
+    mov rdi, rsp
+    add rdi, 8
+    call syscall_handler
+    add rsp, 8
+
+    mov [rsp + 112], rax
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    add rsp, 16
+    iretq
+
+syscall_exit:
+    mov [rsp + 112], rax
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    add rsp, 16
+    iretq
 
 isr_common_stub:
-    pusha
-    push ds
-    push es
-    push fs
-    push gs
-    mov ax, 0x10
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov rdi, rsp
+    call exception_handler
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+
+    add rsp, 16
+    iretq
+
+irq_common_stub:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov ax, 0x30
     mov ds, ax
     mov es, ax
-    mov fs, ax
-    mov gs, ax
-    push esp
-    call exception_handler
-    add esp, 4
-    pop gs
-    pop fs
-    pop es
-    pop ds
-    popa
-    add esp, 8
-    iret
+
+    mov rdi, rsp
+    call schedule
+    
+    mov rsp, rax
+
+    mov ax, 0x3B
+    mov ds, ax
+    mov es, ax
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    add rsp, 16
+    iretq
 
 isr_no_err_stub 0
 isr_no_err_stub 1
@@ -75,53 +230,32 @@ isr_no_err_stub 29
 isr_err_stub    30
 isr_no_err_stub 31
 
+global isr_stub_32
 isr_stub_32:
     cli
-    push dword 0
-    push dword 32
+    push qword 0
+    push qword 32
     jmp irq_common_stub
 
+global isr_stub_33
 isr_stub_33:
     cli
-    push dword 0
-    push dword 33
+    push qword 0
+    push qword 33
     jmp irq_common_stub
 
-irq_common_stub:
-    pusha
-    push ds
-    push es
-    push fs
-    push gs
-    mov ax, 0x10
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
-    push esp
-    call irq_handler
-    add esp, 4
-    pop gs
-    pop fs
-    pop es
-    pop ds
-    popa
-    add esp, 8
-    iret
-
-global isr_stub_default
 isr_stub_default:
     cli
-    push dword 0
-    push dword 0xFF
+    push qword 0
+    push qword 0xFF
     jmp irq_common_stub
 
 global isr_stub_table
 isr_stub_table:
     %assign i 0
     %rep 32
-        dd isr_stub_%+i
-    %assign i i+1
+        dq isr_stub_%+i
+        %assign i i+1
     %endrep
-        dd isr_stub_32
-        dd isr_stub_33 
+    dq isr_stub_32
+    dq isr_stub_33

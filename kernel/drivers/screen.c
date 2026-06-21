@@ -1,79 +1,120 @@
 /*
-    BOMBOCLAAT-OS SCREEN DRIVER
-*/
+ * BOMBOCLAAT-OS - simple x86_64 operating system
+ * Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include <drivers/screen.h>
 #include <lib/string.h>
 #include <drivers/io.h>
+#include <fonts/font8x8.h>
 
-/*
-COLOR CODES
-    0x00 - black
-    0x01 - blue
-    0x02 - green
-    0x03 - cyan
-    0x04 - red
-    0x05 - magenta
-    0x06 - brown
-    0x07 - light gray
-    0x08 - dark gray
-    0x09 - light blue
-    0x0A - light green
-    0x0B - light cyan
-    0x0C - light red
-    0x0D - ligt magenta
-    0x0E - yellow
-    0x0F - white
-*/
+int current_fgc = 0xFFFFFF;
+int current_bgc = 0x000000;
+int cursor_x = 0;
+int cursor_y = 0;
+int ROWS = 0;
+int COLUMNS = 0;
+struct limine_framebuffer *fb = 0;
 
-int current_color = 0x07;
-int current_fgc;
-int current_bgc;
-int cursor_x;
-int cursor_y;
-char *video_fb = (char *)0xB8000;
+void color(int fg, int bg)
+{
+    if (fg > 0xFFFFFF || bg > 0xFFFFFF)
+        return;
+    current_fgc = fg;
+    current_bgc = bg;
+}
+
+void init_screen_driver(struct limine_framebuffer *fbuf)
+{
+    fb = fbuf;
+    ROWS = fb->width;
+    COLUMNS = fb->height;
+}
+
+void put_pixel(uint32_t x, uint32_t y, uint32_t color)
+{
+    volatile uint32_t *pixels = fb->address;
+    pixels[y * (fb->pitch / 4) + x] = color;
+}
+
+void fill_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color)
+{
+    for (uint32_t dy = 0; dy < h; dy++)
+        for (uint32_t dx = 0; dx < w; dx++)
+            put_pixel(x + dx, y + dy, color);
+}
+
+void draw_char(char c, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg)
+{
+    uint8_t *glyph = font8x8_basic[(uint8_t)c];
+    for (int row = 0; row < 8; row++)
+    {
+        for (int col = 0; col < 8; col++)
+        {
+            uint32_t color = (glyph[row] >> col) & 1 ? fg : bg;
+            put_pixel(x + col, y + row, color);
+        }
+    }
+}
+
+void draw_string(const char *str, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg)
+{
+    while (*str)
+    {
+        draw_char(*str++, x, y, fg, bg);
+        x += 8;
+    }
+}
+
+void draw_image(int x, int y, int width, int height, const uint32_t *pixels)
+{
+    for (int row = 0; row < height; row++)
+    {
+        for (int col = 0; col < width; col++)
+        {
+            uint32_t color = pixels[row * width + col];
+            put_pixel(x + col, y + row, color);
+        }
+    }
+}
+
+void update_cursor()
+{
+    draw_char('_', cursor_x + 1, cursor_y, current_fgc, current_bgc);
+}
 
 void putc(char c)
 {
     if (c == '\n')
     {
         cursor_x = 0;
-        cursor_y++;
+        cursor_y += 10;
     }
     else if (c == '\t')
-    {
-        cursor_x = cursor_x;
-        cursor_y = cursor_y;
-    }
+        return;
     else if (c == '\b')
     {
-        if (cursor_x > 0)
-            cursor_x--;
-
-        else if (cursor_y > 3)
-        {
-            cursor_y--;
-            cursor_x = COLUMNS - 1;
-        }
-        int pos = (cursor_y * COLUMNS + cursor_x) * 2;
-        video_fb[pos] = ' ';
+        cursor_x -= 8;
+        draw_char(' ', cursor_x, cursor_y, current_fgc, current_bgc);
     }
     else
     {
-        int pos = (cursor_y * COLUMNS + cursor_x) * 2;
-        video_fb[pos] = c;
-        video_fb[pos + 1] = current_color;
-        cursor_x++;
-        if (cursor_x >= COLUMNS)
-        {
-            cursor_x = 0;
-            cursor_y++;
-        }
+        draw_char(c, cursor_x, cursor_y, current_fgc, current_bgc);
+        cursor_x += 8;
     }
-
-    if (cursor_y > ROWS)
-        scroll();
-
-    update_hardware_cursor();
 }
 
 void puts(char *s, int endl)
@@ -84,142 +125,15 @@ void puts(char *s, int endl)
         putc('\n');
 }
 
-void info(char *s)
-{
-    set_color(0x03, 0x00);
-    puts("INFO ", 0);
-    set_color(0x07, 0x00);
-    puts(s, 1);
-}
-
-void update_hardware_cursor()
-{
-    unsigned short pos = cursor_y * COLUMNS + cursor_x;
-    outb(0x3D4, 0x0F);
-    outb(0x3D5, (unsigned char)(pos & 0xFF));
-    outb(0x3D4, 0x0E);
-    outb(0x3D5, (unsigned char)((pos >> 8) & 0xFF));
-}
-
-void scroll()
-{
-    for (int i = 0; i < (ROWS - 1) * COLUMNS * 2; i++)
-        video_fb[i] = video_fb[i + COLUMNS * 2];
-    for (int i = (ROWS - 1) * COLUMNS * 2; i < ROWS * COLUMNS * 2; i += 2)
-    {
-        video_fb[i] = ' ';
-        video_fb[i + 1] = 0x07;
-    }
-    cursor_y = ROWS - 1;
-}
-
-void box(int x, int y, char *text)
-{
-    // ╔ = \xC9; ═ = \xCD; ╗ = \xBB; ║ = \xBA; ╚ = \xC8; ╝ = \0xBC
-    set_cursor(x, y);
-    puts("\xC9", 0);
-    for (int i = 0; i < strlen(text) + 2; i++)
-        puts("\xCD", 0);
-    puts("\xBB", 1);
-    set_cursor(x, y + 1);
-    puts("\xBA", 0);
-    puts(" ", 0);
-    puts(text, 0);
-    puts(" ", 0);
-    puts("\xBA", 1);
-    set_cursor(x, y + 2);
-    puts("\xC8", 0);
-    for (int i = 0; i < strlen(text) + 2; i++)
-        puts("\xCD", 0);
-    puts("\xBC", 1);
-}
-
-void set_color(int fg, int bg)
-{
-    current_color = fg | (bg << 4);
-    current_fgc = fg;
-    current_bgc = bg;
-}
-
 void set_cursor(int x, int y)
 {
     cursor_x = x;
     cursor_y = y;
-    update_hardware_cursor();
 }
 
 void cls()
 {
-    for (int i = 0; i < ROWS * COLUMNS * 2; i += 2)
-    {
-        video_fb[i] = ' ';
-        video_fb[i + 1] = current_color;
-    }
-}
-
-void disable_vga_blink()
-{
-    inb(0x3DA);
-    outb(0x3C0, 0x10 | 0x20);
-    int config = inb(0x3C1);
-    config &= ~(1 << 3);
-    outb(0x3C0, config);
-}
-
-void disable_cursor()
-{
-    outb(0x3D4, 0x0A);
-    unsigned char val = inb(0x3D5);
-    val |= 0x20;
-    outb(0x3D5, val);
-}
-
-void enable_cursor(unsigned char start, unsigned char end)
-{
-    outb(0x3D4, 0x0A);
-    outb(0x3D5, start & 0x1F);
-    outb(0x3D4, 0x0B);
-    outb(0x3D5, end & 0x1F);
-}
-
-void load_font(unsigned char *font)
-{
-    outb(0x3C4, 0x00);
-    outb(0x3C5, 0x01);
-    outb(0x3C4, 0x02);
-    outb(0x3C5, 0x04);
-    outb(0x3C4, 0x04);
-    outb(0x3C5, 0x06);
-    outb(0x3C4, 0x00);
-    outb(0x3C5, 0x03);
-    outb(0x3CE, 0x04);
-    outb(0x3CF, 0x02);
-    outb(0x3CE, 0x05);
-    outb(0x3CF, 0x00);
-    outb(0x3CE, 0x06);
-    outb(0x3CF, 0x00);
-
-    volatile unsigned char *vga_mem = (volatile unsigned char *)0xA0000;
-    for (int i = 0; i < 256; i++)
-    {
-        for (int j = 0; j < 16; j++)
-        {
-            vga_mem[i * 32 + j] = font[i * 16 + j];
-        }
-    }
-
-    outb(0x3C4, 0x00);
-    outb(0x3C5, 0x01);
-    outb(0x3C4, 0x02);
-    outb(0x3C5, 0x03);
-    outb(0x3C4, 0x04);
-    outb(0x3C5, 0x03);
-    outb(0x3C4, 0x00);
-    outb(0x3C5, 0x03);
-    outb(0x3CE, 0x04);
-    outb(0x3CF, 0x00);
-    outb(0x3CE, 0x05);
-    outb(0x3CF, 0x10);
-    outb(0x3CE, 0x06);
-    outb(0x3CF, 0x0E);
+    fill_rect(0, 0, fb->width, fb->height, 0x000000);
+    cursor_x = 0;
+    cursor_y = 0;
 }

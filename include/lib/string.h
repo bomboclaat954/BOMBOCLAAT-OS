@@ -1,3 +1,8 @@
+/* BOMBOCLAAT-OS - simple x86_64 operating system
+ * Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #ifndef STRING_H
 #define STRING_H
 #include <stdint.h>
@@ -25,7 +30,7 @@ extern "C"
     int is_number(char *x);
     void *clear_str(char *str);
     int input_key();
-    void *input(char *buf, int len);
+    void *input(char *buf);
     void *input_passwd(char *buf, int len);
     char *strchr(const char *s, int c);
     int index(char *str, char x);

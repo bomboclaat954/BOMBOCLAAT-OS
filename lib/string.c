@@ -1,21 +1,34 @@
 /*
-    BOMBOCLAAT-OS STRING LIBRARY
-*/
+ * BOMBOCLAAT-OS - simple x86_64 operating system
+ * Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include <lib/string.h>
 #include <drivers/keyboard.h>
 #include <drivers/screen.h>
 #include <drivers/io.h>
-#include <bomboclaat-os/api.h>
+#include <bomboclaat/globals.h>
 #include <memory/kmalloc.h>
-#include <memory/ram.h>
+#include <memory/pmm.h>
 
 int strlen(const char *str)
 {
     int len = 0;
     while (str[len] != '\0')
-    {
         len++;
-    }
     return len;
 }
 
@@ -293,9 +306,7 @@ void *clear_str(char *str)
 {
     int len = strlen(str);
     for (int i = 0; i < len; i++)
-    {
         str[i] = ' ';
-    }
     str[len - 1] = '\0';
 }
 
@@ -312,10 +323,10 @@ int input_key()
     }
 }
 
-void *input(char *buf, int len)
+void *input(char *buf)
 {
     int buf_idx = 0;
-
+    asm volatile("cli");
     while (1)
     {
         if (inb(0x64) & 1)
@@ -345,7 +356,7 @@ void *input(char *buf, int len)
                             putc('\b');
                         }
                     }
-                    else if (c > 0 && buf_idx < 127 && buf_idx < len)
+                    else if (c > 0)
                     {
                         buf[buf_idx++] = c;
                         putc(c);
@@ -359,7 +370,9 @@ void *input(char *buf, int len)
                     shift_pressed = 0;
             }
         }
+        asm volatile("pause");
     }
+    asm volatile("sti");
 }
 
 void *input_passwd(char *buf, int len)

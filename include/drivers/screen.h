@@ -1,3 +1,8 @@
+/* BOMBOCLAAT-OS - simple x86_64 operating system
+ * Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #ifndef SCREEN_H
 #define SCREEN_H
 
@@ -6,29 +11,26 @@ extern "C"
 {
 #endif
 
-#define COLUMNS 80
-#define ROWS 25
+#include <boot/limine.h>
 
     extern int cursor_x;
     extern int cursor_y;
-    extern char *video_fb;
-    extern int current_color;
-    extern int current_fgc;
-    extern int current_bgc;
 
+    extern int ROWS;
+    extern int COLUMNS;
+
+    void color(int fg, int bg);
+    void init_screen_driver(struct limine_framebuffer *fbuf);
+    void put_pixel(uint32_t x, uint32_t y, uint32_t color);
+    void fill_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color);
+    void draw_char(char c, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg);
+    void draw_string(const char *str, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg);
+    void draw_image(int x, int y, int width, int height, const uint32_t *pixels);
+    void update_cursor();
     void putc(char c);
     void puts(char *s, int endl);
-    void info(char *s);
-    void update_hardware_cursor();
-    void scroll();
-    void box(int x, int y, char *text);
-    void set_color(int fg, int bg);
     void set_cursor(int x, int y);
     void cls();
-    void disable_vga_blink();
-    void disable_cursor();
-    void enable_cursor(unsigned char start, unsigned char end);
-    void load_font(unsigned char *font);
 
 #ifdef __cplusplus
 }

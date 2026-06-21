@@ -1,13 +1,31 @@
-#include <bomboclaat-os/kprintf.h>
+/*
+ * BOMBOCLAAT-OS - simple x86_64 operating system
+ * Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+#include <bomboclaat/kprintf.h>
 #include <lib/string.h>
 #include <drivers/io.h>
 #include <drivers/screen.h>
-#include <memory/kmalloc.h>
+#include <int/int.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
 
-static void print_dec(unsigned int value, unsigned int width, char *buf, int *ptr)
+static void print_dec(unsigned int value, unsigned int width, char pad_char, char *buf, int *ptr)
 {
     unsigned int n_width = 1;
     unsigned int i = 9;
@@ -21,7 +39,7 @@ static void print_dec(unsigned int value, unsigned int width, char *buf, int *pt
     int printed = 0;
     while (n_width + printed < width)
     {
-        buf[*ptr] = '0';
+        buf[*ptr] = pad_char;
         *ptr += 1;
         printed += 1;
     }
@@ -71,11 +89,11 @@ static void print_hex(unsigned int value, unsigned int width, char *buf, int *pt
 
 size_t vasprintf(char *buf, const char *fmt, va_list args)
 {
-    int i = 0;
     char *s;
     int ptr = 0;
     int len = strlen(fmt);
-    for (; i < len && fmt[i]; ++i)
+
+    for (int i = 0; i < len && fmt[i]; ++i)
     {
         if (fmt[i] != '%')
         {
@@ -83,6 +101,14 @@ size_t vasprintf(char *buf, const char *fmt, va_list args)
             continue;
         }
         ++i;
+
+        char pad_char = ' ';
+        if (fmt[i] == '0')
+        {
+            pad_char = '0';
+            ++i;
+        }
+
         unsigned int arg_width = 0;
         while (fmt[i] >= '0' && fmt[i] <= '9')
         {
@@ -91,11 +117,21 @@ size_t vasprintf(char *buf, const char *fmt, va_list args)
             ++i;
         }
 
+        int is_long_long = 0;
+        if (fmt[i] == 'l')
+        {
+            ++i;
+            if (fmt[i] == 'l')
+            {
+                is_long_long = 1;
+                ++i;
+            }
+            else
+                is_long_long = 1;
+        }
+
         switch (fmt[i])
         {
-        case 'a':
-            int arg = va_arg(args, int);
-            set_color(arg >> 4, arg & 0x0F);
         case 's':
             s = (char *)va_arg(args, char *);
             while (*s)
@@ -105,10 +141,17 @@ size_t vasprintf(char *buf, const char *fmt, va_list args)
             buf[ptr++] = (char)va_arg(args, int);
             break;
         case 'x':
-            print_hex((unsigned long)va_arg(args, unsigned long), arg_width, buf, &ptr);
+            if (is_long_long)
+                print_hex((unsigned long long)va_arg(args, unsigned long long), arg_width, buf, &ptr);
+            else
+                print_hex((unsigned long)va_arg(args, unsigned long), arg_width, buf, &ptr);
             break;
         case 'd':
-            print_dec((unsigned long)va_arg(args, unsigned long), arg_width, buf, &ptr);
+        case 'u':
+            if (is_long_long)
+                print_dec((unsigned long long)va_arg(args, unsigned long long), arg_width, pad_char, buf, &ptr);
+            else
+                print_dec((unsigned long)va_arg(args, unsigned long), arg_width, pad_char, buf, &ptr);
             break;
         case '%':
             buf[ptr++] = '%';
@@ -125,7 +168,7 @@ size_t vasprintf(char *buf, const char *fmt, va_list args)
 
 int kprintf(const char *fmt, ...)
 {
-    char *buf = kmalloc(1024);
+    char buf[8192];
     va_list args;
     va_start(args, fmt);
     int out = vasprintf(buf, fmt, args);
@@ -143,4 +186,28 @@ int sprintf(char *buf, const char *fmt, ...)
     int out = vasprintf(buf, fmt, args);
     va_end(args);
     return out;
+}
+
+void log(log_type type, const char *fmt, ...)
+{
+    unsigned long long current_ticks = pit_get_ticks();
+    unsigned long long seconds = current_ticks / 1000;
+    unsigned long long milliseconds = current_ticks % 1000;
+
+    kprintf("[%5llu.%03llu] ", seconds, milliseconds);
+    if (type == LOG_OK)
+        draw_string("*", cursor_x, cursor_y, 0x00FF00, 0);
+    else if (type == LOG_ERR)
+        draw_string("*", cursor_x, cursor_y, 0xFF0000, 0);
+    else
+        draw_string("*", cursor_x, cursor_y, 0x00BCEF, 0);
+
+    cursor_x += 16;
+    char buf[8192];
+    va_list args;
+    va_start(args, fmt);
+    int out = vasprintf(buf, fmt, args);
+    va_end(args);
+    unsigned char *c = (uint8_t *)buf;
+    puts(buf, 1);
 }

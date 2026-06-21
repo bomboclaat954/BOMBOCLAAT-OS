@@ -1,0 +1,3 @@
+1. objdump -M intel -D build/bomboclaat > kernel.asm
+2. Find the RIP from kernel panic in kernel.asm (may start from ffffffff8000)
+3. x86_64-elf-addr2line -e build/bomboclaat [ADDRESS]

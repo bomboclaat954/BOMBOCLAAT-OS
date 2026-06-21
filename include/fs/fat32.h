@@ -1,3 +1,8 @@
+/* BOMBOCLAAT-OS - simple x86_64 operating system
+ * Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 #ifndef FAT32_H
 #define FAT32_H
 
@@ -27,7 +32,6 @@ typedef struct
     uint32_t size;
 } __attribute__((packed)) dir_entry_t;
 
-uint32_t get_root_clus();
 void lsdir_cluster(uint32_t dir_cluster);
 void read_file_content(dir_entry_t *file, void *output_buffer);
 void read(char *name);
