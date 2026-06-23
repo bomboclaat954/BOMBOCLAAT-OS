@@ -9,9 +9,10 @@
 #include <stdint.h>
 
 #define NULL ((void *)0)
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-void *uname(int type, char *buf);
-int sysexec_elf(char *name);
+int sysinfo(int rax, void *buf);
+int sysexec(char *path);
 void *sbrk(size_t increment);
 void scanf(char *buf);
 int strlen(const char *str);

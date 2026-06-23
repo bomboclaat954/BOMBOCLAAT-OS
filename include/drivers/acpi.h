@@ -20,14 +20,14 @@ struct GenericAddressStructure
 
 struct ACPISDTHeader
 {
-    uint32_t Signature;
+    char Signature[4];
     uint32_t Length;
     uint8_t Revision;
     uint8_t Checksum;
     uint8_t OEMID[6];
     uint8_t OEMTableID[8];
-    uint32_t OEMRevision;
-    uint32_t CreatorID;
+    char OEMRevision[4];
+    char CreatorID[4];
     uint32_t CreatorRevision;
 } __attribute__((packed)) typedef ACPISDTHeader;
 

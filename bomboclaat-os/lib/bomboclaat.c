@@ -20,22 +20,24 @@
 #include <stdint.h>
 #include <stddef.h>
 
-void *uname(int type, char *buf)
-{
-    asm volatile(
-        "int $0x80"
-        :
-        : "a"(7), "D"(type), "S"(buf)
-        : "memory");
-}
-
-int sysexec_elf(char *name)
+int sysinfo(int rax, void *buf)
 {
     int res;
     asm volatile(
         "int $0x80"
         : "=a"(res)
-        : "a"(2), "D"(name)
+        : "a"(7), "D"(rax), "S"(buf)
+        : "memory");
+    return res;
+}
+
+int sysexec(char *path)
+{
+    int res;
+    asm volatile(
+        "int $0x80"
+        : "=a"(res)
+        : "a"(2), "D"(path)
         : "memory");
     return res;
 }

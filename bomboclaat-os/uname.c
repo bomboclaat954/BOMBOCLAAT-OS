@@ -21,6 +21,6 @@
 int main(int argc, char **argv)
 {
     char buf[128];
-    uname(0, buf);
+    sysinfo(0, buf);
     printf("%s\n", buf);
 }

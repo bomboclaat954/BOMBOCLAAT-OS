@@ -24,8 +24,8 @@
 #include <bomboclaat/panic.h>
 
 uint8_t *bitmap;
-uintptr_t total_frames;
-uintptr_t used_frames;
+uintptr_t total_frames = 0;
+uintptr_t used_frames = 0;
 uint64_t mem_size = 0;
 
 extern uint8_t _kernel_start[];
@@ -41,14 +41,9 @@ void bitmap_unset(uintptr_t frame)
     bitmap[frame / 8] &= ~(1ULL << (frame % 8));
 }
 
-uintptr_t get_free_ram_kb()
+uintptr_t get_total_frames()
 {
-    return (total_frames - used_frames) * 4;
-}
-
-uintptr_t get_used_ram_kb()
-{
-    return used_frames * 4;
+    return total_frames;
 }
 
 uintptr_t get_free_frames()

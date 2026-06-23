@@ -21,6 +21,7 @@
 #include <bomboclaat/kprintf.h>
 #include <drivers/screen.h>
 #include <lib/string.h>
+#include <tasks/tasks.h>
 
 void exception_handler(registers_t *r)
 {
@@ -68,6 +69,13 @@ void exception_handler(registers_t *r)
     case 14:
         uint64_t fault_addr;
         asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
+        if (r->error_code & (1 << 2))
+        {
+            extern task_t *current_task;
+            kprintf("Segmentation fault caused by process PID %d, at: 0x%x, RIP=%x, err_code=0x%x\n",
+                    current_task->pid, fault_addr, r->rip, r->error_code);
+            task_exit((context_t *)r);
+        }
         char buf[128];
         sprintf(buf, "CPU-EXC: page fault at: %x", fault_addr);
         panic(buf, r, 1);

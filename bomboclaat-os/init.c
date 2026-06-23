@@ -22,6 +22,6 @@
 int main()
 {
     printf("%s\n", OSVER);
-    sysexec_elf("bin/shell");
+    sysexec("bin/shell");
     return 0;
 }

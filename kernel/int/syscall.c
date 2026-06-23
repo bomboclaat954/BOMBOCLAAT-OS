@@ -16,38 +16,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-/*
-    BOMBOCLAAT-OS SYSCALLS (int 0x80):
-        * 1 - kprintf
-        * 2 - execute
-        * 3 - create new process
-            * RDI = PROCNAME
-            * RSI = PROCINFO
-        * 4 - char in
-        * 5 - disk operations:
-            * RDI = 0 - read (RSI = *buf)
-            * RDI = 1 - write (RSI = *buf)
-        * 6 - ramfs:
-            * RDI = 0 - MKDIR (RSI - ramfs_dir_t *dir)
-            * RDI = 1 - MKFILE (RSI - ramfs_file_t *file)
-        * 7 - uname
-            * RDI - TYPE (1 - kernel)
-            * RSI - return buffer
-        * 8 - reboot or shutdown
-            * RDI = 0 - REBOOT
-            * RDI = 1 - SHUTDOWN
-        * 9 - SBRK
-    Syscall registers:
-        * RAX - syscall number
-        Arguments:
-            * RDI - 1st
-            * RSI - 2nd
-            * RDX - 3rd
-            * R10 - 4th
-            * R8  - 5th
-            * R9  - 6th
-*/
-
 #include <int/int.h>
 #include <bomboclaat/kprintf.h>
 #include <bomboclaat/globals.h>
@@ -61,28 +29,11 @@
 #include <memory/memtools.h>
 #include <memory/kmalloc.h>
 #include <drivers/io.h>
+#include <drivers/acpi.h>
 #include <tasks/tasks.h>
 #include <stddef.h>
 
 #define TEMP_MAP_ADDR 0xFFFFFFFFF0000000
-extern void enter_user_mode(uintptr_t entry_point, uintptr_t user_stack);
-
-void reboot()
-{
-    unsigned char good = 0x02;
-    while (good & 0x02)
-        good = inb(0x64);
-    outb(0x64, 0xFE);
-}
-
-void shutdown()
-{
-    outw(0xB004, 0x2000); // QEMU
-    outw(0x604, 0x2000);  // QEMU / Bochs
-    outw(0x4004, 0x3400); // VirtualBox
-    asm volatile("cli");
-    asm volatile("hlt");
-}
 
 void syscall_send(uint64_t nsyscall, const char *args)
 {
@@ -147,14 +98,24 @@ uint64_t syscall_handler(context_t *r)
             strcpy(UNAME[1], ret_buf);
         else if (type == 2)
             strcpy(UNAME[2], ret_buf);
+        else if (type == 3)
+        {
+            uint64_t *out_ptr = (uint64_t *)ret_buf;
+            *out_ptr = get_free_frames();
+        }
+        else if (type == 4)
+        {
+            uint64_t *out_ptr = (uint64_t *)ret_buf;
+            *out_ptr = get_total_frames();
+        }
         r->rax = 1;
         return (uint64_t)r;
     case 8:
         int x = (int)r->rdi;
         if (x == 0)
-            reboot();
+            acpi_reboot();
         else if (x == 1)
-            shutdown();
+            acpi_shutdown();
         r->rax = 1;
         return (uint64_t)r;
     case 9:

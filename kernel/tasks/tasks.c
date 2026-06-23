@@ -27,13 +27,45 @@
 #include <bomboclaat/elf64.h>
 #include <lib/string.h>
 
+#define MAX_TASKS 32
+
 extern vmm_table_t *kernel_pml4_virt;
 extern uint64_t hhdm_offset;
 extern tss_ptr tss;
 
+task_t *tasks[MAX_TASKS] = {NULL};
 task_t *current_task = NULL;
-task_t *task_list_head = NULL;
 int next_pid = 1;
+
+int find_free_slot()
+{
+    for (int i = 0; i < MAX_TASKS; i++)
+    {
+        if (!tasks[i])
+            return i;
+    }
+    return 0;
+}
+
+int find_in_array(task_t *t)
+{
+    for (int i = 0; i < MAX_TASKS; i++)
+    {
+        if (tasks[i] == t)
+            return i;
+    }
+    return 0;
+}
+
+task_t *find_by_pid(int pid)
+{
+    for (int i = 0; i < MAX_TASKS; i++)
+    {
+        if (tasks[i]->pid == pid)
+            return tasks[i];
+    }
+    return NULL;
+}
 
 void task_init(void)
 {
@@ -53,7 +85,7 @@ void task_init(void)
     kernel_task->next = kernel_task;
     kernel_task->parent_pid = 0;
     current_task = kernel_task;
-    task_list_head = kernel_task;
+    tasks[0] = kernel_task;
 }
 
 task_t *task_create(void *elf_data, int parent_pid, char *name, int frames)
@@ -121,7 +153,9 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int frames)
 
     uintptr_t user_rsp = (user_stack_virtual + (PAGE_SIZE * frames)) & ~0xFULL;
 
-    void *kstack_phys = pmm_alloc_frame();
+    void *kstack_phys = NULL; // pmm_alloc_frame();
+    for (int i = 0; i < 4; i++)
+        kstack_phys = pmm_alloc_frame();
     new_task->kstack_top = (uintptr_t)kstack_phys + hhdm_offset + PAGE_SIZE;
 
     new_task->rsp = new_task->kstack_top - sizeof(context_t);
@@ -140,6 +174,8 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int frames)
     current_task->next = new_task;
     new_task->state = TASK_READY;
 
+    int slot = find_free_slot();
+    tasks[slot] = new_task;
     return new_task;
 }
 
@@ -181,17 +217,27 @@ context_t *schedule(context_t *ctx)
 
     tss.rsp0 = current_task->kstack_top;
     uintptr_t next_cr3 = (uintptr_t)current_task->pml4 - hhdm_offset;
-    // asm volatile("mov %0, %%cr3" : : "r"(next_cr3) : "memory");
-    context_t *next_ctx = (context_t *)next->rsp;
+
     asm volatile("sti");
     switch_to_task(current_task->rsp, next_cr3);
-    return (context_t *)current_task->rsp;
+
+    while (1)
+        asm volatile("hlt");
 }
 
 void task_exit(context_t *ctx)
 {
     current_task->state = TASK_ZOMBIE;
-    current_task->next->state = TASK_READY;
+    task_t *prev = current_task;
+
+    int slot = find_in_array(prev);
+    tasks[slot] = NULL;
+
+    vmm_unmap_page(prev->pml4, (uintptr_t)prev->pml4 + hhdm_offset);
+    pmm_free_frame((void *)((uintptr_t)prev->pml4 - hhdm_offset));
+    kfree(&prev->kstack_top);
+    kfree(prev);
+
     schedule(ctx);
     while (1)
         asm volatile("hlt");

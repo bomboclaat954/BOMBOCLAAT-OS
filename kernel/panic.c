@@ -21,8 +21,7 @@
 #include <bomboclaat/kprintf.h>
 #include <drivers/screen.h>
 #include <drivers/io.h>
-
-extern void reboot(), shutdown();
+#include <drivers/acpi.h>
 
 void reg_dump(registers_t *r)
 {
@@ -113,9 +112,9 @@ void panic(char *msg, registers_t *r, int from_cpu)
         {
             int scancode = inb(0x60);
             if (scancode == 0x01)
-                shutdown();
+                acpi_shutdown();
             else if (scancode == 0x1C)
-                reboot();
+                acpi_reboot();
         }
     }
 }

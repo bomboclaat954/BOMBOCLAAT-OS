@@ -206,7 +206,7 @@ void kinit(void)
     else
         log(LOG_ERR, "Error while initializing serial port");
 
-    /*if (rsdp == NULL)
+    if (rsdp == NULL)
         log(LOG_ERR, "Couldn't find RSDP address");
     else if (rsdp->address == NULL)
         log(LOG_ERR, "RSDP address is null");
@@ -215,7 +215,7 @@ void kinit(void)
     if (acpi)
         log(LOG_OK, "Initialized ACPI");
     else
-        log(LOG_ERR, "Error while initializing ACPI");*/
+        log(LOG_ERR, "Error while initializing ACPI");
 
     log(LOG_INFO, "Loading initramfs");
     initramfs();

@@ -19,16 +19,15 @@
 #include <bomboclaat.h>
 #include <stdint.h>
 
-char *shinfo = "BOMBOCLAAT Shell (bsh) 1.0-rc1";
-
 int main()
 {
     while (1)
     {
-        printf("# ");
         char cmd_line[1024];
         char cmd[32];
         char arg[96];
+
+        printf("root@bomboclaat:~# ");
         scanf(cmd_line);
 
         int i = 0, j = 0;
@@ -51,12 +50,12 @@ int main()
         arg[j] = '\0';
 
         char path[128];
-        join("bin/", cmd, path, 0);
+        sprintf(path, "bin/%s", cmd);
         // parse and pass the arguments somehow
 
         if (strcmp(cmd_line, "\0") == 0)
             continue;
-        else if (sysexec_elf(path) == 0)
+        else if (sysexec(path) == 0)
             printf("Unknown command\n");
     }
     return 0;

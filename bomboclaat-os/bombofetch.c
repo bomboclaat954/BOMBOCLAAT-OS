@@ -18,44 +18,65 @@
 
 #include <bomboclaat.h>
 
-// Very early phase of development, some things may not work properly or at all.
+static char *logo[] = {
+    "             . . .                ",
+    "              \\|/                ",
+    "            `--+--'               ",
+    "              /|\\                ",
+    "             ' | '                ",
+    "               |                  ",
+    "               |                  ",
+    "           ,--'#`--.              ",
+    "           |#######|              ",
+    "        _.-'#######`-._           ",
+    "     ,-'###############`-.        ",
+    "   ,'#####################`,      ",
+    "  /#########################\\    ",
+    " |###########################|    ",
+    "|#############################|   ",
+    "|#############################|   ",
+    "|#############################|   ",
+    "|#############################|   ",
+    " |###########################|    ",
+    "  \\#########################/    ",
+    "   `.#####################,'      ",
+    "     `._###############_,'        ",
+    "        `--..#####..--'           ",
+};
 
 int main()
 {
-    char *shinfo = ""; // malloc(sizeof(char) * 128);
-    char kname[20];
-    char krelease[8];
+    char kname[32];
+    char krelease[16];
     char cpu[48];
-    int memused = 0; // malloc(sizeof(char) * 128);
-    int memfree = 0; // malloc(sizeof(char) * 128);
+    uintptr_t memfree = 0;
+    uintptr_t memtotal = 0;
 
-    uname(0, kname);
-    uname(1, krelease);
-    uname(2, cpu);
+    sysinfo(0, kname);
+    sysinfo(1, krelease);
+    sysinfo(2, cpu);
 
-    printf("             . . .                  root@bomboclaat\n");
-    printf("              \\|/                   ---------------\n");
-    printf("            `--+--'                 OS: %s\n", OSVER);
-    printf("              /|\\                   Kernel: %s %s\n", kname, krelease);
-    printf("             ' | '                  Shell: %s\n", shinfo);
-    printf("               |                    CPU: %s\n", cpu);
-    printf("               |                    Memory: %d / %d MB\n", memused, memfree);
-    printf("           ,--'#`--.\n");
-    printf("           |#######|\n");
-    printf("        _.-'#######`-._\n");
-    printf("     ,-'###############`-.\n");
-    printf("   ,'#####################`,\n");
-    printf("  /#########################\\\n");
-    printf(" |###########################|\n");
-    printf("|#############################|\n");
-    printf("|#############################|\n");
-    printf("|#############################|\n");
-    printf("|#############################|\n");
-    printf(" |###########################|\n");
-    printf("  \\#########################/\n");
-    printf("   `.#####################,'\n");
-    printf("     `._###############_,'\n");
-    printf("        `--..#####..--'\n");
+    for (int i = 0; i < ARRAY_SIZE(logo); i++)
+    {
+        switch (i)
+        {
+        case 0:
+            printf("%s root@bomboclaat\n", logo[i]);
+            break;
+        case 1:
+            printf("%s  ---------------\n", logo[i]);
+            break;
+        /*case 2:
+            printf("%s OS: %s\n", logo[i], OSVER);
+            break;
+        case 3:
+            printf("%s  Kernel: %s v%s\n", logo[i], kname, krelease);
+            break;*/
+        default:
+            printf("%s\n", logo[i]);
+            break;
+        }
+    }
 
     return 0;
 }

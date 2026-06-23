@@ -17,8 +17,8 @@ struct ram // a lil bit useless but works
     int usable;
 } typedef ram_t;
 
-uintptr_t get_free_ram_kb();
-uintptr_t get_used_ram_kb();
+uintptr_t get_total_frames();
+uintptr_t get_free_frames();
 void *pmm_alloc_frame();
 void pmm_free_frame(void *phys);
 void pmm_init(struct limine_memmap_response *memmap, struct limine_hhdm_response *hhdm);

@@ -118,6 +118,8 @@ run:
 	    -audiodev pipewire,id=speaker \
 	    -machine pcspk-audiodev=speaker \
 	    -m 2048M \
+		-machine q35,acpi=on \
+    	-device virtio-balloon \
 	> /dev/null 2>&1
 
 run-debug:
@@ -136,6 +138,8 @@ run-debug:
 		-d int,cpu_reset \
 		-D qemu.log \
 		-monitor stdio \
+		-machine q35,acpi=on \
+		-device virtio-balloon \
 	> /dev/null 2>&1
 
 disk-img:
