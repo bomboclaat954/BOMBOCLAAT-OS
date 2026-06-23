@@ -44,9 +44,10 @@
 #include <lib/string.h>
 #include <lib/math.h>
 
-char *UNAME[3];
+char *UNAME[4];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "1.0-beta1";
+char *krelease = "1.0-beta2";
+
 stack_t system_stack;
 global_settings settings;
 
@@ -188,9 +189,11 @@ void kinit(void)
     UNAME[0] = kmalloc(sizeof(char) * 128);
     UNAME[1] = kmalloc(sizeof(char) * 128);
     UNAME[2] = kmalloc(sizeof(char) * 128);
+    UNAME[3] = kmalloc(sizeof(char) * 128);
     strcpy(kname, UNAME[0]);
     strcpy(krelease, UNAME[1]);
-    get_cpu_model(UNAME[2]);
+    sprintf(UNAME[2], "%d", BUILD_NUMBER);
+    get_cpu_model(UNAME[3]);
 
     settings.fat32 = 0;
     // settings.fat32 = init_fat32();

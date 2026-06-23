@@ -13,8 +13,8 @@
 
 struct ram // a lil bit useless but works
 {
-    int total;
-    int usable;
+    uint64_t total;
+    uint64_t usable;
 } typedef ram_t;
 
 uintptr_t get_total_frames();

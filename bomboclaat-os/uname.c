@@ -20,7 +20,13 @@
 
 int main(int argc, char **argv)
 {
-    char buf[128];
-    sysinfo(0, buf);
-    printf("%s\n", buf);
+    char kname[32];
+    char krelease[32];
+    char kbuild[32];
+
+    sysinfo(0, kname);
+    sysinfo(1, krelease);
+    sysinfo(2, kbuild);
+
+    printf("%s v%s build %s\n", kname, krelease, kbuild);
 }

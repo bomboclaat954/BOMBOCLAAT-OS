@@ -18,7 +18,7 @@ extern "C"
 #define NULL ((void *)0)
 #define HEAP_SIZE 16 * (1024 * 1024) // 16 MB
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-    extern char *UNAME[3];
+    extern char *UNAME[4];
     extern stack_t system_stack;
     extern ramfs_t *vfs;
     extern uint64_t hhdm_offset;

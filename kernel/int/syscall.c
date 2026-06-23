@@ -99,6 +99,8 @@ uint64_t syscall_handler(context_t *r)
         else if (type == 2)
             strcpy(UNAME[2], ret_buf);
         else if (type == 3)
+            strcpy(UNAME[3], ret_buf);
+        else if (type == 4)
         {
             uint64_t *out_ptr = (uint64_t *)ret_buf;
             *out_ptr = get_free_frames();
