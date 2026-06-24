@@ -8,6 +8,9 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <fs/vfs.h>
+
+#define MAX_FILES_PER_TASK 32
 
 typedef struct vmm_table vmm_table_t;
 
@@ -42,6 +45,7 @@ typedef struct task
     uintptr_t rsp;
     char name[16];
     struct task *next;
+    vfs_file_t *fd_table[MAX_FILES_PER_TASK];
 } task_t;
 
 extern volatile int need_reschedule;

@@ -5,7 +5,6 @@
 
 #ifndef INITRAMFS_H
 #define INITRAMFS_H
-#include <fs/ramfs.h>
 
 struct cpio_header
 {

@@ -23,7 +23,6 @@
 #include <bomboclaat/initramfs.h>
 #include <tasks/loader.h>
 #include <lib/string.h>
-#include <fs/ramfs.h>
 #include <memory/vmm.h>
 #include <memory/pmm.h>
 #include <memory/memtools.h>
@@ -31,6 +30,7 @@
 #include <drivers/io.h>
 #include <drivers/acpi.h>
 #include <tasks/tasks.h>
+#include <fs/vfs.h>
 #include <stddef.h>
 
 #define TEMP_MAP_ADDR 0xFFFFFFFFF0000000
@@ -51,9 +51,12 @@ uint64_t syscall_handler(context_t *r)
     switch (r->rax)
     {
     case 1:
+    {
         kprintf((const char *)r->rdi);
         return 0;
+    }
     case 2:
+    {
         char *name = (char *)r->rdi;
         int current_pid = current_task->pid;
         extern void *initramfs_base;
@@ -74,22 +77,32 @@ uint64_t syscall_handler(context_t *r)
         r->rax = 1;
         schedule(r);
         return (uint64_t)r;
+    }
     case 3:
+    {
         task_exit(r);
         while (1)
             asm volatile("hlt");
+    }
     case 4:
+    {
         char *buf = (char *)r->rdi;
         input(buf);
         r->rax = 1;
         return (uint64_t)r;
+    }
     case 5:
+    {
         r->rax = 1;
         return (uint64_t)r;
+    }
     case 6:
+    {
         r->rax = 1;
         return (uint64_t)r;
+    }
     case 7:
+    {
         int type = (int)r->rdi;
         char *ret_buf = (char *)r->rsi;
         if (type == 0)
@@ -112,7 +125,9 @@ uint64_t syscall_handler(context_t *r)
         }
         r->rax = 1;
         return (uint64_t)r;
+    }
     case 8:
+    {
         int x = (int)r->rdi;
         if (x == 0)
             acpi_reboot();
@@ -120,7 +135,9 @@ uint64_t syscall_handler(context_t *r)
             acpi_shutdown();
         r->rax = 1;
         return (uint64_t)r;
+    }
     case 9:
+    {
         extern vmm_table_t *kernel_pml4_virt;
         size_t increment = (size_t)r->rdi;
         uint8_t *previous_heap_end = init_heap_current;
@@ -129,12 +146,34 @@ uint64_t syscall_handler(context_t *r)
         {
             init_heap_current += i;
             void *frame = pmm_alloc_frame();
-            vmm_map_page(kernel_pml4_virt, (uintptr_t)init_heap_current, (uintptr_t)frame, VMM_PRESENT | VMM_WRITE); // | VMM_USER
+            vmm_map_page(kernel_pml4_virt, (uintptr_t)init_heap_current, (uintptr_t)frame, VMM_PRESENT | VMM_WRITE);
         }
         return (uint64_t)previous_heap_end;
+    }
+    // TODO: implement those syscalls and improve existing ones
+    case 10: // file open
+    {
+        char *path = (char *)r->rdi;
+        int flags = (int)r->rsi;
+        int fd = vfs_open(path, flags);
+        return fd;
+    }
+    case 11: // file read
+    {
+    }
+    case 12: // file write
+    {
+    }
+    case 13: // file close
+    {
+        int fd = (int)r->rdi;
+        return vfs_close(fd);
+    }
     default:
+    {
         kprintf("Unknown syscall\n");
         r->rax = 1;
         return (uint64_t)r;
+    }
     }
 }

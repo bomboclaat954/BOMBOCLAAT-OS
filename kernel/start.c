@@ -38,15 +38,17 @@
 #include <memory/pmm.h>
 #include <memory/vmm.h>
 #include <memory/kmalloc.h>
+#include <memory/memtools.h>
 #include <fs/fat32.h>
-#include <fs/ramfs.h>
+#include <fs/tmpfs.h>
+#include <fs/vfs.h>
 #include <tasks/tasks.h>
 #include <lib/string.h>
 #include <lib/math.h>
 
 char *UNAME[4];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "1.0-beta2";
+char *krelease = "1.0-beta3";
 
 stack_t system_stack;
 global_settings settings;
@@ -180,34 +182,32 @@ void kinit(void)
     sprintf(buf, "Total detected RAM: %d MB", mem.total / (1024 * 1024));
     log(LOG_INFO, buf);
 
-    ramfs_t *ramfs = init_ramfs();
-    if (ramfs)
-        log(LOG_OK, "Initialized RAMFS");
-    else
-        log(LOG_ERR, "Error while initializing RAMFS");
     task_init();
     UNAME[0] = kmalloc(sizeof(char) * 128);
     UNAME[1] = kmalloc(sizeof(char) * 128);
     UNAME[2] = kmalloc(sizeof(char) * 128);
     UNAME[3] = kmalloc(sizeof(char) * 128);
-    strcpy(kname, UNAME[0]);
-    strcpy(krelease, UNAME[1]);
+    sprintf(UNAME[0], "%s", kname);
+    sprintf(UNAME[1], "%s", krelease);
     sprintf(UNAME[2], "%d", BUILD_NUMBER);
     get_cpu_model(UNAME[3]);
 
-    settings.fat32 = 0;
-    // settings.fat32 = init_fat32();
+    /*settings.fat32 = 0;
+    settings.fat32 = init_fat32();
     if (settings.fat32)
     {
         log(LOG_INFO, "Found an ATA disk with FAT32");
         settings.current_dir_cluster = settings.fat32;
-    }
+    }*/
 
-    int serial = init_serial();
+    vfs_init();
+    log(LOG_OK, "Initialized VFS");
+
+    /*int serial = init_serial();
     if (serial == 0)
         log(LOG_OK, "Serial port initialized");
     else
-        log(LOG_ERR, "Error while initializing serial port");
+        log(LOG_ERR, "Error while initializing serial port");*/
 
     if (rsdp == NULL)
         log(LOG_ERR, "Couldn't find RSDP address");

@@ -27,15 +27,8 @@
 #include <bomboclaat/kprintf.h>
 #include <bomboclaat/panic.h>
 #include <bomboclaat/initramfs.h>
-#include <fs/ramfs.h>
 #include <tasks/loader.h>
 #include <tasks/tasks.h>
-
-typedef struct
-{
-    char filename[32];
-    uint64_t size;
-} __attribute__((packed)) ramfs_header_t;
 
 uint8_t *init_heap_current;
 

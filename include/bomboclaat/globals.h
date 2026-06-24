@@ -8,7 +8,6 @@
 #include <int/int.h>
 #include <memory/stack.h>
 #include <boot/limine.h>
-#include <fs/ramfs.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -20,7 +19,6 @@ extern "C"
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
     extern char *UNAME[4];
     extern stack_t system_stack;
-    extern ramfs_t *vfs;
     extern uint64_t hhdm_offset;
 
     typedef struct
