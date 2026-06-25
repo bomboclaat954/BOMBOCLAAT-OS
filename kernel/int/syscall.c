@@ -50,12 +50,12 @@ uint64_t syscall_handler(context_t *r)
     extern task_t *task_list_head;
     switch (r->rax)
     {
-    case 1:
+    case 1: // printf
     {
         kprintf((const char *)r->rdi);
         return 0;
     }
-    case 2:
+    case 2: // new task
     {
         char *name = (char *)r->rdi;
         int current_pid = current_task->pid;
@@ -78,13 +78,13 @@ uint64_t syscall_handler(context_t *r)
         schedule(r);
         return (uint64_t)r;
     }
-    case 3:
+    case 3: // task exit
     {
         task_exit(r);
         while (1)
             asm volatile("hlt");
     }
-    case 4:
+    case 4: // TODO: CHANGE THIS
     {
         char *buf = (char *)r->rdi;
         input(buf);
@@ -101,7 +101,7 @@ uint64_t syscall_handler(context_t *r)
         r->rax = 1;
         return (uint64_t)r;
     }
-    case 7:
+    case 7: // uname
     {
         int type = (int)r->rdi;
         char *ret_buf = (char *)r->rsi;
@@ -126,7 +126,7 @@ uint64_t syscall_handler(context_t *r)
         r->rax = 1;
         return (uint64_t)r;
     }
-    case 8:
+    case 8: // reboot / shutdown
     {
         int x = (int)r->rdi;
         if (x == 0)
@@ -136,7 +136,7 @@ uint64_t syscall_handler(context_t *r)
         r->rax = 1;
         return (uint64_t)r;
     }
-    case 9:
+    case 9: // malloc
     {
         extern vmm_table_t *kernel_pml4_virt;
         size_t increment = (size_t)r->rdi;
@@ -150,7 +150,6 @@ uint64_t syscall_handler(context_t *r)
         }
         return (uint64_t)previous_heap_end;
     }
-    // TODO: implement those syscalls and improve existing ones
     case 10: // file open
     {
         char *path = (char *)r->rdi;
@@ -160,9 +159,19 @@ uint64_t syscall_handler(context_t *r)
     }
     case 11: // file read
     {
+        int fd = (int)r->rdi;
+        uint64_t size = (uint64_t)r->rsi;
+        void *buf = (void *)r->rdx;
+        uint64_t ret = vfs_read(fd, buf, size);
+        return ret;
     }
     case 12: // file write
     {
+        int fd = (int)r->rdi;
+        uint64_t size = (uint64_t)r->rsi;
+        void *buf = (void *)r->rdx;
+        uint64_t ret = vfs_write(fd, buf, size);
+        return ret;
     }
     case 13: // file close
     {

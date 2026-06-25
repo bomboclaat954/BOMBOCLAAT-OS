@@ -90,7 +90,7 @@ int64_t tmpfs_mkfile(struct vfs_inode *parent, char *name, uint16_t mode)
 {
     tmpfs_dir_t *dir = (tmpfs_dir_t *)parent->private_data;
     tmpfs_file_t *new = (tmpfs_file_t *)kmalloc(sizeof(tmpfs_file_t));
-    if (!dir || !new)
+    if (!new)
         panic("TMPFS: kmalloc error", 0, 0);
     new->content = (uint8_t *)kmalloc(1024);
     memset(new->content, 0, 1024);

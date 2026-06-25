@@ -25,8 +25,8 @@
 #include <bomboclaat/kprintf.h>
 #include <tasks/tasks.h>
 
-vfs_dentry_t *vfs_root_dentry = NULL;
-vfs_inode_t *root_inode = NULL;
+vfs_dentry_t *vfs_root_dentry;
+vfs_inode_t *root_inode;
 int next_id = 1;
 
 int vfs_setup_inode(vfs_inode_t *inode)
@@ -89,7 +89,7 @@ int vfs_write(int fd, void *buf, uint64_t size)
     int bytes_written = inode->write(inode, buf, size, file->offset);
     if (bytes_written > 0)
         file->offset += bytes_written;
-        
+
     return bytes_written;
 }
 
