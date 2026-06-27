@@ -23,7 +23,7 @@ int main()
 {
     while (1)
     {
-        char cmd_line[1024];
+        char cmd_line[128];
         char cmd[32];
         char arg[96];
 

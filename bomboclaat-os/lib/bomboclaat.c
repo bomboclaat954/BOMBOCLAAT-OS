@@ -42,6 +42,50 @@ int sysexec(char *path)
     return res;
 }
 
+int open(char *path)
+{
+    int fd;
+    asm volatile(
+        "int $0x80"
+        : "=a"(fd)
+        : "a"(10), "D"(path), "S"(0)
+        : "memory");
+    return fd;
+}
+
+int read(int fd, void *buf, uint64_t size)
+{
+    int ret;
+    asm volatile(
+        "int $0x80"
+        : "=a"(ret)
+        : "a"(11), "D"(fd), "S"(size), "d"(buf)
+        : "memory");
+    return ret;
+}
+
+int write(int fd, void *buf, uint64_t size)
+{
+    int ret;
+    asm volatile(
+        "int $0x80"
+        : "=a"(ret)
+        : "a"(12), "D"(fd), "S"(size), "d"(buf)
+        : "memory");
+    return ret;
+}
+
+int close(int fd)
+{
+    int ret;
+    asm volatile(
+        "int $0x80"
+        : "=a"(ret)
+        : "a"(13), "D"(fd)
+        : "memory");
+    return ret;
+}
+
 void *sbrk(size_t increment)
 {
     uint64_t result;

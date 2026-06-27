@@ -41,10 +41,7 @@ int vfs_setup_inode(vfs_inode_t *inode)
     inode->write = NULL;
 
     next_id++;
-    if (inode)
-        return 1;
-    else
-        return 0;
+    return 1;
 }
 
 int vfs_read(int fd, void *buf, uint64_t size)

@@ -9,3 +9,5 @@ init/initramfs.img
 qemu.log
 install.sh
 initramfs.cpio
+bomboclaat-os/test.c
+bomboclaat-os/root/bin/test

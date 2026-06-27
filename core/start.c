@@ -48,7 +48,7 @@
 
 char *UNAME[4];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "1.0-beta3";
+char *krelease = "1.0-beta4";
 
 stack_t system_stack;
 global_settings settings;

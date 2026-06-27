@@ -154,24 +154,30 @@ uint64_t syscall_handler(context_t *r)
     {
         char *path = (char *)r->rdi;
         int flags = (int)r->rsi;
-        int fd = vfs_open(path, flags);
-        return fd;
+        int x = vfs_open(path, flags);
+
+        if (x == -1)
+        {
+            extern vfs_inode_t *root_inode;
+            vfs_mkfile(root_inode, path, 0);
+            x = vfs_open(path, flags);
+        }
+
+        return x;
     }
     case 11: // file read
     {
         int fd = (int)r->rdi;
         uint64_t size = (uint64_t)r->rsi;
         void *buf = (void *)r->rdx;
-        uint64_t ret = vfs_read(fd, buf, size);
-        return ret;
+        return vfs_read(fd, buf, size);
     }
     case 12: // file write
     {
         int fd = (int)r->rdi;
         uint64_t size = (uint64_t)r->rsi;
         void *buf = (void *)r->rdx;
-        uint64_t ret = vfs_write(fd, buf, size);
-        return ret;
+        return vfs_write(fd, buf, size);
     }
     case 13: // file close
     {

@@ -21,6 +21,7 @@
 #include <memory/kmalloc.h>
 #include <memory/memtools.h>
 #include <bomboclaat/panic.h>
+#include <bomboclaat/kprintf.h>
 #include <lib/string.h>
 
 vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name)
@@ -39,9 +40,9 @@ vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name)
 
             ret->read = tmpfs_read;
             ret->write = tmpfs_write;
-            ret->lookup = NULL;
-            ret->mkdir = NULL;
-            ret->mkfile = NULL;
+            ret->lookup = tmpfs_lookup;
+            ret->mkdir = tmpfs_mkdir;
+            ret->mkfile = tmpfs_mkfile;
 
             return ret;
         }
@@ -79,6 +80,8 @@ int64_t tmpfs_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64
 {
     tmpfs_file_t *file = (tmpfs_file_t *)inode->private_data;
     memcpy(file->content + offset, buffer, size);
+    file->size = file->size + size;
+    inode->private_data = file;
 
     if (offset + size > file->size)
         file->size = offset + size;

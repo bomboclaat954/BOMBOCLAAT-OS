@@ -21,7 +21,7 @@
 #include <stddef.h>
 #include <stdarg.h>
 
-static void print_dec(unsigned int value, unsigned int width, char *buf, int *ptr)
+void print_dec(unsigned int value, unsigned int width, char *buf, int *ptr)
 {
     unsigned int n_width = 1;
     unsigned int i = 9;
@@ -52,7 +52,7 @@ static void print_dec(unsigned int value, unsigned int width, char *buf, int *pt
     *ptr += n_width;
 }
 
-static void print_hex(unsigned int value, unsigned int width, char *buf, int *ptr)
+void print_hex(unsigned int value, unsigned int width, char *buf, int *ptr)
 {
     int i = width;
 
@@ -159,7 +159,7 @@ int printf(const char *fmt, ...)
 
 int sprintf(char *buf, const char *fmt, ...)
 {
-    static va_list args;
+    va_list args;
     va_start(args, fmt);
     int out = vasprintf(buf, fmt, args);
     va_end(args);
