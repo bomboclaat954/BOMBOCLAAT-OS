@@ -8,17 +8,24 @@
 
 #include <stdint.h>
 
+struct vfs_inode;
+
+struct vfs_inode_ops
+{
+    int64_t (*read)(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
+    int64_t (*write)(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
+    struct vfs_inode *(*lookup)(struct vfs_inode *parent, char *name);
+    int64_t (*mkfile)(struct vfs_inode *parent, char *name, uint16_t mode);
+    int64_t (*mkdir)(struct vfs_inode *parent, char *name, uint16_t mode);
+};
+
 struct vfs_inode
 {
     uint64_t id;
     uint64_t size;
     uint32_t mode;
 
-    int64_t (*read)(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
-    int64_t (*write)(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
-    struct vfs_inode *(*lookup)(struct vfs_inode *parent, char *name);
-    int64_t (*mkfile)(struct vfs_inode *parent, char *name, uint16_t mode);
-    int64_t (*mkdir)(struct vfs_inode *parent, char *name, uint16_t mode);
+    struct vfs_inode_ops *ops;
 
     void *private_data; // you can save other structures here such as tmpfs_file_t
 } typedef vfs_inode_t;

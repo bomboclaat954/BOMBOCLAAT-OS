@@ -31,13 +31,13 @@ int sysinfo(int rax, void *buf)
     return res;
 }
 
-int sysexec(char *path)
+int sysexec(char *path, int argc, char **argv)
 {
     int res;
     asm volatile(
         "int $0x80"
         : "=a"(res)
-        : "a"(2), "D"(path)
+        : "a"(2), "D"(path), "S"(argv), "d"(argc)
         : "memory");
     return res;
 }

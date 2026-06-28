@@ -20,6 +20,7 @@
 
 int main(int argc, char **argv)
 {
+    char *uver = "1.0";
     char kname[32];
     char krelease[32];
     char kbuild[32];
@@ -28,5 +29,36 @@ int main(int argc, char **argv)
     sysinfo(1, krelease);
     sysinfo(2, kbuild);
 
-    printf("%s v%s build %s\n", kname, krelease, kbuild);
+    // int s, r, o, v, help;
+
+    if (argc < 2)
+        printf("%s\n", kname);
+    else
+    {
+        for (int i = 1; i < argc; i++)
+        {
+            if (strcmp(argv[i], "-s") == 0)
+                printf("%s ", kname);
+            else if (strcmp(argv[i], "-r") == 0)
+                printf("%s ", krelease);
+            else if (strcmp(argv[i], "-o") == 0)
+                printf("%s ", OSVER);
+            else if (strcmp(argv[i], "-v") == 0)
+                printf("%s ", uver);
+            else if (strcmp(argv[i], "--help") == 0)
+            {
+                printf("Usage: uname [opt]\n");
+                printf("Without option is the same as -s\n");
+                printf("    -s kernel name\n");
+                printf("    -r kernel release\n");
+                printf("    -o OS version\n");
+                printf("    -v uname version\n");
+            }
+            else
+                printf("Type uname --help to see possible options\n");
+        }
+        printf("\n");
+    }
+
+    return 0;
 }

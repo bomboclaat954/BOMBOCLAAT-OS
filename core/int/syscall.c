@@ -58,15 +58,18 @@ uint64_t syscall_handler(context_t *r)
     case 2: // new task
     {
         char *name = (char *)r->rdi;
+        char **argv = (char **)r->rsi;
+        int argc = (int)r->rdx;
+
         int current_pid = current_task->pid;
         extern void *initramfs_base;
         uint64_t size = 0;
-        void *file = initramfs_find_file(initramfs_base, name, &size);
+        void *file = initramfs_find_file(initramfs_base, name, &size); // TODO: change it to VFS
         if (file == NULL)
             return 0;
 
         int frames = (size + PAGE_SIZE - 1) >> 12;
-        task_t *new_task = task_create(file, current_task->pid, name, frames);
+        task_t *new_task = task_create(file, current_task->pid, name, argc, argv, frames);
         if (new_task == NULL)
             return 0;
 
@@ -105,24 +108,13 @@ uint64_t syscall_handler(context_t *r)
     {
         int type = (int)r->rdi;
         char *ret_buf = (char *)r->rsi;
+
         if (type == 0)
             strcpy(UNAME[0], ret_buf);
         else if (type == 1)
             strcpy(UNAME[1], ret_buf);
         else if (type == 2)
             strcpy(UNAME[2], ret_buf);
-        else if (type == 3)
-            strcpy(UNAME[3], ret_buf);
-        else if (type == 4)
-        {
-            uint64_t *out_ptr = (uint64_t *)ret_buf;
-            *out_ptr = get_free_frames();
-        }
-        else if (type == 4)
-        {
-            uint64_t *out_ptr = (uint64_t *)ret_buf;
-            *out_ptr = get_total_frames();
-        }
         r->rax = 1;
         return (uint64_t)r;
     }

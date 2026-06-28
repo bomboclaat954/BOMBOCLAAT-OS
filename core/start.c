@@ -46,9 +46,9 @@
 #include <lib/string.h>
 #include <lib/math.h>
 
-char *UNAME[4];
+char *UNAME[3];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "1.0-beta4";
+char *krelease = "v1.0 beta 6";
 
 stack_t system_stack;
 global_settings settings;
@@ -178,30 +178,22 @@ void kinit(void)
     stack_init(&system_stack);
     log(LOG_OK, "Set up heap and system stack");
 
-    char buf[64];
-    sprintf(buf, "Total detected RAM: %d MB", mem.total / (1024 * 1024));
-    log(LOG_INFO, buf);
+    log(LOG_INFO, "Total detected RAM: %d MB", mem.total / (1024 * 1024));
 
     task_init();
     UNAME[0] = kmalloc(sizeof(char) * 128);
     UNAME[1] = kmalloc(sizeof(char) * 128);
     UNAME[2] = kmalloc(sizeof(char) * 128);
-    UNAME[3] = kmalloc(sizeof(char) * 128);
     sprintf(UNAME[0], "%s", kname);
     sprintf(UNAME[1], "%s", krelease);
     sprintf(UNAME[2], "%d", BUILD_NUMBER);
-    get_cpu_model(UNAME[3]);
-
-    /*settings.fat32 = 0;
-    settings.fat32 = init_fat32();
-    if (settings.fat32)
-    {
-        log(LOG_INFO, "Found an ATA disk with FAT32");
-        settings.current_dir_cluster = settings.fat32;
-    }*/
 
     vfs_init();
     log(LOG_OK, "Initialized VFS");
+    tmpfs_init();
+    log(LOG_OK, "Initialized TMPFS");
+    fat32_init();
+    log(LOG_OK, "Initialized FAT32");
 
     /*int serial = init_serial();
     if (serial == 0)

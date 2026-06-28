@@ -24,6 +24,8 @@
 #include <bomboclaat/kprintf.h>
 #include <lib/string.h>
 
+struct vfs_inode_ops *tmpfs_inode_ops;
+
 vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name)
 {
     tmpfs_dir_t *dir = (tmpfs_dir_t *)parent->private_data;
@@ -37,12 +39,7 @@ vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name)
             ret->mode = 0;
             ret->size = file->size;
             ret->private_data = (void *)file;
-
-            ret->read = tmpfs_read;
-            ret->write = tmpfs_write;
-            ret->lookup = tmpfs_lookup;
-            ret->mkdir = tmpfs_mkdir;
-            ret->mkfile = tmpfs_mkfile;
+            ret->ops = tmpfs_inode_ops;
 
             return ret;
         }
@@ -108,4 +105,14 @@ int64_t tmpfs_mkfile(struct vfs_inode *parent, char *name, uint16_t mode)
         return 1;
     else
         return 0;
+}
+
+void tmpfs_init()
+{
+    tmpfs_inode_ops = (struct vfs_inode_ops *)kmalloc(sizeof(struct vfs_inode_ops));
+    tmpfs_inode_ops->lookup = tmpfs_lookup;
+    tmpfs_inode_ops->mkdir = tmpfs_mkdir;
+    tmpfs_inode_ops->mkfile = tmpfs_mkfile;
+    tmpfs_inode_ops->read = tmpfs_read;
+    tmpfs_inode_ops->write = tmpfs_write;
 }

@@ -44,17 +44,15 @@ static char *logo[] = {
     "        `--..#####..--'           ",
 };
 
-int main()
+int main(int argc, char **argv)
 {
     char kname[32];
     char krelease[16];
-    char cpu[48];
-    uintptr_t memfree = 0;
-    uintptr_t memtotal = 0;
+    // char cpu[48];
 
     sysinfo(0, kname);
     sysinfo(1, krelease);
-    sysinfo(2, cpu);
+    // sysinfo(2, cpu);
 
     for (int i = 0; i < ARRAY_SIZE(logo); i++)
     {
@@ -66,12 +64,12 @@ int main()
         case 1:
             printf("%s  ---------------\n", logo[i]);
             break;
-        /*case 2:
+        case 2:
             printf("%s OS: %s\n", logo[i], OSVER);
             break;
         case 3:
             printf("%s  Kernel: %s v%s\n", logo[i], kname, krelease);
-            break;*/
+            break;
         default:
             printf("%s\n", logo[i]);
             break;

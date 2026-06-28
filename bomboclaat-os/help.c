@@ -18,12 +18,14 @@
 
 #include <bomboclaat.h>
 
-int main()
+int main(int argc, char **argv)
 {
     printf("Available commands:\n");
-    printf("    bombofetch  - shows hardware and software info\n");
-    printf("    poweroff    - shuts down your computer\n");
-    printf("    reboot      - reboots your computer\n");
-    printf("    uname       - shows kernel name and version\n");
+    printf("    bombofetch      - shows hardware and software info\n");
+    printf("    power [opt]     - shut down or reboot");
+    printf("    uname [*opt]    - shows kernel name and version\n");
+
+    printf("[opt]   - obligatory\n");
+    printf("[*opt]  - optional\n");
     return 0;
 }

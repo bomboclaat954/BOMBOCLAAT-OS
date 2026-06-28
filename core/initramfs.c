@@ -117,7 +117,7 @@ void initramfs()
     init_heap_current = kmalloc(65536);
     int frames = (init_size + PAGE_SIZE - 1) >> 12;
 
-    task_t *init_task = task_create(init_data, 0, "bin/init", frames);
+    task_t *init_task = task_create(init_data, 0, "bin/init", 0, 0, frames);
     if (init_task == NULL)
         panic("Failed to create a process for init", 0, 0);
 

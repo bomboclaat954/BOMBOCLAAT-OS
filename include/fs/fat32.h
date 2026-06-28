@@ -15,8 +15,9 @@
 #define ATTR_LFN 0x0F
 
 #include <stdint.h>
+#include <fs/vfs.h>
 
-typedef struct
+struct fat32_entry
 {
     char name[11];
     uint8_t attr;
@@ -30,12 +31,13 @@ typedef struct
     uint16_t wrt_date;
     uint16_t cluster_lo;
     uint32_t size;
-} __attribute__((packed)) dir_entry_t;
+} __attribute__((packed)) typedef fat32_entry_t;
 
-void lsdir_cluster(uint32_t dir_cluster);
-void read_file_content(dir_entry_t *file, void *output_buffer);
-void read(char *name);
-uint32_t chdir(const char *name, uint32_t current_dir);
-uint32_t init_fat32();
+extern struct vfs_inode_ops *fat32_inode_ops;
+
+vfs_inode_t *fat32_lookup(vfs_inode_t *parent, char *name);
+int64_t fat32_read(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
+int64_t fat32_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
+void fat32_init();
 
 #endif

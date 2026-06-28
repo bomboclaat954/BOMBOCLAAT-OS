@@ -31,14 +31,10 @@ int next_id = 1;
 
 int vfs_setup_inode(vfs_inode_t *inode)
 {
+    inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
     inode->id = next_id;
-    inode->lookup = NULL;
-    inode->mkdir = NULL;
-    inode->mkfile = NULL;
     inode->mode = 0;
-    inode->read = NULL;
     inode->size = 0;
-    inode->write = NULL;
 
     next_id++;
     return 1;
@@ -56,11 +52,11 @@ int vfs_read(int fd, void *buf, uint64_t size)
     if (file == NULL)
         return -1;
 
-    vfs_inode_t *inode = file->inode;
-    if (!inode->read)
+    struct vfs_inode *inode = file->inode;
+    if (!inode->ops->read)
         return -1;
 
-    int bytes_read = inode->read(inode, buf, size, file->offset);
+    int bytes_read = inode->ops->read(inode, buf, size, file->offset);
     if (bytes_read > 0)
         file->offset += bytes_read;
 
@@ -79,11 +75,11 @@ int vfs_write(int fd, void *buf, uint64_t size)
     if (file == NULL)
         return -1;
 
-    vfs_inode_t *inode = file->inode;
-    if (!inode->write)
+    struct vfs_inode *inode = file->inode;
+    if (!inode->ops->write)
         return -1;
 
-    int bytes_written = inode->write(inode, buf, size, file->offset);
+    int bytes_written = inode->ops->write(inode, buf, size, file->offset);
     if (bytes_written > 0)
         file->offset += bytes_written;
 
@@ -92,7 +88,7 @@ int vfs_write(int fd, void *buf, uint64_t size)
 
 int vfs_mkfile(vfs_inode_t *parent, char *name, uint16_t mode)
 {
-    if (parent->mkfile(parent, name, mode))
+    if (parent->ops->mkfile(parent, name, mode))
         return 1;
     else
         return 0;
@@ -117,9 +113,9 @@ int vfs_open(char *path, int flags)
     if (fd == -1)
         return -1;
 
-    if (!vfs_root_dentry->inode->lookup)
+    if (!vfs_root_dentry->inode->ops->lookup)
         return -1;
-    vfs_inode_t *inode = vfs_root_dentry->inode->lookup(vfs_root_dentry->inode, path);
+    vfs_inode_t *inode = vfs_root_dentry->inode->ops->lookup(vfs_root_dentry->inode, path);
     if (inode == NULL)
         return -1;
 

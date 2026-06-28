@@ -88,7 +88,7 @@ void task_init(void)
     tasks[0] = kernel_task;
 }
 
-task_t *task_create(void *elf_data, int parent_pid, char *name, int frames)
+task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char **argv, int frames)
 {
     ELF64_Ehdr *header = (ELF64_Ehdr *)elf_data;
     if (*(uint32_t *)header->e_ident != ELF_MAGIC || header->e_machine != 0x3E)
@@ -145,15 +145,51 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int frames)
 
     uintptr_t user_stack_virtual = 0xFFFFFFFFD0000000;
 
+    void *top_frame_phys = NULL;
     for (int i = 0; i < frames; i++)
     {
         void *frame_phys = pmm_alloc_frame();
         vmm_map_page(new_task->pml4, user_stack_virtual + (i * PAGE_SIZE), (uintptr_t)frame_phys, VMM_PRESENT | VMM_WRITE | VMM_USER);
+        if (i == frames - 1)
+            top_frame_phys = frame_phys;
     }
 
-    uintptr_t user_rsp = (user_stack_virtual + (PAGE_SIZE * frames)) & ~0xFULL;
+    uintptr_t k_stack_high = (uintptr_t)top_frame_phys + hhdm_offset + PAGE_SIZE;
+    size_t frame_offset = PAGE_SIZE;
 
-    void *kstack_phys = NULL; // pmm_alloc_frame();
+    uintptr_t *user_argv_addrs = (uintptr_t *)kmalloc(sizeof(uintptr_t) * (argc + 1));
+
+    for (int i = argc - 1; i >= 0; i--)
+    {
+        size_t len = strlen(argv[i]) + 1;
+        frame_offset -= len;
+
+        char *dest = (char *)(k_stack_high - (PAGE_SIZE - frame_offset));
+        strcpy(argv[i], dest);
+
+        user_argv_addrs[i] = (user_stack_virtual + (frames * PAGE_SIZE)) - (PAGE_SIZE - frame_offset);
+    }
+    user_argv_addrs[argc] = (uintptr_t)NULL;
+
+    frame_offset &= ~0xFULL;
+
+    size_t argv_array_size = sizeof(uintptr_t) * (argc + 1);
+    frame_offset -= argv_array_size;
+
+    uintptr_t *dest_argv_array = (uintptr_t *)(k_stack_high - (PAGE_SIZE - frame_offset));
+    memcpy((uint8_t *)dest_argv_array, (uint8_t *)user_argv_addrs, argv_array_size);
+
+    uintptr_t user_argv_ptr = (user_stack_virtual + (frames * PAGE_SIZE)) - (PAGE_SIZE - frame_offset);
+
+    frame_offset -= sizeof(uintptr_t);
+    uintptr_t *dest_argc = (uintptr_t *)(k_stack_high - (PAGE_SIZE - frame_offset));
+    *dest_argc = (uintptr_t)argc;
+
+    uintptr_t user_rsp = (user_stack_virtual + (frames * PAGE_SIZE)) - (PAGE_SIZE - frame_offset);
+
+    kfree(user_argv_addrs);
+
+    void *kstack_phys = NULL;
     for (int i = 0; i < 4; i++)
         kstack_phys = pmm_alloc_frame();
     new_task->kstack_top = (uintptr_t)kstack_phys + hhdm_offset + PAGE_SIZE;
@@ -169,6 +205,8 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int frames)
     ctx->rflags = 0x202;
     ctx->int_no = 0;
     ctx->err_code = 0;
+    ctx->rdi = argc;
+    ctx->rsi = user_argv_ptr;
 
     new_task->next = current_task->next;
     current_task->next = new_task;

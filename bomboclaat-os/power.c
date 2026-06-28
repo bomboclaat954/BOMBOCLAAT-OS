@@ -18,11 +18,38 @@
 
 #include <bomboclaat.h>
 
-int main()
+void shutdown()
+{
+    asm volatile(
+        "int $0x80"
+        :
+        : "a"(8), "D"(1)
+        : "memory");
+}
+
+void reboot()
 {
     asm volatile(
         "int $0x80"
         :
         : "a"(8), "D"(0)
         : "memory");
+}
+
+int main(int argc, char **argv)
+{
+    if (argc < 2)
+    {
+        printf("Usage: power [-s: shutdown, -r: reboot]\n");
+        return 1;
+    }
+
+    if (strcmp(argv[1], "-s") == 0)
+        shutdown();
+    else if (strcmp(argv[1], "-r") == 0)
+        reboot();
+    else
+        printf("Invalid option\n");
+
+    return 0;
 }

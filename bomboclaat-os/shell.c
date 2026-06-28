@@ -19,13 +19,63 @@
 #include <bomboclaat.h>
 #include <stdint.h>
 
-int main()
+int parse_args(char *cmdline, char *out_buf[])
+{
+    int argc = 0;
+    char *ptr = cmdline;
+    int in_quotes = 0;
+
+    while (*ptr != '\0')
+    {
+        while (*ptr == ' ' && !in_quotes)
+            ptr++;
+
+        if (*ptr == '\0')
+            break;
+
+        if (*ptr == '"')
+        {
+            in_quotes = 1;
+            ptr++;
+        }
+
+        out_buf[argc++] = ptr;
+
+        while (*ptr != '\0')
+        {
+            if (in_quotes)
+            {
+                if (*ptr == '"')
+                {
+                    in_quotes = 0;
+                    *ptr = '\0';
+                    ptr++;
+                    break;
+                }
+            }
+            else
+            {
+                if (*ptr == ' ')
+                {
+                    *ptr = '\0';
+                    ptr++;
+                    break;
+                }
+            }
+            ptr++;
+        }
+    }
+
+    out_buf[argc] = NULL;
+    return argc;
+}
+
+int main(int argc, char **argv)
 {
     while (1)
     {
         char cmd_line[128];
         char cmd[32];
-        char arg[96];
 
         printf("root@bomboclaat:~# ");
         scanf(cmd_line);
@@ -38,24 +88,14 @@ int main()
         }
         cmd[i] = '\0';
 
-        while (cmd_line[i] == ' ')
-            i++;
-
-        while (cmd_line[i] != '\0' && j < 95)
-        {
-            arg[j] = cmd_line[i];
-            i++;
-            j++;
-        }
-        arg[j] = '\0';
-
-        char path[128];
+        char path[32];
         sprintf(path, "bin/%s", cmd);
-        // parse and pass the arguments somehow
+        char *argv[32];
+        int argc = parse_args(cmd_line, argv);
 
         if (strcmp(cmd_line, "\0") == 0)
             continue;
-        else if (sysexec(path) == 0)
+        else if (sysexec(path, argc, argv) == 0)
             printf("Unknown command\n");
     }
     return 0;

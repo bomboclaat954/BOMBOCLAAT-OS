@@ -24,10 +24,13 @@ struct tmpfs_file
     uint8_t *content;
 } __attribute__((packed)) typedef tmpfs_file_t;
 
+extern struct vfs_inode_ops *tmpfs_inode_ops;
+
 vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name);
 int64_t tmpfs_mkdir(struct vfs_inode *parent, char *name, uint16_t mode);
 int64_t tmpfs_read(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
 int64_t tmpfs_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
 int64_t tmpfs_mkfile(struct vfs_inode *parent, char *name, uint16_t mode);
+void tmpfs_init();
 
 #endif

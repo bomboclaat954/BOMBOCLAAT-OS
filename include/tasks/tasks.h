@@ -51,7 +51,7 @@ typedef struct task
 extern volatile int need_reschedule;
 
 void task_init(void);
-task_t *task_create(void *elf_data, int parent_pid, char *name, int frames);
+task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char **argv, int frames);
 context_t *schedule(context_t *ctx);
 void task_exit(context_t *ctx);
 
