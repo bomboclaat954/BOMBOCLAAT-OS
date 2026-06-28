@@ -31,6 +31,7 @@ extern "C"
     void puts(char *s, int endl);
     void set_cursor(int x, int y);
     void cls();
+    void scroll();
 
 #ifdef __cplusplus
 }

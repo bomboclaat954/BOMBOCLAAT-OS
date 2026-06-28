@@ -24,29 +24,70 @@ if len(sys.argv) < 2:
     sys.exit(1)
 
 with open(sys.argv[1], "rb") as f:
-    header = f.read(32)
-    magic, version, headersize, flags, length, charsize, height, width = struct.unpack("<IIIIIIII", header)
-    
-    if magic != 0x864ab572:
-        print("Not a valid PSF2 font")
-        sys.exit(1)
+    raw = f.read()
 
-    f.seek(headersize)
-    
-    glyph_data = f.read(length * charsize)
+magic2 = struct.unpack_from("<I", raw, 0)[0]
+magic1 = struct.unpack_from("<H", raw, 0)[0]
 
-with open("font.h", "w") as out:
+if magic2 == 0x864AB572:
+    # PSF2
+    _, version, headersize, flags, length, charsize, height, width = struct.unpack_from("<IIIIIIII", raw, 0)
+    glyph_data = raw[headersize : headersize + length * charsize]
+    print(f"Format: PSF2, {width}x{height}, {length} chars")
+
+elif magic1 == 0x0436:
+    # PSF1
+    _, mode, charsize = struct.unpack_from("<HBB", raw, 0)
+    width = 8
+    height = charsize
+    headersize = 4
+    length = 512 if (mode & 0x01) else 256
+    glyph_data = raw[headersize : headersize + length * charsize]
+    print(f"Format: PSF1, {width}x{height}, {length} chars")
+
+else:
+    print(f"Unknown format! Magic bytes: {raw[:4].hex()}")
+    sys.exit(1)
+
+bytes_per_row = (width + 7) // 8
+rows_per_char = charsize // bytes_per_row
+
+if bytes_per_row == 1:
+    row_type = "uint8_t"
+elif bytes_per_row == 2:
+    row_type = "uint16_t"
+else:
+    row_type = "uint32_t"
+
+with open(f"font{height}x{width}.h", "w") as out:
     out.write("#pragma once\n")
     out.write("#include <stdint.h>\n\n")
-    out.write(f"#define FONT_WIDTH {width}\n")
-    out.write(f"#define FONT_HEIGHT {height}\n")
-    out.write(f"#define FONT_CHARSIZE {charsize}\n\n")
-    out.write("static const uint8_t embedded_font[] = {\n")
-    
-    for i, byte in enumerate(glyph_data):
-        out.write(f"0x{byte:02X}, ")
-        if (i + 1) % 16 == 0:
-            out.write("\n")
-            
-    out.write("\n};\n")
-print(f"Parsed font: {width}x{height}. {length} characters")
+    out.write(f"#define FONT_COLS  {width}\n")
+    out.write(f"#define FONT_ROWS {height}\n")
+    out.write(f"#define FONT_CHARS  {length}\n")
+    out.write(f"#define FONT_BITS_ORDER 1\n\n")
+    out.write(f"// {width}x{height} font, {bytes_per_row} byte(s) per row\n")
+    out.write(f"static const {row_type} font_pixels[{length}][{rows_per_char}] = {{\n")
+
+    for char_idx in range(length):
+        out.write("    {")
+        for row in range(rows_per_char):
+            offset = char_idx * charsize + row * bytes_per_row
+            row_bytes = glyph_data[offset : offset + bytes_per_row]
+            value = int.from_bytes(row_bytes, byteorder='little')
+
+            if bytes_per_row == 1:
+                out.write(f"0x{value:02X}")
+            elif bytes_per_row == 2:
+                out.write(f"0x{value:04X}")
+            else:
+                out.write(f"0x{value:08X}")
+
+            if row < rows_per_char - 1:
+                out.write(", ")
+
+        out.write(f"}},  // char {char_idx}\n")
+
+    out.write("};\n")
+
+print(f"Generated font.h: {row_type}[{length}][{rows_per_char}]")

@@ -173,7 +173,6 @@ int kprintf(const char *fmt, ...)
     va_start(args, fmt);
     int out = vasprintf(buf, fmt, args);
     va_end(args);
-    unsigned char *c = (uint8_t *)buf;
     puts(buf, 0);
 
     return out;
@@ -188,26 +187,22 @@ int sprintf(char *buf, const char *fmt, ...)
     return out;
 }
 
-void log(log_type type, const char *fmt, ...)
+int log(log_type type, const char *fmt, ...)
 {
-    uint64_t current_ticks = pit_get_ticks();
-    uint64_t seconds = current_ticks / 1000;
-    uint64_t milliseconds = current_ticks % 1000;
-
-    kprintf("[%5llu.%03llu] ", seconds, milliseconds);
     if (type == LOG_OK)
-        draw_string("*", cursor_x, cursor_y, 0x00FF00, 0);
+        draw_string("[+]", cursor_x, cursor_y, 0x00FF00, 0);
     else if (type == LOG_ERR)
-        draw_string("*", cursor_x, cursor_y, 0xFF0000, 0);
+        draw_string("[-]", cursor_x, cursor_y, 0xFF0000, 0);
     else
-        draw_string("*", cursor_x, cursor_y, 0x00BCEF, 0);
+        draw_string("[*]", cursor_x, cursor_y, 0x00BCEF, 0);
 
-    cursor_x += 16;
+    cursor_x += 24;
     char buf[8192];
     va_list args;
     va_start(args, fmt);
     int out = vasprintf(buf, fmt, args);
     va_end(args);
-    unsigned char *c = (uint8_t *)buf;
     puts(buf, 1);
+
+    return out;
 }

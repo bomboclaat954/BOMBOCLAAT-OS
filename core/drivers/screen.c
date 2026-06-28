@@ -17,9 +17,10 @@
  */
 
 #include <drivers/screen.h>
-#include <lib/string.h>
 #include <drivers/io.h>
-#include <fonts/font8x8.h>
+#include <memory/memtools.h>
+#include <lib/string.h>
+#include <fonts/font8x16.h>
 
 int current_fgc = 0xFFFFFF;
 int current_bgc = 0x000000;
@@ -40,8 +41,8 @@ void color(int fg, int bg)
 void init_screen_driver(struct limine_framebuffer *fbuf)
 {
     fb = fbuf;
-    ROWS = fb->width;
-    COLUMNS = fb->height;
+    COLUMNS = fb->width;
+    ROWS = fb->height;
 }
 
 void put_pixel(uint32_t x, uint32_t y, uint32_t color)
@@ -59,12 +60,16 @@ void fill_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color)
 
 void draw_char(char c, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg)
 {
-    uint8_t *glyph = font8x8_basic[(uint8_t)c];
-    for (int row = 0; row < 8; row++)
+    uint8_t *glyph = font_pixels[(uint8_t)c];
+    for (int row = 0; row < FONT_ROWS; row++)
     {
-        for (int col = 0; col < 8; col++)
+        for (int col = 0; col < FONT_COLS; col++)
         {
-            uint32_t color = (glyph[row] >> col) & 1 ? fg : bg;
+            uint32_t color = 0;
+            if (FONT_BITS_ORDER == 0)
+                color = (glyph[row] >> col) & 1 ? fg : bg; // LSB
+            else
+                color = (glyph[row] >> (FONT_COLS - 1 - col)) & 1 ? fg : bg; // MSB
             put_pixel(x + col, y + row, color);
         }
     }
@@ -75,7 +80,7 @@ void draw_string(const char *str, uint32_t x, uint32_t y, uint32_t fg, uint32_t 
     while (*str)
     {
         draw_char(*str++, x, y, fg, bg);
-        x += 8;
+        x += FONT_COLS;
     }
 }
 
@@ -98,22 +103,32 @@ void update_cursor()
 
 void putc(char c)
 {
+    if (cursor_x + FONT_COLS > fb->width)
+    {
+        cursor_x = 0;
+        cursor_y += FONT_ROWS;
+    }
+
+    if (cursor_y + FONT_ROWS > fb->height)
+        scroll();
+
     if (c == '\n')
     {
         cursor_x = 0;
-        cursor_y += 10;
+        cursor_y += FONT_ROWS;
     }
-    else if (c == '\t')
-        return;
     else if (c == '\b')
     {
-        cursor_x -= 8;
-        draw_char(' ', cursor_x, cursor_y, current_fgc, current_bgc);
+        if (cursor_x >= FONT_COLS)
+        {
+            cursor_x -= FONT_COLS;
+            draw_char(' ', cursor_x, cursor_y, current_fgc, current_bgc);
+        }
     }
     else
     {
         draw_char(c, cursor_x, cursor_y, current_fgc, current_bgc);
-        cursor_x += 8;
+        cursor_x += FONT_COLS;
     }
 }
 
@@ -136,4 +151,15 @@ void cls()
     fill_rect(0, 0, fb->width, fb->height, 0x000000);
     cursor_x = 0;
     cursor_y = 0;
+}
+
+void scroll()
+{
+    cursor_y -= FONT_ROWS;
+    volatile uint8_t *fb_mem = fb->address;
+    uint32_t pitch = fb->pitch;
+    uint32_t line_height = FONT_ROWS;
+
+    memmove((void *)fb_mem, (void *)(fb_mem + line_height * pitch), pitch * (fb->height - line_height));
+    memset((void *)(fb_mem + (fb->height - line_height) * pitch), 0x00, line_height * pitch);
 }

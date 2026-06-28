@@ -138,6 +138,7 @@ void kinit(void)
     init_screen_driver(fb);
     sse_enable();
     fpu_enable();
+    log(LOG_INFO, "Starting BOMBOCLAAT Kernel");
     idt_init();
     pic_disable();
     log(LOG_OK, "Enabled SSE, FPU and IDT");
@@ -185,10 +186,7 @@ void kinit(void)
     log(LOG_OK, "Set up heap and system stack");
 
     uintptr_t lapic_phys = lapic_get_base();
-    vmm_map_page(kernel_pml4_virt,
-                 lapic_phys + hhdm_offset,
-                 lapic_phys,
-                 VMM_PRESENT | VMM_WRITE | VMM_PCD | VMM_PWT);
+    vmm_map_page(kernel_pml4_virt, lapic_phys + hhdm_offset, lapic_phys, VMM_PRESENT | VMM_WRITE | VMM_PCD | VMM_PWT);
 
     uintptr_t lapic_base = lapic_phys + hhdm_offset;
     lapic_init(lapic_base);

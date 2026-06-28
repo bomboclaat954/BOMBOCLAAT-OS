@@ -19,7 +19,7 @@ extern "C"
 
     int kprintf(const char *fmt, ...);
     int sprintf(char *buf, const char *fmt, ...);
-    void log(log_type type, const char *fmt, ...);
+    int log(log_type type, const char *fmt, ...);
 
 #ifdef __cplusplus
 }

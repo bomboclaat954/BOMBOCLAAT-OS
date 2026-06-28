@@ -29,6 +29,7 @@
 #include <memory/kmalloc.h>
 #include <drivers/io.h>
 #include <drivers/acpi.h>
+#include <drivers/screen.h>
 #include <tasks/tasks.h>
 #include <fs/vfs.h>
 #include <stddef.h>
@@ -96,6 +97,7 @@ uint64_t syscall_handler(context_t *r)
     }
     case 5:
     {
+        cls();
         r->rax = 1;
         return (uint64_t)r;
     }
