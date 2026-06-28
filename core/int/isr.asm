@@ -171,9 +171,9 @@ irq_common_stub:
     mov es, ax
 
     mov rdi, rsp
-    call schedule
+    call irq_handler
     
-    mov rsp, rax
+    ;mov rsp, rax
 
     mov ax, 0x3B
     mov ds, ax

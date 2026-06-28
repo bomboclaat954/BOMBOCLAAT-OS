@@ -9,6 +9,19 @@
 #include <stdint.h>
 
 #define IDT_MAX_DESCRIPTORS 256
+#define PIT_CHANNEL0 0x40
+#define PIT_CMD 0x43
+#define PIT_FREQUENCY 1193182
+#define PIT_HZ 1000
+#define IA32_APIC_BASE_MSR 0x1B
+#define LAPIC_SVR 0x0F0
+#define LAPIC_SVR_ENABLE 0x100
+#define LAPIC_TIMER 0x320
+#define LAPIC_TDCR 0x3E0
+#define LAPIC_TICR 0x380
+#define TIMER_PERIODIC 0x20000
+#define LAPIC_EOI 0x0B0
+#define LAPIC_TCCR 0x390
 
 typedef struct
 {
@@ -99,20 +112,21 @@ extern void *isr_stub_table[];
 extern "C"
 {
 #endif
-
     void exception_handler(registers_t *r);
     void irq_handler(registers_t *r);
     void idt_set_descriptor(uint8_t vector, void *isr, uint8_t flags);
     void idt_init(void);
-    void pic_remap(void);
-    void pit_init(void);
-    void pit_tick(void);
-    uint32_t pit_get_ticks(void);
-    void delay_ms(uint32_t ms);
+    void pic_disable(void);
+    uint64_t pit_get_ticks(void);
+    void delay_ms(uint64_t ms);
     void syscall_send(uint64_t nsyscall, const char *args);
     void gdt_tss_init(void);
-    static inline void io_wait(void);
 
+    uintptr_t lapic_get_base(void);
+    void lapic_init(uintptr_t lapic_base);
+    void lapic_timer_init(uintptr_t lapic_base, uint32_t count);
+    void apic_eoi(uintptr_t lapic_base);
+    void lapic_timer_calibrate(uintptr_t lapic_base);
 #ifdef __cplusplus
 }
 #endif

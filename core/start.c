@@ -139,23 +139,29 @@ void kinit(void)
     sse_enable();
     fpu_enable();
     idt_init();
-    pit_init();
-    log(LOG_OK, "Enabled SSE, FPU, IDT and PIT");
-    gdt_tss_init();
-    log(LOG_OK, "Initialized GDT and TSS");
+    pic_disable();
+    log(LOG_OK, "Enabled SSE, FPU and IDT");
 
-    if (memmap == NULL || memmap->entry_count == 0)
-        panic("unable to get memory map", 0, 0);
+    asm volatile("sti");
+    log(LOG_OK, "Enabled interrupts");
+
     if (hhdm == NULL)
         panic("error while getting HHDM", 0, 0);
 
     hhdm_offset = hhdm->offset;
     log(LOG_INFO, "HHDM offset: %x", hhdm_offset);
 
+    gdt_tss_init();
+    log(LOG_OK, "Initialized GDT and TSS");
+
+    if (memmap == NULL || memmap->entry_count == 0)
+        panic("unable to get memory map", 0, 0);
+
     log(LOG_INFO, "Getting memory map");
     ram_t mem = init_memmap(memmap);
     if (mem.total == 0 || mem.usable == 0)
         panic("error while getting RAM size", 0, 0);
+    log(LOG_INFO, "Total detected RAM: %d MB", mem.total / (1024 * 1024));
     log(LOG_OK, "Initialized memory map");
     pmm_init(memmap, hhdm);
     log(LOG_OK, "Initialized PMM");
@@ -178,7 +184,17 @@ void kinit(void)
     stack_init(&system_stack);
     log(LOG_OK, "Set up heap and system stack");
 
-    log(LOG_INFO, "Total detected RAM: %d MB", mem.total / (1024 * 1024));
+    uintptr_t lapic_phys = lapic_get_base();
+    vmm_map_page(kernel_pml4_virt,
+                 lapic_phys + hhdm_offset,
+                 lapic_phys,
+                 VMM_PRESENT | VMM_WRITE | VMM_PCD | VMM_PWT);
+
+    uintptr_t lapic_base = lapic_phys + hhdm_offset;
+    lapic_init(lapic_base);
+    lapic_timer_init(lapic_base, 1000000);
+    lapic_timer_calibrate(lapic_base);
+    log(LOG_OK, "Initialized LAPIC timer");
 
     task_init();
     UNAME[0] = kmalloc(sizeof(char) * 128);
@@ -214,7 +230,7 @@ void kinit(void)
 
     log(LOG_INFO, "Loading initramfs");
     initramfs();
-    asm volatile("sti");
+
     extern void reg_dump(registers_t * r);
     context_t *ctx = (context_t *)kmalloc(sizeof(context_t));
     reg_dump((registers_t *)ctx); // registers_t and context_t are the same

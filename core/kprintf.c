@@ -190,9 +190,9 @@ int sprintf(char *buf, const char *fmt, ...)
 
 void log(log_type type, const char *fmt, ...)
 {
-    unsigned long long current_ticks = pit_get_ticks();
-    unsigned long long seconds = current_ticks / 1000;
-    unsigned long long milliseconds = current_ticks % 1000;
+    uint64_t current_ticks = pit_get_ticks();
+    uint64_t seconds = current_ticks / 1000;
+    uint64_t milliseconds = current_ticks % 1000;
 
     kprintf("[%5llu.%03llu] ", seconds, milliseconds);
     if (type == LOG_OK)

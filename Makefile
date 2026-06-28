@@ -140,6 +140,7 @@ run-debug:
 		-monitor stdio \
 		-machine q35,acpi=on \
 		-device virtio-balloon \
+		-cpu Qemu64,+x2apic \
 	> /dev/null 2>&1
 
 disk-img:

@@ -20,24 +20,20 @@
 #include <drivers/io.h>
 #include <bomboclaat/kprintf.h>
 
-#define PIC_MASTER_CMD 0x20
-#define PIC_SLAVE_CMD 0xA0
-#define PIC_EOI 0x20
+extern uintptr_t lapic_base_global;
+extern volatile uint64_t ticks;
 
 void irq_handler(registers_t *r)
 {
     switch (r->int_no)
     {
     case 32:
-        pit_tick();
+        ticks++;
         break;
     case 33:
         break;
     default:
         break;
     }
-    if (r->int_no >= 40)
-        outb(PIC_SLAVE_CMD, PIC_EOI);
-    if (r->int_no >= 32)
-        outb(PIC_MASTER_CMD, PIC_EOI);
+    apic_eoi(lapic_base_global);
 }

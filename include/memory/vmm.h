@@ -17,6 +17,8 @@ typedef struct vmm_table
 #define VMM_PRESENT (1ULL << 0)
 #define VMM_WRITE (1ULL << 1)
 #define VMM_USER (1ULL << 2)
+#define VMM_PWT (1ULL << 3)
+#define VMM_PCD (1ULL << 4)
 #define VMM_NX (1ULL << 63)
 #define CLEAR_FLAGS 0x000FFFFFFFFFF000ULL
 #define PML4_INDEX(x) (((x) >> 39) & 0x1FF)

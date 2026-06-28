@@ -38,15 +38,6 @@ void idt_set_descriptor(uint8_t vector, void *isr, uint8_t flags)
     descriptor->reserved = 0;
 }
 
-void lapic_disable(void)
-{
-    uint64_t low = 0;
-    uint64_t high = 0;
-    asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(0x1B));
-    low &= ~(1 << 11);
-    asm volatile("wrmsr" : : "a"(low), "d"(high), "c"(0x1B));
-}
-
 void idt_init(void)
 {
     extern void isr_stub_default(void);
@@ -60,9 +51,6 @@ void idt_init(void)
 
     for (int i = 0; i < 32; i++)
         idt_set_descriptor(i, isr_stub_table[i], 0x8E);
-
-    // lapic_disable(); // it's a temporaty solution. I have to implement APIC
-    pic_remap();
 
     idt_set_descriptor(32, isr_stub_table[32], 0x8E);
     idt_set_descriptor(33, isr_stub_table[33], 0x8E);
