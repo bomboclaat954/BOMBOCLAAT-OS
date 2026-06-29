@@ -20,7 +20,7 @@
 #include <drivers/io.h>
 #include <memory/memtools.h>
 #include <lib/string.h>
-#include <fonts/font8x16.h>
+#include <fonts/terminus-normal.h>
 
 int current_fgc = 0xFFFFFF;
 int current_bgc = 0x000000;
@@ -29,6 +29,7 @@ int cursor_y = 0;
 int ROWS = 0;
 int COLUMNS = 0;
 struct limine_framebuffer *fb = 0;
+uint32_t fb_offset = 0;
 
 void color(int fg, int bg)
 {
@@ -47,8 +48,9 @@ void init_screen_driver(struct limine_framebuffer *fbuf)
 
 void put_pixel(uint32_t x, uint32_t y, uint32_t color)
 {
-    volatile uint32_t *pixels = fb->address;
-    pixels[y * (fb->pitch / 4) + x] = color;
+    uint32_t real_y = (y + fb_offset) % fb->height;
+    volatile uint32_t *pixel = (uint32_t *)(fb->address + real_y * fb->pitch + x * 4);
+    *pixel = color;
 }
 
 void fill_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color)
@@ -151,15 +153,16 @@ void cls()
     fill_rect(0, 0, fb->width, fb->height, 0x000000);
     cursor_x = 0;
     cursor_y = 0;
+    fb_offset = 0;
 }
 
 void scroll()
 {
-    cursor_y -= FONT_ROWS;
-    volatile uint8_t *fb_mem = fb->address;
-    uint32_t pitch = fb->pitch;
-    uint32_t line_height = FONT_ROWS;
+    fb_offset += FONT_ROWS;
 
-    memmove((void *)fb_mem, (void *)(fb_mem + line_height * pitch), pitch * (fb->height - line_height));
-    memset((void *)(fb_mem + (fb->height - line_height) * pitch), 0x00, line_height * pitch);
+    uint32_t clear_row = (fb_offset + fb->height - FONT_ROWS) % fb->height;
+    volatile uint8_t *fb_mem = fb->address;
+    memset((void *)(fb_mem + clear_row * fb->pitch), 0x00, FONT_ROWS * fb->pitch);
+
+    cursor_y -= FONT_ROWS;
 }

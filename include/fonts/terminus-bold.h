@@ -1,9 +1,9 @@
 #pragma once
 #include <stdint.h>
 
-#define FONT_COLS  8
+#define FONT_COLS 8
 #define FONT_ROWS 16
-#define FONT_CHARS  256
+#define FONT_CHARS 256
 #define FONT_BITS_ORDER 1
 
 // 8x16 font, 1 byte(s) per row

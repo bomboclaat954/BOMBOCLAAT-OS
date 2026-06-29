@@ -25,7 +25,7 @@
 
 void reg_dump(registers_t *r)
 {
-    __asm__ volatile(
+    asm volatile(
         "mov %%rax, %0\n"
         "mov %%rbx, %1\n"
         "mov %%rcx, %2\n"
@@ -37,12 +37,12 @@ void reg_dump(registers_t *r)
         : "=m"(r->rax), "=m"(r->rbx), "=m"(r->rcx), "=m"(r->rdx),
           "=m"(r->rsp), "=m"(r->rbp), "=m"(r->rsi), "=m"(r->rdi));
 
-    __asm__ volatile(
+    asm volatile(
         "call 1f\n"
         "1: pop %0\n"
         : "=r"(r->rip));
 
-    __asm__ volatile(
+    asm volatile(
         "mov %%cs, %0\n"
         "mov %%r8, %1\n"
         "mov %%r9, %2\n"
@@ -60,9 +60,8 @@ void reg_dump(registers_t *r)
 void panic(char *msg, registers_t *r, int from_cpu)
 {
     color(0xFF0000, 0);
-    kprintf("*** KERNEL PANIC ***\n");
+    kprintf("       *** KERNEL PANIC ***\n");
     color(0xFFFFFF, 0);
-    kprintf("Reason: %s\n", msg);
 
     if (!r)
     {
@@ -71,40 +70,26 @@ void panic(char *msg, registers_t *r, int from_cpu)
         r = &regs;
     }
 
-    kprintf("RAX: %x\n", r->rax);
-    kprintf("RBX: %x\n", r->rbx);
-    kprintf("RCX: %x\n", r->rcx);
-    kprintf("RDX: %x\n", r->rdx);
-    kprintf("RSI: %x\n", r->rsi);
-    kprintf("RDI: %x\n", r->rdi);
-    kprintf("RBP: %x\n", r->rbp);
-    kprintf("RSP: %x\n", r->rsp);
-    kprintf("RIP: %x\n", r->rip);
-    if (from_cpu)
-        kprintf("CS : %x\n", r->cs);
-
-    kprintf("R8 : %x\n", r->r8);
-    kprintf("R9 : %x\n", r->r9);
-    kprintf("R10: %x\n", r->r10);
-    kprintf("R11: %x\n", r->r11);
-    kprintf("R12: %x\n", r->r12);
-    kprintf("R13: %x\n", r->r13);
-    kprintf("R14: %x\n", r->r14);
-    kprintf("R15: %x\n", r->r15);
-
     uint64_t cr0, cr2, cr3, cr4;
-    __asm__ volatile(
+    asm volatile(
         "mov %%cr0, %0\n"
         "mov %%cr2, %1\n"
         "mov %%cr3, %2\n"
         "mov %%cr4, %3\n"
         : "=r"(cr0), "=r"(cr2), "=r"(cr3), "=r"(cr4));
 
-    kprintf("CR0: %x\n", cr0);
-    kprintf("CR2: %x\n", cr2);
-    kprintf("CR3: %x\n", cr3);
-    kprintf("CR4: %x\n", cr4);
-
+    kprintf("RAX: %x        R9 : %x\n", r->rax, r->r9);
+    kprintf("RBX: %x        R10: %x\n", r->rbx, r->r10);
+    kprintf("RCX: %x        R11: %x\n", r->rcx, r->r11);
+    kprintf("RDX: %x        R12: %x\n", r->rdx, r->r12);
+    kprintf("RSI: %x        R13: %x\n", r->rsi, r->r13);
+    kprintf("RDI: %x        R14: %x\n", r->rdi, r->r14);
+    kprintf("RBP: %x        R15: %x\n", r->rbp, r->r15);
+    kprintf("RSP: %x        CR0: %x\n", r->rsp, cr0);
+    kprintf("RIP: %x        CR2: %x\n", r->rip, cr2);
+    kprintf("CS : %x        CR3: %x\n", r->cs, cr3);
+    kprintf("R8 : %x        CR4: %x\n", r->r8, cr4);
+    kprintf("Message: %s\n", msg);
     kprintf("Press ESC to shut down or ENTER to reboot\n");
     while (1)
     {

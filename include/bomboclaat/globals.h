@@ -21,18 +21,6 @@ extern "C"
     extern stack_t system_stack;
     extern uint64_t hhdm_offset;
 
-    typedef struct
-    {
-        int h_shift;
-        int m_shift;
-        int fat32;
-        uint32_t current_dir_cluster;
-        uint32_t root_cluster;
-        char current_path[128];
-    } global_settings;
-
-    extern global_settings settings;
-
 #ifdef __cplusplus
 }
 #endif

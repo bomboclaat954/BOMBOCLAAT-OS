@@ -130,9 +130,7 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
                     if (to_copy > space)
                         to_copy = space;
 
-                    memcpy(kvirt + dest_off,
-                           (uint8_t *)elf_data + phdr->p_offset + file_bytes_written,
-                           to_copy);
+                    memcpy(kvirt + dest_off, (uint8_t *)elf_data + phdr->p_offset + file_bytes_written, to_copy);
 
                     file_bytes_written += to_copy;
                 }

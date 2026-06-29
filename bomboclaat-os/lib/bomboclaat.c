@@ -20,13 +20,13 @@
 #include <stdint.h>
 #include <stddef.h>
 
-int sysinfo(int rax, void *buf)
+int sysinfo(int type, void *buf)
 {
     int res;
     asm volatile(
         "int $0x80"
         : "=a"(res)
-        : "a"(7), "D"(rax), "S"(buf)
+        : "a"(7), "D"(type), "S"(buf)
         : "memory");
     return res;
 }

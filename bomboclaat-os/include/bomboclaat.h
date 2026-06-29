@@ -11,7 +11,7 @@
 #define NULL ((void *)0)
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-int sysinfo(int rax, void *buf);
+int sysinfo(int type, void *buf);
 int sysexec(char *path, int argc, char **argv);
 int open(char *path);
 int read(int fd, void *buf, uint64_t size);

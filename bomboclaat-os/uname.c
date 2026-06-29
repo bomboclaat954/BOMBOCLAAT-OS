@@ -20,32 +20,38 @@
 
 int main(int argc, char **argv)
 {
-    char *uver = "1.0";
-    char kname[32];
-    char krelease[32];
-    char kbuild[32];
+    int s = 0;
+    int r = 0;
+    int o = 0;
+    int v = 0;
+
+    char *ver = "1.1";
+    char kname[128];
+    char krelease[128];
+    char kbuild[128];
 
     sysinfo(0, kname);
     sysinfo(1, krelease);
     sysinfo(2, kbuild);
 
-    // int s, r, o, v, help;
-
     if (argc < 2)
+    {
         printf("%s\n", kname);
+        return 0;
+    }
     else
     {
         for (int i = 1; i < argc; i++)
         {
-            if (strcmp(argv[i], "-s") == 0)
-                printf("%s ", kname);
-            else if (strcmp(argv[i], "-r") == 0)
-                printf("%s ", krelease);
-            else if (strcmp(argv[i], "-o") == 0)
-                printf("%s ", OSVER);
-            else if (strcmp(argv[i], "-v") == 0)
-                printf("%s ", uver);
-            else if (strcmp(argv[i], "--help") == 0)
+            if (argv[i][1] == 's')
+                s = 1;
+            else if (argv[i][1] == 'r')
+                r = 1;
+            else if (argv[i][1] == 'o')
+                o = 1;
+            else if (argv[i][1] == 'v')
+                v = 1;
+            else if (argv[i][1] == 'h')
             {
                 printf("Usage: uname [opt]\n");
                 printf("Without option is the same as -s\n");
@@ -53,12 +59,18 @@ int main(int argc, char **argv)
                 printf("    -r kernel release\n");
                 printf("    -o OS version\n");
                 printf("    -v uname version\n");
+                return 0;
             }
-            else
-                printf("Type uname --help to see possible options\n");
         }
+        if (s)
+            printf("%s ", kname);
+        if (r)
+            printf("%s build %s ", krelease, kbuild);
+        if (o)
+            printf("%s", OSVER);
+        if (v)
+            printf("%s", ver);
         printf("\n");
     }
-
     return 0;
 }
