@@ -12,7 +12,7 @@ struct tmpfs_dir
 {
     char *name;
     struct tmpfs_dir *parent_dir;
-    struct tmpfs_file *files[128];
+    struct tmpfs_file *files[1024];
     int files_count;
 } __attribute__((packed)) typedef tmpfs_dir_t;
 
@@ -24,7 +24,7 @@ struct tmpfs_file
     uint8_t *content;
 } __attribute__((packed)) typedef tmpfs_file_t;
 
-extern struct vfs_inode_ops *tmpfs_inode_ops;
+extern struct vfs_inode_ops tmpfs_inode_ops;
 
 vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name);
 int64_t tmpfs_mkdir(struct vfs_inode *parent, char *name, uint16_t mode);

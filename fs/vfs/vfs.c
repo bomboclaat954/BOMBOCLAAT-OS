@@ -94,7 +94,7 @@ int vfs_mkfile(vfs_inode_t *parent, char *name, uint16_t mode)
         return 0;
 }
 
-int vfs_open(char *path, int flags)
+int vfs_open(char *path, int flags, uint64_t *size_buf)
 {
     extern task_t *current_task;
     if (current_task == NULL)
@@ -112,10 +112,9 @@ int vfs_open(char *path, int flags)
 
     if (fd == -1)
         return -1;
-
-    if (!vfs_root_dentry->inode->ops->lookup)
+    if (!root_inode->ops->lookup)
         return -1;
-    vfs_inode_t *inode = vfs_root_dentry->inode->ops->lookup(vfs_root_dentry->inode, path);
+    vfs_inode_t *inode = root_inode->ops->lookup(root_inode, path);
     if (inode == NULL)
         return -1;
 
@@ -129,6 +128,7 @@ int vfs_open(char *path, int flags)
     file->ref_count = 1;
 
     current_task->fd_table[fd] = file;
+    *size_buf = inode->size;
     return fd;
 }
 
@@ -156,6 +156,7 @@ int vfs_close(int fd)
 void vfs_init()
 {
     root_inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
+    extern tmpfs_dir_t *tmpfs_root;
     vfs_setup_inode(root_inode);
     if (!root_inode)
         panic("VFS: kmalloc error", 0, 0);
@@ -163,6 +164,8 @@ void vfs_init()
     root_inode->id = 1;
     root_inode->mode = 0755;
     root_inode->size = 0;
+    root_inode->ops = &tmpfs_inode_ops;
+    root_inode->private_data = (void *)tmpfs_root;
 
     vfs_root_dentry = (vfs_dentry_t *)kmalloc(sizeof(vfs_dentry_t));
     if (!vfs_root_dentry)

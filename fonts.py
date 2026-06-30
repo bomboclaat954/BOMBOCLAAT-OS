@@ -59,7 +59,7 @@ elif bytes_per_row == 2:
 else:
     row_type = "uint32_t"
 
-with open(f"font{height}x{width}.h", "w") as out:
+with open(f"{sys.argv[1]}.h", "w") as out:
     out.write("#pragma once\n")
     out.write("#include <stdint.h>\n\n")
     out.write(f"#define FONT_COLS  {width}\n")

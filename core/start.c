@@ -48,7 +48,7 @@
 
 char *UNAME[3];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "v1.0 beta 6.1";
+char *krelease = "v1.0 beta 7.0";
 
 stack_t system_stack;
 
@@ -201,10 +201,10 @@ void kinit(void)
     sprintf(UNAME[1], "%s", krelease);
     sprintf(UNAME[2], "%d", BUILD_NUMBER);
 
-    vfs_init();
-    log(LOG_OK, "Initialized VFS");
     tmpfs_init();
     log(LOG_OK, "Initialized TMPFS");
+    vfs_init();
+    log(LOG_OK, "Initialized VFS");
     fat32_init();
     log(LOG_OK, "Initialized FAT32");
 

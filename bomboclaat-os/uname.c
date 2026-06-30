@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     int o = 0;
     int v = 0;
 
-    char *ver = "1.1";
+    char *ver = "v1.1";
     char kname[128];
     char krelease[128];
     char kbuild[128];
@@ -39,38 +39,37 @@ int main(int argc, char **argv)
         printf("%s\n", kname);
         return 0;
     }
-    else
+
+    for (int i = 1; i < argc; i++)
     {
-        for (int i = 1; i < argc; i++)
+        if (argv[i][1] == 's')
+            s = 1;
+        else if (argv[i][1] == 'r')
+            r = 1;
+        else if (argv[i][1] == 'o')
+            o = 1;
+        else if (argv[i][1] == 'v')
+            v = 1;
+        else if (argv[i][1] == 'h')
         {
-            if (argv[i][1] == 's')
-                s = 1;
-            else if (argv[i][1] == 'r')
-                r = 1;
-            else if (argv[i][1] == 'o')
-                o = 1;
-            else if (argv[i][1] == 'v')
-                v = 1;
-            else if (argv[i][1] == 'h')
-            {
-                printf("Usage: uname [opt]\n");
-                printf("Without option is the same as -s\n");
-                printf("    -s kernel name\n");
-                printf("    -r kernel release\n");
-                printf("    -o OS version\n");
-                printf("    -v uname version\n");
-                return 0;
-            }
+            printf("Usage: uname [opt]\n");
+            printf("Without option is the same as -s\n");
+            printf("    -s kernel name\n");
+            printf("    -r kernel release\n");
+            printf("    -o OS version\n");
+            printf("    -v uname version\n");
+            return 0;
         }
-        if (s)
-            printf("%s ", kname);
-        if (r)
-            printf("%s build %s ", krelease, kbuild);
-        if (o)
-            printf("%s", OSVER);
-        if (v)
-            printf("%s", ver);
-        printf("\n");
     }
+    if (s)
+        printf("%s ", kname);
+    if (r)
+        printf("%s.%s ", krelease, kbuild);
+    if (o)
+        printf("%s ", OSVER);
+    if (v)
+        printf("%s ", ver);
+    printf("\n");
+
     return 0;
 }

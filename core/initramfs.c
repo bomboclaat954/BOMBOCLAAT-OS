@@ -24,13 +24,17 @@
 #include <memory/pmm.h>
 #include <memory/vmm.h>
 #include <memory/kmalloc.h>
+#include <memory/stack.h>
 #include <bomboclaat/kprintf.h>
 #include <bomboclaat/panic.h>
 #include <bomboclaat/initramfs.h>
 #include <tasks/loader.h>
 #include <tasks/tasks.h>
+#include <fs/tmpfs.h>
 
 uint8_t *init_heap_current;
+tmpfs_file_t **initramfs_files;
+extern tmpfs_dir_t *tmpfs_root;
 
 uint32_t parse_hex(const char *str)
 {
@@ -48,9 +52,10 @@ uint32_t parse_hex(const char *str)
     return result;
 }
 
-void *initramfs_find_file(void *ramfs_start, const char *name, uint64_t *out_size)
+uint64_t initramfs_get_files(void *start, tmpfs_file_t **out_buf)
 {
-    uint8_t *ptr = (uint8_t *)ramfs_start;
+    uint8_t *ptr = (uint8_t *)start;
+    uint64_t idx = 0;
 
     while (1)
     {
@@ -68,58 +73,78 @@ void *initramfs_find_file(void *ramfs_start, const char *name, uint64_t *out_siz
 
         if (strcmp(fileName, "TRAILER!!!") == 0)
             break;
-        else if (strcmp(fileName, name) == 0)
-        {
-            uint8_t *fileData = ptr + dataOffset;
-            *out_size = fileSize;
-            return fileData;
-        }
+
+        uint8_t *fileData = ptr + dataOffset;
+        out_buf[idx] = (tmpfs_file_t *)kmalloc(sizeof(tmpfs_file_t));
+        out_buf[idx]->content = fileData;
+        out_buf[idx]->dir = tmpfs_root;
+        out_buf[idx]->name = fileName;
+        out_buf[idx]->size = fileSize;
 
         uint32_t nextFileOffset = dataOffset + ((fileSize + 3) & ~3);
         ptr += nextFileOffset;
+        idx++;
     }
-    return NULL;
+    return idx;
 }
-
-void *initramfs_base = NULL;
 
 void initramfs()
 {
     if (module_request.response == NULL || module_request.response->module_count == 0)
         panic("didn't get any modules from Limine", 0, 0);
 
+    void *initramfs_base = NULL;
+
     for (uint64_t i = 0; i < module_request.response->module_count; i++)
     {
         struct limine_file *file = module_request.response->modules[i];
 
         if (file->string != NULL && strcmp(file->string, "initramfs") == 0)
-        {
             initramfs_base = file->address;
-            break;
-        }
     }
 
     if (initramfs_base == NULL)
         panic("didn't find initramfs module", 0, 0);
 
-    uint64_t init_size = 0;
-    void *init_data = initramfs_find_file(initramfs_base, "bin/init", &init_size);
+    initramfs_files = kmalloc(512 * sizeof(tmpfs_file_t *));
+    memset(initramfs_files, 0, 512 * sizeof(tmpfs_file_t *));
 
-    if (init_data == NULL)
+    uint64_t file_count = initramfs_get_files(initramfs_base, initramfs_files);
+
+    for (uint64_t x = 0; x < file_count; x++)
+    {
+        if (x >= 1024)
+            panic("too many files for tmpfs root directory!", 0, 0);
+        tmpfs_root->files[x] = initramfs_files[x];
+    }
+    tmpfs_root->files_count = file_count;
+
+    uint64_t init_size = 0;
+    uint64_t init_pos = 0;
+
+    for (int i = 0; i < file_count; i++)
+    {
+        if (strcmp("bin/init", initramfs_files[i]->name) == 0)
+        {
+            init_pos = i;
+            init_size = initramfs_files[i]->size;
+            break;
+        }
+    }
+
+    if (init_pos == 0)
         panic("didn't find init in initramfs", 0, 0);
     else
-    {
-        char buf[64];
-        sprintf(buf, "Found init file (%d B)", init_size);
-        log(LOG_OK, buf);
-    }
+        log(LOG_OK, "Found init file (%d B)", init_size);
+
+    void *init_data = initramfs_files[init_pos]->content;
 
     init_heap_current = kmalloc(65536);
     int frames = (init_size + PAGE_SIZE - 1) >> 12;
 
     task_t *init_task = task_create(init_data, 0, "bin/init", 0, 0, frames);
     if (init_task == NULL)
-        panic("Failed to create a process for init", 0, 0);
+        panic("Failed to create init process", 0, 0);
 
     log(LOG_OK, "Created init process");
 }

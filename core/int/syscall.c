@@ -61,13 +61,17 @@ uint64_t syscall_handler(context_t *r)
         char *name = (char *)r->rdi;
         char **argv = (char **)r->rsi;
         int argc = (int)r->rdx;
-
         int current_pid = current_task->pid;
-        extern void *initramfs_base;
+
         uint64_t size = 0;
-        void *file = initramfs_find_file(initramfs_base, name, &size); // TODO: change it to VFS
+        int fd = vfs_open(name, 0, &size);
+        void *file = kmalloc(size + 1);
+        vfs_read(fd, file, size);
+
         if (file == NULL)
             return 0;
+
+        vfs_close(fd);
 
         int frames = (size + PAGE_SIZE - 1) >> 12;
         task_t *new_task = task_create(file, current_task->pid, name, argc, argv, frames);
@@ -148,13 +152,14 @@ uint64_t syscall_handler(context_t *r)
     {
         char *path = (char *)r->rdi;
         int flags = (int)r->rsi;
-        int x = vfs_open(path, flags);
+        uint64_t size = 0;
+        int x = vfs_open(path, flags, &size);
 
         if (x == -1)
         {
             extern vfs_inode_t *root_inode;
             vfs_mkfile(root_inode, path, 0);
-            x = vfs_open(path, flags);
+            x = vfs_open(path, flags, &size);
         }
 
         return x;

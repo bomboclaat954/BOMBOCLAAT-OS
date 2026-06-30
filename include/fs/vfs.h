@@ -48,7 +48,7 @@ struct vfs_file
 int vfs_read(int fd, void *buf, uint64_t size);
 int vfs_write(int fd, void *buf, uint64_t size);
 int vfs_mkfile(vfs_inode_t *parent, char *name, uint16_t mode);
-int vfs_open(char *path, int flags);
+int vfs_open(char *path, int flags, uint64_t *size_buf);
 int vfs_close(int fd);
 void vfs_init();
 

@@ -59,10 +59,6 @@ void reg_dump(registers_t *r)
 
 void panic(char *msg, registers_t *r, int from_cpu)
 {
-    color(0xFF0000, 0);
-    kprintf("       *** KERNEL PANIC ***\n");
-    color(0xFFFFFF, 0);
-
     if (!r)
     {
         registers_t regs;
@@ -77,6 +73,10 @@ void panic(char *msg, registers_t *r, int from_cpu)
         "mov %%cr3, %2\n"
         "mov %%cr4, %3\n"
         : "=r"(cr0), "=r"(cr2), "=r"(cr3), "=r"(cr4));
+
+    color(0xFF0000, 0);
+    kprintf("       *** KERNEL PANIC ***\n");
+    color(0xFFFFFF, 0);
 
     kprintf("RAX: %x        R9 : %x\n", r->rax, r->r9);
     kprintf("RBX: %x        R10: %x\n", r->rbx, r->r10);
