@@ -20,7 +20,7 @@
 #define LAPIC_TDCR 0x3E0
 #define LAPIC_TICR 0x380
 #define TIMER_PERIODIC 0x20000
-#define LAPIC_EOI 0x0B0
+#define LAPIC_EOI 0xB0
 #define LAPIC_TCCR 0x390
 
 typedef struct
@@ -122,11 +122,11 @@ extern "C"
     void syscall_send(uint64_t nsyscall, const char *args);
     void gdt_tss_init(void);
 
-    uintptr_t lapic_get_base(void);
-    void lapic_init(uintptr_t lapic_base);
-    void lapic_timer_init(uintptr_t lapic_base, uint32_t count);
-    void apic_eoi(uintptr_t lapic_base);
-    void lapic_timer_calibrate(uintptr_t lapic_base);
+    void lapic_init();
+    void lapic_timer_init(uint32_t count);
+    void apic_eoi();
+    void lapic_timer_calibrate();
+    void ioapic_set_irq(uint8_t gsi, uint8_t vector, uint8_t target_cpu_apic_id);
 #ifdef __cplusplus
 }
 #endif

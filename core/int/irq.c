@@ -18,9 +18,8 @@
 
 #include <int/int.h>
 #include <drivers/io.h>
-#include <bomboclaat/kprintf.h>
+#include <drivers/keyboard.h>
 
-extern uintptr_t lapic_base_global;
 extern volatile uint64_t ticks;
 
 void irq_handler(registers_t *r)
@@ -31,9 +30,10 @@ void irq_handler(registers_t *r)
         ticks++;
         break;
     case 33:
+        keyboard_handler();
         break;
     default:
         break;
     }
-    apic_eoi(lapic_base_global);
+    apic_eoi();
 }

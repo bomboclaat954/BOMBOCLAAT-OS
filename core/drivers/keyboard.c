@@ -17,6 +17,8 @@
  */
 
 #include <drivers/keyboard.h>
+#include <int/int.h>
+#include <stdint.h>
 
 int shift_pressed = 0;
 int caps_lock = 0;
@@ -52,4 +54,11 @@ char get_ascii(unsigned char scancode)
             return map_upper[scancode];
         return map_lower[scancode];
     }
+}
+
+void keyboard_handler()
+{
+    // TODO: open /dev/kbd by VFS and write scancode
+    // uint8_t scancode = inb(0x60);
+    return;
 }

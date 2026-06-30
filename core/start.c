@@ -48,7 +48,7 @@
 
 char *UNAME[3];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "v1.0 beta 7.0";
+char *krelease = "v1.0 beta 7.1";
 
 stack_t system_stack;
 
@@ -149,7 +149,7 @@ void kinit(void)
         panic("error while getting HHDM", 0, 0);
 
     hhdm_offset = hhdm->offset;
-    log(LOG_INFO, "HHDM offset: %x", hhdm_offset);
+    log(LOG_INFO, "HHDM offset: %x%x", hhdm_offset >> 32, hhdm_offset << 32);
 
     gdt_tss_init();
     log(LOG_OK, "Initialized GDT and TSS");
@@ -184,14 +184,33 @@ void kinit(void)
     stack_init(&system_stack);
     log(LOG_OK, "Set up heap and system stack");
 
-    uintptr_t lapic_phys = lapic_get_base();
-    vmm_map_page(kernel_pml4_virt, lapic_phys + hhdm_offset, lapic_phys, VMM_PRESENT | VMM_WRITE | VMM_PCD | VMM_PWT);
+    if (rsdp == NULL)
+        log(LOG_ERR, "Couldn't find RSDP address");
+    else if (rsdp->address == NULL)
+        log(LOG_ERR, "RSDP address is null");
+    log(LOG_OK, "Found RSDP at 0x%x", rsdp->address);
+    int acpi = acpi_init((RSDP_t *)rsdp->address);
+    if (acpi)
+        log(LOG_OK, "Initialized ACPI");
+    else
+        log(LOG_ERR, "Error while initializing ACPI");
 
-    uintptr_t lapic_base = lapic_phys + hhdm_offset;
-    lapic_init(lapic_base);
-    lapic_timer_init(lapic_base, 1000000);
-    lapic_timer_calibrate(lapic_base);
+    extern uintptr_t lapic_base;
+    uint32_t lapic_phys = (uint32_t)lapic_base;
+    vmm_map_page(kernel_pml4_virt, lapic_phys + hhdm_offset, lapic_phys, VMM_PRESENT | VMM_WRITE | VMM_PCD | VMM_PWT);
+    lapic_base = lapic_phys + hhdm_offset;
+    extern volatile uintptr_t ioapic_base;
+
+    extern volatile uintptr_t ioapic_base;
+    extern uint32_t ioapic_phys;
+    vmm_map_page(kernel_pml4_virt, (uintptr_t)ioapic_phys + hhdm_offset, ioapic_phys, VMM_PRESENT | VMM_WRITE | VMM_PCD | VMM_PWT);
+    ioapic_base = (uintptr_t)ioapic_phys + hhdm_offset;
+
+    lapic_init();
+    lapic_timer_init(1000000);
+    lapic_timer_calibrate();
     log(LOG_OK, "Initialized LAPIC timer");
+    ioapic_set_irq(1, 0x21, 0);
 
     task_init();
     UNAME[0] = kmalloc(sizeof(char) * 128);
@@ -213,17 +232,6 @@ void kinit(void)
         log(LOG_OK, "Serial port initialized");
     else
         log(LOG_ERR, "Error while initializing serial port");*/
-
-    if (rsdp == NULL)
-        log(LOG_ERR, "Couldn't find RSDP address");
-    else if (rsdp->address == NULL)
-        log(LOG_ERR, "RSDP address is null");
-    log(LOG_OK, "Found RSDP at 0x%x", rsdp->address);
-    int acpi = acpi_init((RSDP_t *)rsdp->address);
-    if (acpi)
-        log(LOG_OK, "Initialized ACPI");
-    else
-        log(LOG_ERR, "Error while initializing ACPI");
 
     log(LOG_INFO, "Loading initramfs");
     initramfs();

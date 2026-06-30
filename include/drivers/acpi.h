@@ -108,6 +108,28 @@ struct RSDP
     uint8_t reserved[3];
 } __attribute__((packed)) typedef RSDP_t;
 
+struct MADT_header
+{
+    ACPISDTHeader acpihdr;
+    uint32_t LAPIC_addr;
+    uint32_t flags;
+} __attribute__((packed)) typedef MADT_header_t;
+
+struct MADT_record_header
+{
+    uint8_t entry_type;
+    uint8_t record_len;
+} __attribute__((packed)) typedef MADT_record_header_t;
+
+struct IOAPIC
+{
+    MADT_record_header_t madt_hdr;
+    uint8_t id;
+    uint8_t reserved;
+    uint32_t addr;
+    uint32_t gsi_base;
+} __attribute__((packed)) typedef IOAPIC_t;
+
 int acpi_init(RSDP_t *rsdp);
 void acpi_reboot();
 void acpi_shutdown();

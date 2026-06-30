@@ -99,6 +99,7 @@ void *sbrk(size_t increment)
 
 void scanf(char *buf)
 {
+    // TODO: open /dev/kbd, read scancode from it and convert it to string
     asm volatile(
         "int $0x80"
         :

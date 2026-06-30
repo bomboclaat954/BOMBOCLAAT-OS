@@ -92,8 +92,9 @@ uint64_t syscall_handler(context_t *r)
         while (1)
             asm volatile("hlt");
     }
-    case 4: // TODO: CHANGE THIS
+    case 4:
     {
+        // TODO: get rid of this
         char *buf = (char *)r->rdi;
         input(buf);
         r->rax = 1;

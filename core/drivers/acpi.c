@@ -40,8 +40,11 @@ void legacy_shutdown()
     outw(0x4004, 0x3400); // VirtualBox
 }
 
-// to the person who invented ACPI: fuck you, asshole
+// to the person who invented ACPI: fuck you
 FADT_t *fadt = NULL;
+MADT_header_t *madt = NULL;
+uint32_t ioapic_phys = 0;
+volatile uintptr_t ioapic_base = 0;
 
 void *acpi_find_table(ACPISDTHeader *main_table, const char *signature)
 {
@@ -92,7 +95,34 @@ int acpi_init(RSDP_t *rsdp)
         main_table = (ACPISDTHeader *)(uintptr_t)(rsdp->rsdt_address + hhdm_offset);
 
     fadt = (FADT_t *)acpi_find_table(main_table, "FACP");
-    if (fadt != NULL)
+    madt = (MADT_header_t *)((uintptr_t)acpi_find_table(main_table, "APIC"));
+
+    extern volatile uintptr_t lapic_base;
+    lapic_base = (uintptr_t)madt->LAPIC_addr;
+    log(LOG_INFO, "LAPIC addr: %x", madt->LAPIC_addr);
+
+    MADT_record_header_t *rhdr = (MADT_record_header_t *)((uintptr_t)madt + sizeof(MADT_header_t));
+    uintptr_t madt_end = (uintptr_t)madt + madt->acpihdr.Length;
+
+    if ((uintptr_t)rhdr > madt_end)
+        log(LOG_ERR, "MADT has no records or size mismatch");
+
+    while ((uintptr_t)rhdr < madt_end)
+    {
+        if (rhdr->entry_type == 1)
+        {
+            IOAPIC_t *ioapic = (IOAPIC_t *)rhdr;
+            log(LOG_INFO, "IOAPIC addr: %x", ioapic->addr);
+            ioapic_phys = ioapic->addr;
+            break;
+        }
+
+        if (rhdr->record_len == 0)
+            break;
+        rhdr = (MADT_record_header_t *)((uintptr_t)rhdr + rhdr->record_len);
+    }
+
+    if (fadt && madt)
         return 1;
     else
         return 0;
