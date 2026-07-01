@@ -13,7 +13,7 @@
 
 int sysinfo(int type, void *buf);
 int sysexec(char *path, int argc, char **argv);
-int open(char *path);
+int open(char *path, int flags);
 int read(int fd, void *buf, uint64_t size);
 int write(int fd, void *buf, uint64_t size);
 int close(int fd);

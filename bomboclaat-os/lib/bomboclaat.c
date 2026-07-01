@@ -42,13 +42,13 @@ int sysexec(char *path, int argc, char **argv)
     return res;
 }
 
-int open(char *path)
+int open(char *path, int flags)
 {
     int fd;
     asm volatile(
         "int $0x80"
         : "=a"(fd)
-        : "a"(10), "D"(path), "S"(0)
+        : "a"(10), "D"(path), "S"(flags)
         : "memory");
     return fd;
 }

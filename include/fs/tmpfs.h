@@ -25,6 +25,7 @@ struct tmpfs_file
 } __attribute__((packed)) typedef tmpfs_file_t;
 
 extern struct vfs_inode_ops tmpfs_inode_ops;
+extern tmpfs_dir_t *tmpfs_root;
 
 vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name);
 int64_t tmpfs_mkdir(struct vfs_inode *parent, char *name, uint16_t mode);

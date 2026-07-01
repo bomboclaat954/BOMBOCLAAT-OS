@@ -89,7 +89,7 @@ int main(int argc, char **argv)
         cmd[i] = '\0';
 
         char path[32];
-        sprintf(path, "bin/%s", cmd);
+        sprintf(path, "/bin/%s", cmd);
         char *argv[32];
         int argc = parse_args(cmd_line, argv);
 

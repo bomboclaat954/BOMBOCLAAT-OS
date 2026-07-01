@@ -17,11 +17,21 @@
  */
 
 #include <drivers/keyboard.h>
+#include <drivers/io.h>
 #include <int/int.h>
+#include <fs/vfs.h>
+#include <fs/tmpfs.h>
+#include <memory/stack.h>
+#include <memory/memtools.h>
+#include <memory/kmalloc.h>
+#include <bomboclaat/kprintf.h>
+#include <lib/string.h>
 #include <stdint.h>
 
 int shift_pressed = 0;
 int caps_lock = 0;
+stack_t kbd_stack;
+int kbd_stack_size = 0;
 
 char get_ascii(unsigned char scancode)
 {
@@ -58,7 +68,23 @@ char get_ascii(unsigned char scancode)
 
 void keyboard_handler()
 {
-    // TODO: open /dev/kbd by VFS and write scancode
-    // uint8_t scancode = inb(0x60);
+    uint8_t scancode = inb(0x60);
+    if (kbd_stack_size == MAX_SIZE)
+    {
+        memset(kbd_stack.arr, 0, MAX_SIZE);
+        kbd_stack.top = 0;
+        kbd_stack_size = 0;
+    }
+    push(&kbd_stack, scancode);
+    kbd_stack_size++;
     return;
+}
+
+void keyboard_init()
+{
+    // TODO: link it do DEVFS
+
+    memset(kbd_stack.arr, 0, MAX_SIZE);
+    kbd_stack.top = 0;
+    kbd_stack_size = 0;
 }

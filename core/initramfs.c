@@ -78,7 +78,7 @@ uint64_t initramfs_get_files(void *start, tmpfs_file_t **out_buf)
         out_buf[idx] = (tmpfs_file_t *)kmalloc(sizeof(tmpfs_file_t));
         out_buf[idx]->content = fileData;
         out_buf[idx]->dir = tmpfs_root;
-        out_buf[idx]->name = fileName;
+        out_buf[idx]->name = join("/", fileName, 0);
         out_buf[idx]->size = fileSize;
 
         uint32_t nextFileOffset = dataOffset + ((fileSize + 3) & ~3);
@@ -124,7 +124,7 @@ void initramfs()
 
     for (int i = 0; i < file_count; i++)
     {
-        if (strcmp("bin/init", initramfs_files[i]->name) == 0)
+        if (strcmp("/bin/init", initramfs_files[i]->name) == 0)
         {
             init_pos = i;
             init_size = initramfs_files[i]->size;
@@ -133,7 +133,7 @@ void initramfs()
     }
 
     if (init_pos == 0)
-        panic("didn't find init in initramfs", 0, 0);
+        panic("didn't find /bin/init in initramfs", 0, 0);
     else
         log(LOG_OK, "Found init file (%d B)", init_size);
 
@@ -142,7 +142,7 @@ void initramfs()
     init_heap_current = kmalloc(65536);
     int frames = (init_size + PAGE_SIZE - 1) >> 12;
 
-    task_t *init_task = task_create(init_data, 0, "bin/init", 0, 0, frames);
+    task_t *init_task = task_create(init_data, 0, "/bin/init", 0, 0, frames);
     if (init_task == NULL)
         panic("Failed to create init process", 0, 0);
 

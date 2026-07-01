@@ -43,7 +43,7 @@ static char *logo[] = {
     "     `._###############_,'        ",
     "        `--..#####..--'           ",
 };
-
+// it keeps crashing idk why
 int main(int argc, char **argv)
 {
     char kname[32];

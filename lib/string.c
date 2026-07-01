@@ -274,8 +274,9 @@ void reverse(char *str, int length)
     }
 }
 
-char *join(char *str1, char *str2, char *output_str, int n)
+char *join(char *str1, char *str2, int n)
 {
+    char *output_str = kmalloc(strlen(str1) + strlen(str2));
     int len1 = strlen(str1);
     int len2 = strlen(str2);
     for (int i = 0; i < len1; i++)

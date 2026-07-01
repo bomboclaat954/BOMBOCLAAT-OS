@@ -45,6 +45,7 @@ struct vfs_file
     uint32_t ref_count;
 } typedef vfs_file_t;
 
+int vfs_setup_inode(vfs_inode_t *inode);
 int vfs_read(int fd, void *buf, uint64_t size);
 int vfs_write(int fd, void *buf, uint64_t size);
 int vfs_mkfile(vfs_inode_t *parent, char *name, uint16_t mode);

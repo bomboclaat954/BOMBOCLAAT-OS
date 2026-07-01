@@ -20,6 +20,7 @@ extern "C"
     extern int caps_lock;
 
     char get_ascii(unsigned char scancode);
+    void keyboard_init();
     void keyboard_handler();
 
 #ifdef __cplusplus

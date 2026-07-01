@@ -32,7 +32,14 @@ int data_start = 0;
 int root_lba = 0;
 bpb_t *bpb = 0;
 uint32_t total_clusters = 0;
-struct vfs_inode_ops *fat32_inode_ops;
+
+struct vfs_inode_ops fat32_inode_ops = {
+    .lookup = fat32_lookup,
+    .mkdir = fat32_mkdir,
+    .mkfile = fat32_mkfile,
+    .read = fat32_read,
+    .write = fat32_write,
+};
 
 int cluster_to_lba(int cluster)
 {
@@ -228,13 +235,6 @@ uint32_t find_free_cluster(void)
 
 void fat32_init()
 {
-    fat32_inode_ops = (struct vfs_inode_ops *)kmalloc(sizeof(struct vfs_inode_ops));
-    fat32_inode_ops->lookup = fat32_lookup;
-    fat32_inode_ops->mkdir = fat32_mkdir;
-    fat32_inode_ops->mkfile = fat32_mkfile;
-    fat32_inode_ops->read = fat32_read;
-    fat32_inode_ops->write = fat32_write;
-
     /*bpb = (bpb_t *)kmalloc(512);
     if (bpb == 0)
         panic("memory error while initializing FAT32", 0, 0);

@@ -26,7 +26,7 @@ extern "C"
     void reverse(char *str, int length);
     void to_lower_case(char *str);
     void to_upper_case(char *str);
-    char *join(char *str1, char *str2, char *output_str, int n);
+    char *join(char *str1, char *str2, int n);
     int is_number(char *x);
     void *clear_str(char *str);
     int input_key();

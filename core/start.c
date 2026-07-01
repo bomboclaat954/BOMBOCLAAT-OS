@@ -33,6 +33,7 @@
 #include <drivers/ata.h>
 #include <drivers/serial.h>
 #include <drivers/acpi.h>
+#include <drivers/keyboard.h>
 #include <boot/limine.h>
 #include <int/int.h>
 #include <memory/pmm.h>
@@ -48,9 +49,10 @@
 
 char *UNAME[3];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "v1.0 beta 7.1";
+char *krelease = "v1.0 beta 7.2";
 
 stack_t system_stack;
+tmpfs_dir_t *dev;
 
 __attribute__((used, section(".limine_requests"))) static volatile uint64_t limine_base_revision[] = LIMINE_BASE_REVISION(6);
 __attribute__((used, section(".limine_requests"))) static volatile struct limine_framebuffer_request framebuffer_request = {
@@ -226,6 +228,9 @@ void kinit(void)
     log(LOG_OK, "Initialized VFS");
     fat32_init();
     log(LOG_OK, "Initialized FAT32");
+
+    keyboard_init();
+    log(LOG_OK, "Initialized keyboard driver");
 
     /*int serial = init_serial();
     if (serial == 0)

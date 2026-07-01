@@ -153,6 +153,8 @@ uint64_t syscall_handler(context_t *r)
     {
         char *path = (char *)r->rdi;
         int flags = (int)r->rsi;
+        if (path[0] != '/')
+            return -1;
         uint64_t size = 0;
         int x = vfs_open(path, flags, &size);
 
