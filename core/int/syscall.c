@@ -161,7 +161,7 @@ uint64_t syscall_handler(context_t *r)
         if (x == -1)
         {
             extern vfs_inode_t *root_inode;
-            vfs_mkfile(root_inode, path, 0);
+            vfs_mkfile(root_inode, path);
             x = vfs_open(path, flags, &size);
         }
 

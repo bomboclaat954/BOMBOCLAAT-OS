@@ -1,0 +1,10 @@
+NOTE: Even though I'm young I have memory like an 80 y.o., so I created this file to make sure I won't forget anything
+
+1. fs/vfs/vfs.c:161             - fix this function
+2. fs/vfs/vfs.c:171             - write this function
+3. fs/tmpfs/tmpfs.c:42          - write this function
+4. fs/fat32/fat32.c             - finish unfinished functions
+5. *.c                          - find every memory leak and fix it
+6. core/int/syscall.c:97        - once the new keyboard driver is ready, get rid of that
+7. core/drivers/keyboard.c:85   - once the devfs is ready and vfs is working as it should, link it to devfs
+8. fs/devfs/devfs.c             - write devfs

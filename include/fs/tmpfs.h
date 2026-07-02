@@ -27,11 +27,12 @@ struct tmpfs_file
 extern struct vfs_inode_ops tmpfs_inode_ops;
 extern tmpfs_dir_t *tmpfs_root;
 
+vfs_inode_t *tmpfs_mount(void *dev, void *flags);
 vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name);
-int64_t tmpfs_mkdir(struct vfs_inode *parent, char *name, uint16_t mode);
+vfs_inode_t *tmpfs_mkdir(struct vfs_inode *parent, char *name);
 int64_t tmpfs_read(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
 int64_t tmpfs_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
-int64_t tmpfs_mkfile(struct vfs_inode *parent, char *name, uint16_t mode);
+vfs_inode_t *tmpfs_mkfile(struct vfs_inode *parent, char *name);
 void tmpfs_init();
 
 #endif

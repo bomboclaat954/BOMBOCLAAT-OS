@@ -15,7 +15,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
+// In Poland we have an interesting unit - "w chuj" (read: v huy) meaning a lot
+// There'll be w chuj work.
 #include <fs/fat32.h>
 #include <fs/bpb.h>
 #include <fs/vfs.h>
@@ -201,14 +202,16 @@ int64_t fat32_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64
     return 0;
 }
 
-int64_t fat32_mkdir(struct vfs_inode *parent, char *name, uint16_t mode)
+struct vfs_inode *fat32_mkdir(struct vfs_inode *parent, char *name)
 {
-    return 0;
+    vfs_inode_t new_inode;
+    return &new_inode;
 }
 
-int64_t fat32_mkfile(struct vfs_inode *parent, char *name, uint16_t mode)
+struct vfs_inode *fat32_mkfile(struct vfs_inode *parent, char *name)
 {
-    return 0;
+    vfs_inode_t new_inode;
+    return &new_inode;
 }
 
 uint32_t find_free_cluster(void)

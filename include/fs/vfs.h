@@ -7,17 +7,26 @@
 #define VFS_H
 
 #include <stdint.h>
+#define VFS_MODE_DIR 0
+#define VFS_MODE_FILE 1
+#define MAX_FILESYSTEMS 16
 
 struct vfs_inode;
-
 struct vfs_inode_ops
 {
     int64_t (*read)(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
     int64_t (*write)(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
     struct vfs_inode *(*lookup)(struct vfs_inode *parent, char *name);
-    int64_t (*mkfile)(struct vfs_inode *parent, char *name, uint16_t mode);
-    int64_t (*mkdir)(struct vfs_inode *parent, char *name, uint16_t mode);
+    struct vfs_inode *(*mkfile)(struct vfs_inode *parent, char *name);
+    struct vfs_inode *(*mkdir)(struct vfs_inode *parent, char *name);
 };
+
+struct filesystem
+{
+    char *name;
+    struct vfs_inode *(*mount)(void *dev, void *flags);
+    struct filesystem *next;
+} typedef filesystem_t;
 
 struct vfs_inode
 {
@@ -34,8 +43,16 @@ struct vfs_dentry
 {
     char *name;
     struct vfs_inode *inode;
+    struct vfs_inode *mounted_inode;
     struct vfs_dentry *parent;
 } typedef vfs_dentry_t;
+
+struct vfs_mount
+{
+    struct vfs_dentry *mountpoint;
+    struct vfs_inode *root_inode;
+    struct vfs_mount *next;
+} typedef vfs_mount_t;
 
 struct vfs_file
 {
@@ -45,12 +62,17 @@ struct vfs_file
     uint32_t ref_count;
 } typedef vfs_file_t;
 
+extern vfs_dentry_t *vfs_root_dentry;
+
 int vfs_setup_inode(vfs_inode_t *inode);
 int vfs_read(int fd, void *buf, uint64_t size);
 int vfs_write(int fd, void *buf, uint64_t size);
-int vfs_mkfile(vfs_inode_t *parent, char *name, uint16_t mode);
+vfs_inode_t *vfs_mkfile(vfs_inode_t *parent, char *name);
+vfs_inode_t *vfs_mkdir(vfs_inode_t *parent, char *name);
 int vfs_open(char *path, int flags, uint64_t *size_buf);
 int vfs_close(int fd);
+int vfs_mount(char *source, char *target, char *fs_type, void *flags, void *data);
+void vfs_register_fs(filesystem_t *fs);
 void vfs_init();
 
 #endif

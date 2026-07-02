@@ -38,10 +38,6 @@ all: limine_download prepare $(ALL_OBJECTS) link $(INITRAMFS) iso_gen
 	@echo "Done"
 
 prepare:
-	@echo "╔═════════════════════════╗"
-	@echo "║ BOMBOCLAAT KERNEL BUILD ║"
-	@echo "╚═════════════════════════╝"
-	@echo "Build no: $(NEW_BUILD_NO)"
 	@echo $(NEW_BUILD_NO) > build_no.txt
 	@mkdir -p build iso
 

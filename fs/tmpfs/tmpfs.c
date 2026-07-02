@@ -15,7 +15,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
+// When I was 9 I watched my first C++ lesson. I'm really starting to regret it.
+// ngl it's hard to write it sober
 #include <fs/tmpfs.h>
 #include <fs/vfs.h>
 #include <memory/kmalloc.h>
@@ -32,6 +33,16 @@ struct vfs_inode_ops tmpfs_inode_ops = {
     .read = tmpfs_read,
     .write = tmpfs_write,
 };
+filesystem_t tmpfs = {
+    .mount = tmpfs_mount,
+    .name = "tmpfs",
+    .next = NULL,
+};
+
+vfs_inode_t *tmpfs_mount(void *dev, void *flags)
+{
+    // TODO: write this and don't get crazy
+}
 
 vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name)
 {
@@ -54,23 +65,23 @@ vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name)
     return NULL;
 }
 
-int64_t tmpfs_mkdir(struct vfs_inode *parent, char *name, uint16_t mode)
+vfs_inode_t *tmpfs_mkdir(struct vfs_inode *parent, char *name)
 {
     tmpfs_dir_t new = {
         .files = NULL,
         .files_count = 0,
         .name = name,
-        .parent_dir = NULL,
+        .parent_dir = (tmpfs_dir_t *)parent->private_data,
     };
 
-    parent->private_data = &new;
-    parent->mode = mode;
-    // todo: add the rest of the fields
-
-    if ((tmpfs_dir_t *)parent->private_data == &new)
-        return 1;
-    else
-        return 0;
+    vfs_inode_t new_inode = {
+        .id = 0,
+        .mode = VFS_MODE_DIR,
+        .ops = &tmpfs_inode_ops,
+        .private_data = &new,
+        .size = 0,
+    };
+    return &new_inode;
 }
 
 int64_t tmpfs_read(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset)
@@ -93,7 +104,7 @@ int64_t tmpfs_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64
     return size;
 }
 
-int64_t tmpfs_mkfile(struct vfs_inode *parent, char *name, uint16_t mode)
+vfs_inode_t *tmpfs_mkfile(struct vfs_inode *parent, char *name)
 {
     tmpfs_dir_t *dir = (tmpfs_dir_t *)parent->private_data;
     tmpfs_file_t *new = (tmpfs_file_t *)kmalloc(sizeof(tmpfs_file_t));
@@ -108,10 +119,15 @@ int64_t tmpfs_mkfile(struct vfs_inode *parent, char *name, uint16_t mode)
     dir->files[dir->files_count] = new;
     dir->files_count++;
 
-    if (dir->files[dir->files_count])
-        return 1;
-    else
-        return 0;
+    vfs_inode_t new_inode = {
+        .id = 0,
+        .mode = VFS_MODE_FILE,
+        .ops = &tmpfs_inode_ops,
+        .private_data = (void *)new,
+        .size = new->size,
+    };
+
+    return &new_inode;
 }
 
 void tmpfs_init()
@@ -120,4 +136,12 @@ void tmpfs_init()
     tmpfs_root->files_count = 0;
     tmpfs_root->name = "/";
     tmpfs_root->parent_dir = tmpfs_root;
+
+    filesystem_t tmpfs = {
+        .mount = NULL,
+        .name = "tmpfs",
+        .next = NULL,
+    };
+
+    vfs_register_fs(&tmpfs);
 }

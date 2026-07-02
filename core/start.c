@@ -15,13 +15,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
+// ! WARNING: you'll find a lot of unnecessary comments in this code. I write them bc I just like sharing my thoughts
 /*
     Dear user,
     I really want to thank you for downloading and viweing this code. I'm really happy that you're interested in this.
     If you're a professional OS developer and you see some bugs or errors here, please contact me, I'd really appreciate that.
     Enjoy the code and write a feedback if you want. May God bless you,
     Jakub Fietko, the author.
+    (and that's the last decent comment you'll see here)
 */
 
 #include <bomboclaat/kprintf.h>
@@ -49,10 +50,16 @@
 
 char *UNAME[3];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "v1.0 beta 7.2";
+char *krelease = "v1.0 beta 7.3.1";
+/*
+    About versioning system:
+        Pattern: X.Y(.Z)
+        X increases when Y is too big to look nice (insead of 7.20 there'll be 8.0)
+        Y increases when I add something important that works (the legend says it'll happen one day)
+        Z increases when I fix a mistake, add something less important or add something that doesn't work yet
+*/
 
 stack_t system_stack;
-tmpfs_dir_t *dev;
 
 __attribute__((used, section(".limine_requests"))) static volatile uint64_t limine_base_revision[] = LIMINE_BASE_REVISION(6);
 __attribute__((used, section(".limine_requests"))) static volatile struct limine_framebuffer_request framebuffer_request = {
@@ -231,12 +238,6 @@ void kinit(void)
 
     keyboard_init();
     log(LOG_OK, "Initialized keyboard driver");
-
-    /*int serial = init_serial();
-    if (serial == 0)
-        log(LOG_OK, "Serial port initialized");
-    else
-        log(LOG_ERR, "Error while initializing serial port");*/
 
     log(LOG_INFO, "Loading initramfs");
     initramfs();

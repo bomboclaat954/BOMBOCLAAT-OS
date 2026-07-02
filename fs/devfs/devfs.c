@@ -15,5 +15,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
+// Sometimes I wonder why I still want to continue this project
+// and the only thing I can come up with is that it's a punishment for my sins
 #include <fs/devfs.h>
+
+// TODO: write devfs

@@ -15,7 +15,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-// ! flags are ignored now but I'll fix it later
+// I thought scheduler was the worst part of writing a kernel but I underestimated VFS...
+// How the fuck Torvalds managed to write it and make it work?
 #include <fs/vfs.h>
 #include <fs/tmpfs.h>
 #include <bomboclaat/globals.h>
@@ -24,9 +25,11 @@
 #include <memory/memtools.h>
 #include <bomboclaat/kprintf.h>
 #include <tasks/tasks.h>
+#include <lib/string.h>
 
 vfs_dentry_t *vfs_root_dentry;
 vfs_inode_t *root_inode;
+filesystem_t *registered_filesystems = NULL;
 int next_id = 1;
 
 int vfs_setup_inode(vfs_inode_t *inode)
@@ -86,12 +89,14 @@ int vfs_write(int fd, void *buf, uint64_t size)
     return bytes_written;
 }
 
-int vfs_mkfile(vfs_inode_t *parent, char *name, uint16_t mode)
+vfs_inode_t *vfs_mkfile(vfs_inode_t *parent, char *name)
 {
-    if (parent->ops->mkfile(parent, name, mode))
-        return 1;
-    else
-        return 0;
+    return parent->ops->mkfile(parent, name);
+}
+
+vfs_inode_t *vfs_mkdir(vfs_inode_t *parent, char *name)
+{
+    return parent->ops->mkdir(parent, name);
 }
 
 int vfs_open(char *path, int flags, uint64_t *size_buf)
@@ -153,6 +158,85 @@ int vfs_close(int fd)
     return 0;
 }
 
+vfs_dentry_t *vfs_find(char *path)
+{
+    // TODO: FIX THIS!!!
+    if (!path[0] == '/')
+    {
+        log(LOG_ERR, "Path has to start with \"/\" (root)");
+        return NULL;
+    }
+}
+
+filesystem_t *vfs_find_fs(char *name)
+{
+    // TODO: write this
+}
+
+int vfs_mount(char *source, char *target, char *fs_type, void *flags, void *data)
+{
+    filesystem_t *target_fs = vfs_find_fs(fs_type);
+    if (!target_fs)
+    {
+        log(LOG_ERR, "Unknown filesystem type");
+        return -1;
+    }
+
+    vfs_inode_t *target_inode = target_fs->mount(source, flags);
+    if (!target_inode)
+    {
+        log(LOG_ERR, "Filesystem mount failed");
+        return -1;
+    }
+
+    if (strcmp(target, "/") == 0)
+    {
+        root_inode = target_inode;
+        vfs_root_dentry = (vfs_dentry_t *)kmalloc(sizeof(vfs_dentry_t));
+        vfs_root_dentry->name = "/";
+        vfs_root_dentry->inode = target_inode;
+        vfs_root_dentry->mounted_inode = NULL;
+        vfs_root_dentry->parent = vfs_root_dentry;
+    }
+    else
+    {
+        vfs_dentry_t *target_dentry = vfs_find(target);
+        if (!target_dentry)
+        {
+            log(LOG_ERR, "Mount point path not found");
+            kfree(target_inode);
+            return -1;
+        }
+
+        target_dentry->mounted_inode = target_inode;
+    }
+
+    return 0;
+}
+
+void vfs_register_fs(filesystem_t *fs)
+{
+    if (!fs)
+    {
+        log(LOG_ERR, "Incorrect FS structure");
+        return;
+    }
+
+    filesystem_t *curr = registered_filesystems;
+    while (curr != NULL)
+    {
+        if (strcmp(fs->name, curr->name) == 0)
+        {
+            log(LOG_ERR, "Filesystem name \"%s\" is already taken", fs->name);
+            return;
+        }
+        curr = curr->next;
+    }
+
+    fs->next = registered_filesystems;
+    registered_filesystems = fs;
+}
+
 void vfs_init()
 {
     root_inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
@@ -162,7 +246,7 @@ void vfs_init()
         panic("VFS: kmalloc error", 0, 0);
 
     root_inode->id = 1;
-    root_inode->mode = 0755;
+    root_inode->mode = VFS_MODE_DIR;
     root_inode->size = 0;
     root_inode->ops = &tmpfs_inode_ops;
     root_inode->private_data = (void *)tmpfs_root;
