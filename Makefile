@@ -32,7 +32,7 @@ ALL_OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS) $(ASM_OBJECTS)
 BUILD_NO := $(shell [ -f build_no.txt ] && cat build_no.txt || echo 0)
 NEW_BUILD_NO := $(shell echo $$(($(BUILD_NO) + 1)))
 
-INITRAMFS = initramfs.cpio
+INITRAMFS = init.cpio
 
 all: limine_download prepare $(ALL_OBJECTS) link $(INITRAMFS) iso_gen
 	@echo "Done"
@@ -72,7 +72,7 @@ build_os:
 	@$(MAKE) -C bomboclaat-os --no-print-directory
 
 $(INITRAMFS): build_os
-	@mv bomboclaat-os/initramfs.cpio $(INITRAMFS)
+	@mv bomboclaat-os/init.cpio $(INITRAMFS)
 
 link:
 	$(eval ALL_OBJ := $(shell find build -name "*.o"))
@@ -88,7 +88,7 @@ iso_gen:
 	
 	@cp build/bomboclaat iso/boot/
 	@cp limine.conf iso/boot/limine/
-	@cp initramfs.cpio iso/boot/
+	@cp init.cpio iso/boot/
 	
 	@cp limine-binary/limine-bios.sys limine-binary/limine-bios-cd.bin \
 	    limine-binary/limine-uefi-cd.bin iso/boot/limine/
@@ -142,14 +142,7 @@ run-debug:
 disk-img:
 	@qemu-img create -f raw disk.img 256M
 	@mkfs.fat -F 32 disk.img
-	@mkdir data
-	@mkdir data/info
-	@echo "Hello from data folder!" > data/hello.txt
-	@mcopy -i disk.img -s data ::/
-	@echo "Hello from the root directory!" > hello.txt
-	@mcopy -i disk.img hello.txt ::hello.txt
-	@rm -rf data
-	@rm hello.txt
+	@mcopy -i disk.img init.cpio ::init.cpio
 
 clean:
 	@rm -rf build/ iso/ bomboclaat-os.iso

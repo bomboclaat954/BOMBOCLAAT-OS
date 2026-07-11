@@ -24,8 +24,11 @@
 #include <bomboclaat/panic.h>
 #include <bomboclaat/kprintf.h>
 #include <lib/string.h>
+#include <fs/devfs.h>
 
 tmpfs_dir_t *tmpfs_root;
+vfs_inode_t *tmpfs_root_inode;
+
 struct vfs_inode_ops tmpfs_inode_ops = {
     .lookup = tmpfs_lookup,
     .mkdir = tmpfs_mkdir,
@@ -33,13 +36,14 @@ struct vfs_inode_ops tmpfs_inode_ops = {
     .read = tmpfs_read,
     .write = tmpfs_write,
 };
+
 filesystem_t tmpfs = {
     .mount = tmpfs_mount,
     .name = "tmpfs",
     .next = NULL,
 };
 
-vfs_inode_t *tmpfs_mount(void *dev, void *flags)
+struct vfs_inode *tmpfs_mount(struct device *dev, void *flags)
 {
     // TODO: write this and don't get crazy
 }
@@ -136,12 +140,19 @@ void tmpfs_init()
     tmpfs_root->files_count = 0;
     tmpfs_root->name = "/";
     tmpfs_root->parent_dir = tmpfs_root;
+    tmpfs_root_inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
 
     filesystem_t tmpfs = {
         .mount = NULL,
         .name = "tmpfs",
         .next = NULL,
     };
+
+    tmpfs_root_inode->id = 0;
+    tmpfs_root_inode->mode = 0;
+    tmpfs_root_inode->ops = &tmpfs_inode_ops;
+    tmpfs_root_inode->private_data = (void *)tmpfs_root;
+    tmpfs_root_inode->size = 0;
 
     vfs_register_fs(&tmpfs);
 }

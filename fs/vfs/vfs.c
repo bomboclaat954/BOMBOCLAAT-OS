@@ -15,10 +15,11 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-// I thought scheduler was the worst part of writing a kernel but I underestimated VFS...
-// How the fuck Torvalds managed to write it and make it work?
+// i znowu sie kurwa pierdolone dziadostwo rozjebało. ruszysz jedną rzecz to sie kurwa jebią 3 inne
+// jak tak dalej pójdzie to ja w Choroszczy wyląduję w jebanej izolatce
 #include <fs/vfs.h>
 #include <fs/tmpfs.h>
+#include <fs/devfs.h>
 #include <bomboclaat/globals.h>
 #include <bomboclaat/panic.h>
 #include <memory/kmalloc.h>
@@ -26,6 +27,7 @@
 #include <bomboclaat/kprintf.h>
 #include <tasks/tasks.h>
 #include <lib/string.h>
+#include <errno.h>
 
 vfs_dentry_t *vfs_root_dentry;
 vfs_inode_t *root_inode;
@@ -34,7 +36,9 @@ int next_id = 1;
 
 int vfs_setup_inode(vfs_inode_t *inode)
 {
-    inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
+    if (!inode)
+        return 0;
+
     inode->id = next_id;
     inode->mode = 0;
     inode->size = 0;
@@ -103,7 +107,7 @@ int vfs_open(char *path, int flags, uint64_t *size_buf)
 {
     extern task_t *current_task;
     if (current_task == NULL)
-        return -1;
+        return -ESRCH;
 
     int fd = -1;
     for (int i = 0; i < MAX_FILES_PER_TASK; i++)
@@ -117,11 +121,11 @@ int vfs_open(char *path, int flags, uint64_t *size_buf)
 
     if (fd == -1)
         return -1;
-    if (!root_inode->ops->lookup)
-        return -1;
-    vfs_inode_t *inode = root_inode->ops->lookup(root_inode, path);
-    if (inode == NULL)
-        return -1;
+
+    vfs_dentry_t *dentry = vfs_find(path);
+    if (!dentry || !dentry->inode)
+        return -ENOENT;
+    vfs_inode_t *inode = dentry->inode;
 
     vfs_file_t *file = (vfs_file_t *)kmalloc(sizeof(vfs_file_t));
     if (!file)
@@ -141,13 +145,13 @@ int vfs_close(int fd)
 {
     extern task_t *current_task;
     if (current_task == NULL)
-        return -1;
+        return ESRCH;
     if (fd < 0 || fd >= MAX_FILES_PER_TASK)
-        return -1;
+        return EMFILE;
 
     vfs_file_t *file = current_task->fd_table[fd];
     if (file == NULL)
-        return -1;
+        return ENOENT;
 
     current_task->fd_table[fd] = NULL;
 
@@ -158,36 +162,118 @@ int vfs_close(int fd)
     return 0;
 }
 
+int parse_path(char *path, char *out_buf[])
+{
+    int n = 0;
+    char *ptr = path;
+
+    while (*ptr == '/')
+        ptr++;
+
+    while (*ptr != '\0')
+    {
+        out_buf[n++] = ptr;
+
+        while (*ptr != '\0' && *ptr != '/')
+            ptr++;
+
+        if (*ptr == '/')
+        {
+            *ptr = '\0';
+            ptr++;
+        }
+
+        while (*ptr == '/')
+            ptr++;
+    }
+
+    out_buf[n] = NULL;
+    return n;
+}
+
 vfs_dentry_t *vfs_find(char *path)
 {
-    // TODO: FIX THIS!!!
-    if (!path[0] == '/')
+    if (path == NULL || path[0] != '/')
     {
         log(LOG_ERR, "Path has to start with \"/\" (root)");
         return NULL;
     }
+
+    if (strcmp(path, "/") == 0)
+        return vfs_root_dentry;
+
+    char path_copy[256];
+    strncpy(path_copy, path, sizeof(path_copy) - 1);
+    path_copy[sizeof(path_copy) - 1] = '\0';
+
+    char *path_split[32];
+    int token_count = parse_path(path_copy, path_split);
+
+    if (token_count == 0)
+        return NULL;
+
+    vfs_inode_t *current_inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
+    int x;
+
+    if (strcmp(path_split[0], "dev") == 0 && devfs_root_inode != NULL)
+    {
+        current_inode = devfs_root_inode;
+        x = 1;
+    }
+    else
+    {
+        current_inode = root_inode;
+        x = 0;
+    }
+
+    while (x < token_count && current_inode != NULL)
+    {
+        if (!current_inode->ops || !current_inode->ops->lookup)
+        {
+            log(LOG_ERR, "Inode does not support lookup");
+            return NULL;
+        }
+
+        current_inode = current_inode->ops->lookup(current_inode, path_split[x]);
+        x++;
+    }
+
+    if (current_inode == NULL)
+        return NULL;
+
+    vfs_dentry_t *ret = kmalloc(sizeof(vfs_dentry_t));
+    if (!ret)
+        return NULL;
+
+    ret->inode = current_inode;
+    ret->mounted_inode = NULL;
+    ret->name = path_split[token_count - 1];
+    ret->parent = NULL;
+
+    return ret;
 }
 
 filesystem_t *vfs_find_fs(char *name)
 {
-    // TODO: write this
+    filesystem_t *fs = registered_filesystems;
+    while (fs != NULL)
+    {
+        if (strcmp(fs->name, name) == 0)
+            return fs;
+        fs = fs->next;
+    }
+    return NULL;
 }
 
-int vfs_mount(char *source, char *target, char *fs_type, void *flags, void *data)
+int vfs_mount(void *dev, char *target, char *fs_type, void *flags)
 {
     filesystem_t *target_fs = vfs_find_fs(fs_type);
     if (!target_fs)
-    {
-        log(LOG_ERR, "Unknown filesystem type");
-        return -1;
-    }
+        return ENOENT;
 
-    vfs_inode_t *target_inode = target_fs->mount(source, flags);
+    vfs_inode_t *target_inode = target_fs->mount(dev, flags);
     if (!target_inode)
-    {
-        log(LOG_ERR, "Filesystem mount failed");
-        return -1;
-    }
+        return ESRMNT;
 
     if (strcmp(target, "/") == 0)
     {
@@ -203,9 +289,8 @@ int vfs_mount(char *source, char *target, char *fs_type, void *flags, void *data
         vfs_dentry_t *target_dentry = vfs_find(target);
         if (!target_dentry)
         {
-            log(LOG_ERR, "Mount point path not found");
             kfree(target_inode);
-            return -1;
+            return ESRMNT;
         }
 
         target_dentry->mounted_inode = target_inode;

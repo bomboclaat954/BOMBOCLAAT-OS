@@ -193,6 +193,8 @@ int log(log_type type, const char *fmt, ...)
         draw_string("[+]", cursor_x, cursor_y, 0x00FF00, 0);
     else if (type == LOG_ERR)
         draw_string("[-]", cursor_x, cursor_y, 0xFF0000, 0);
+    else if (type == LOG_DEBUG)
+        draw_string("[D]", cursor_x, cursor_y, 0xF59E42, 0);
     else
         draw_string("[*]", cursor_x, cursor_y, 0x00BCEF, 0);
 

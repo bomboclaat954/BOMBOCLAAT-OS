@@ -5,6 +5,8 @@
 
 #ifndef KEYBOARD_H
 #define KEYBOARD_H
+#include <stdint.h>
+#include <fs/vfs.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -21,6 +23,7 @@ extern "C"
 
     char get_ascii(unsigned char scancode);
     void keyboard_init();
+    int64_t keyboard_read(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
     void keyboard_handler();
 
 #ifdef __cplusplus

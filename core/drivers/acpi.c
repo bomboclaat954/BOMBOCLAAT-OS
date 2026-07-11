@@ -99,7 +99,6 @@ int acpi_init(RSDP_t *rsdp)
 
     extern volatile uintptr_t lapic_base;
     lapic_base = (uintptr_t)madt->LAPIC_addr;
-    log(LOG_INFO, "LAPIC addr: %x", madt->LAPIC_addr);
 
     MADT_record_header_t *rhdr = (MADT_record_header_t *)((uintptr_t)madt + sizeof(MADT_header_t));
     uintptr_t madt_end = (uintptr_t)madt + madt->acpihdr.Length;
@@ -112,7 +111,6 @@ int acpi_init(RSDP_t *rsdp)
         if (rhdr->entry_type == 1)
         {
             IOAPIC_t *ioapic = (IOAPIC_t *)rhdr;
-            log(LOG_INFO, "IOAPIC addr: %x", ioapic->addr);
             ioapic_phys = ioapic->addr;
             break;
         }

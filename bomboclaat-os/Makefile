@@ -69,10 +69,10 @@ mkramfs:
 		name=$$(basename $$obj .elf); \
 		cp build/$$name.elf root/bin/$$name; \
 	done
-	@cd root && find . -mindepth 1 -printf '%P\n' | cpio -o -H newc > ../initramfs.cpio
+	@cd root && find . -mindepth 1 -printf '%P\n' | cpio -o -H newc > ../init.cpio
 
 clean:
 	@rm -rf build
-	@rm -f initramfs.img
+	@rm -f init.cpio
 
 .PHONY: clean prepare all link mkramfs

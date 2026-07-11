@@ -19,19 +19,22 @@
 #include <drivers/keyboard.h>
 #include <drivers/io.h>
 #include <int/int.h>
-#include <fs/vfs.h>
 #include <fs/tmpfs.h>
+#include <fs/devfs.h>
 #include <memory/stack.h>
 #include <memory/memtools.h>
 #include <memory/kmalloc.h>
 #include <bomboclaat/kprintf.h>
 #include <lib/string.h>
-#include <stdint.h>
 
 int shift_pressed = 0;
 int caps_lock = 0;
-stack_t kbd_stack;
-int kbd_stack_size = 0;
+dev_t *kbd;
+int stack_size = 0;
+struct dev_ops kbd_ops = {
+    .read = keyboard_read,
+    .write = NULL,
+};
 
 char get_ascii(unsigned char scancode)
 {
@@ -69,22 +72,40 @@ char get_ascii(unsigned char scancode)
 void keyboard_handler()
 {
     uint8_t scancode = inb(0x60);
-    if (kbd_stack_size == MAX_SIZE)
+    if (kbd->data_stack_size == MAX_SIZE)
     {
-        memset(kbd_stack.arr, 0, MAX_SIZE);
-        kbd_stack.top = 0;
-        kbd_stack_size = 0;
+        memset(kbd->data_stack.arr, 0, MAX_SIZE);
+        kbd->data_stack.top = 0;
+        kbd->data_stack_size = 0;
     }
-    push(&kbd_stack, scancode);
-    kbd_stack_size++;
+    push(&kbd->data_stack, scancode);
+    kbd->data_stack_size++;
     return;
+}
+
+int64_t keyboard_read(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset)
+{
+    uint8_t *buf_ptr = buffer;
+    uint64_t read_count = 0;
+
+    while (read_count < size && kbd->data_stack_size > 0)
+    {
+        buf_ptr[read_count] = (uint8_t)pop(&kbd->data_stack);
+        kbd->data_stack_size--;
+        read_count++;
+    }
+
+    return read_count;
 }
 
 void keyboard_init()
 {
-    // TODO: link it do DEVFS
+    kbd = (dev_t *)kmalloc(sizeof(dev_t));
+    memset(kbd->data_stack.arr, 0, MAX_SIZE);
+    kbd->ops = &kbd_ops;
+    kbd->data_stack.top = 0;
+    kbd->data_stack_size = 0;
+    kbd->name = "kbd";
 
-    memset(kbd_stack.arr, 0, MAX_SIZE);
-    kbd_stack.top = 0;
-    kbd_stack_size = 0;
+    devfs_register_device(kbd);
 }

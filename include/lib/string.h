@@ -16,6 +16,7 @@ extern "C"
     int strcmp(const char *s1, const char *s2);
     int strncmp(const char *s1, const char *s2, int n);
     void strcpy(char *s, char *p);
+    void strncpy(char *dst, const char *src, uint64_t n);
     char *strstr(char *str, char *substring);
     char *strtok(char *s, char *delm);
     void strrem(char *str, char *substr);

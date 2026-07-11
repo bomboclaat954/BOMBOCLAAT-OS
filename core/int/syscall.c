@@ -33,6 +33,7 @@
 #include <tasks/tasks.h>
 #include <fs/vfs.h>
 #include <stddef.h>
+#include <errno.h>
 
 #define TEMP_MAP_ADDR 0xFFFFFFFFF0000000
 
@@ -53,35 +54,39 @@ uint64_t syscall_handler(context_t *r)
     {
     case 1: // printf
     {
+        // TODO: write to /dev/fbf (framebuffer) instead of kprintf
         kprintf((const char *)r->rdi);
         return 0;
     }
-    case 2: // new task
+    case 2: // create a new process (task_t) for an executable file
     {
         char *name = (char *)r->rdi;
         char **argv = (char **)r->rsi;
         int argc = (int)r->rdx;
-        int current_pid = current_task->pid;
 
         uint64_t size = 0;
         int fd = vfs_open(name, 0, &size);
-        void *file = kmalloc(size + 1);
-        vfs_read(fd, file, size);
-
-        if (file == NULL)
+        if (fd < 0)
             return 0;
 
+        void *file = kmalloc(size + 1);
+        if (file == NULL)
+        {
+            vfs_close(fd);
+            return 0;
+        }
+
+        int64_t read_bytes = vfs_read(fd, file, size);
         vfs_close(fd);
+        if (read_bytes < 0)
+            return 0;
 
         int frames = (size + PAGE_SIZE - 1) >> 12;
         task_t *new_task = task_create(file, current_task->pid, name, argc, argv, frames);
         if (new_task == NULL)
             return 0;
 
-        new_task->parent_pid = current_pid;
-        new_task->next = current_task;
         current_task->state = TASK_BLOCKED;
-        new_task->state = TASK_READY;
         r->rax = 1;
         schedule(r);
         return (uint64_t)r;
@@ -94,7 +99,7 @@ uint64_t syscall_handler(context_t *r)
     }
     case 4:
     {
-        // TODO: get rid of this
+        // TODO: get rid of this and write to /dev/kbd
         char *buf = (char *)r->rdi;
         input(buf);
         r->rax = 1;
@@ -188,8 +193,7 @@ uint64_t syscall_handler(context_t *r)
     }
     default:
     {
-        kprintf("Unknown syscall\n");
-        r->rax = 1;
+        r->rax = ENOSYS;
         return (uint64_t)r;
     }
     }

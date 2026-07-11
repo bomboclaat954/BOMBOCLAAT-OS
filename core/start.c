@@ -44,19 +44,21 @@
 #include <fs/fat32.h>
 #include <fs/tmpfs.h>
 #include <fs/vfs.h>
+#include <fs/devfs.h>
 #include <tasks/tasks.h>
 #include <lib/string.h>
 #include <lib/math.h>
 
 char *UNAME[3];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "v1.0 beta 7.3.1";
+char *krelease = "v1.0 beta 7.4";
 /*
     About versioning system:
         Pattern: X.Y(.Z)
         X increases when Y is too big to look nice (insead of 7.20 there'll be 8.0)
         Y increases when I add something important that works (the legend says it'll happen one day)
         Z increases when I fix a mistake, add something less important or add something that doesn't work yet
+        In uname you'll see another number at the end. It's build number (for example 7.1.2.34)
 */
 
 stack_t system_stack;
@@ -221,7 +223,6 @@ void kinit(void)
     log(LOG_OK, "Initialized LAPIC timer");
     ioapic_set_irq(1, 0x21, 0);
 
-    task_init();
     UNAME[0] = kmalloc(sizeof(char) * 128);
     UNAME[1] = kmalloc(sizeof(char) * 128);
     UNAME[2] = kmalloc(sizeof(char) * 128);
@@ -235,10 +236,13 @@ void kinit(void)
     log(LOG_OK, "Initialized VFS");
     fat32_init();
     log(LOG_OK, "Initialized FAT32");
+    devfs_init();
+    log(LOG_OK, "Initialized DEVFS");
 
     keyboard_init();
     log(LOG_OK, "Initialized keyboard driver");
 
+    task_init();
     log(LOG_INFO, "Loading initramfs");
     initramfs();
 

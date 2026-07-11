@@ -17,7 +17,7 @@
  */
 
 // It took me over a week to make it work
-
+// TODO: improve memory cleaning after the task dies
 #include <tasks/tasks.h>
 #include <memory/memtools.h>
 #include <memory/kmalloc.h>
@@ -44,7 +44,7 @@ int find_free_slot()
         if (!tasks[i])
             return i;
     }
-    return 0;
+    return -1;
 }
 
 int find_in_array(task_t *t)
@@ -54,17 +54,23 @@ int find_in_array(task_t *t)
         if (tasks[i] == t)
             return i;
     }
-    return 0;
+    return -1;
 }
 
 task_t *find_by_pid(int pid)
 {
     for (int i = 0; i < MAX_TASKS; i++)
     {
-        if (tasks[i]->pid == pid)
+        if (tasks[i] != NULL && tasks[i]->pid == pid)
             return tasks[i];
     }
     return NULL;
+}
+
+void kernel_idle_loop()
+{
+    while (1)
+        asm volatile("hlt");
 }
 
 void task_init(void)
@@ -81,6 +87,11 @@ void task_init(void)
 
     context_t *ctx = (context_t *)kernel_task->rsp;
     memset(ctx, 0, sizeof(context_t));
+    ctx->rip = (uint64_t)kernel_idle_loop;
+    ctx->cs = 0x28;
+    ctx->ss = 0x30;
+    ctx->rflags = 0x202;
+    ctx->rsp = kernel_task->kstack_top;
 
     kernel_task->next = kernel_task;
     kernel_task->parent_pid = 0;
@@ -211,6 +222,8 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     new_task->state = TASK_READY;
 
     int slot = find_free_slot();
+    if (slot < 0)
+        return NULL;
     tasks[slot] = new_task;
     return new_task;
 }
@@ -267,7 +280,8 @@ void task_exit(context_t *ctx)
     task_t *prev = current_task;
 
     int slot = find_in_array(prev);
-    tasks[slot] = NULL;
+    if (slot >= 0)
+        tasks[slot] = NULL;
 
     vmm_unmap_page(prev->pml4, (uintptr_t)prev->pml4 + hhdm_offset);
     pmm_free_frame((void *)((uintptr_t)prev->pml4 - hhdm_offset));

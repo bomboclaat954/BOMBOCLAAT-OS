@@ -15,6 +15,7 @@ extern "C"
         LOG_OK,
         LOG_ERR,
         LOG_INFO,
+        LOG_DEBUG,
     } typedef log_type;
 
     int kprintf(const char *fmt, ...);
