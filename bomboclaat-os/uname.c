@@ -64,7 +64,7 @@ int main(int argc, char **argv)
     if (s)
         printf("%s ", kname);
     if (r)
-        printf("%s.%s ", krelease, kbuild);
+        printf("%s-b%s ", krelease, kbuild);
     if (o)
         printf("%s ", OSVER);
     if (v)

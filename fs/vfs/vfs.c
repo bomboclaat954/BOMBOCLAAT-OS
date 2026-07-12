@@ -202,52 +202,37 @@ vfs_dentry_t *vfs_find(char *path)
     if (strcmp(path, "/") == 0)
         return vfs_root_dentry;
 
-    char path_copy[256];
-    strncpy(path_copy, path, sizeof(path_copy) - 1);
-    path_copy[sizeof(path_copy) - 1] = '\0';
+    vfs_inode_t *current_inode;
+    char *lookup_key;
 
-    char *path_split[32];
-    int token_count = parse_path(path_copy, path_split);
-
-    if (token_count == 0)
-        return NULL;
-
-    vfs_inode_t *current_inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
-    int x;
-
-    if (strcmp(path_split[0], "dev") == 0 && devfs_root_inode != NULL)
+    if (strncmp(path, "/dev/", 5) == 0 && devfs_root_inode != NULL)
     {
         current_inode = devfs_root_inode;
-        x = 1;
+        lookup_key = path + 5;
     }
     else
     {
         current_inode = root_inode;
-        x = 0;
+        lookup_key = path;
     }
 
-    while (x < token_count && current_inode != NULL)
+    if (!current_inode->ops || !current_inode->ops->lookup)
     {
-        if (!current_inode->ops || !current_inode->ops->lookup)
-        {
-            log(LOG_ERR, "Inode does not support lookup");
-            return NULL;
-        }
-
-        current_inode = current_inode->ops->lookup(current_inode, path_split[x]);
-        x++;
+        log(LOG_ERR, "Inode does not support lookup");
+        return NULL;
     }
 
-    if (current_inode == NULL)
+    vfs_inode_t *found_inode = current_inode->ops->lookup(current_inode, lookup_key);
+    if (found_inode == NULL)
         return NULL;
 
     vfs_dentry_t *ret = kmalloc(sizeof(vfs_dentry_t));
     if (!ret)
         return NULL;
 
-    ret->inode = current_inode;
+    ret->inode = found_inode;
     ret->mounted_inode = NULL;
-    ret->name = path_split[token_count - 1];
+    ret->name = lookup_key;
     ret->parent = NULL;
 
     return ret;

@@ -42,6 +42,7 @@ typedef struct task
     task_state_t state;
     vmm_table_t *pml4;
     uintptr_t kstack_top;
+    uintptr_t kstack_frames[4];
     uintptr_t rsp;
     char name[16];
     struct task *next;

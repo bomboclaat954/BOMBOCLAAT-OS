@@ -51,14 +51,14 @@
 
 char *UNAME[3];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "v1.0 beta 7.4";
+char *krelease = "v1.0 beta 7.4.1";
 /*
     About versioning system:
         Pattern: X.Y(.Z)
         X increases when Y is too big to look nice (insead of 7.20 there'll be 8.0)
         Y increases when I add something important that works (the legend says it'll happen one day)
         Z increases when I fix a mistake, add something less important or add something that doesn't work yet
-        In uname you'll see another number at the end. It's build number (for example 7.1.2.34)
+        In uname you'll see another number at the end. It's build number (for example 7.1.2-b34)
 */
 
 stack_t system_stack;

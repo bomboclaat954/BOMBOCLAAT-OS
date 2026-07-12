@@ -198,10 +198,12 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
 
     kfree(user_argv_addrs);
 
-    void *kstack_phys = NULL;
     for (int i = 0; i < 4; i++)
-        kstack_phys = pmm_alloc_frame();
-    new_task->kstack_top = (uintptr_t)kstack_phys + hhdm_offset + PAGE_SIZE;
+    {
+        void *kstack_phys = pmm_alloc_frame();
+        new_task->kstack_frames[i] = (uintptr_t)kstack_phys;
+    }
+    new_task->kstack_top = new_task->kstack_frames[3] + hhdm_offset + PAGE_SIZE;
 
     new_task->rsp = new_task->kstack_top - sizeof(context_t);
     context_t *ctx = (context_t *)new_task->rsp;
@@ -228,8 +230,11 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     return new_task;
 }
 
+static void reap_zombie(void);
+
 context_t *schedule(context_t *ctx)
 {
+    reap_zombie();
     if (current_task == NULL)
         return ctx;
 
@@ -274,19 +279,44 @@ context_t *schedule(context_t *ctx)
         asm volatile("hlt");
 }
 
+static task_t *task_to_reap = NULL;
+
+static void reap_zombie(void)
+{
+    if (task_to_reap == NULL || task_to_reap == current_task)
+        return;
+
+    task_t *zombie = task_to_reap;
+    task_to_reap = NULL;
+
+    vmm_unmap_page(zombie->pml4, (uintptr_t)zombie->pml4 + hhdm_offset);
+    pmm_free_frame((void *)((uintptr_t)zombie->pml4 - hhdm_offset));
+
+    for (int i = 0; i < 4; i++)
+        pmm_free_frame((void *)zombie->kstack_frames[i]);
+
+    kfree(zombie);
+}
+
 void task_exit(context_t *ctx)
 {
-    current_task->state = TASK_ZOMBIE;
     task_t *prev = current_task;
+    prev->state = TASK_ZOMBIE;
 
     int slot = find_in_array(prev);
     if (slot >= 0)
         tasks[slot] = NULL;
 
-    vmm_unmap_page(prev->pml4, (uintptr_t)prev->pml4 + hhdm_offset);
-    pmm_free_frame((void *)((uintptr_t)prev->pml4 - hhdm_offset));
-    kfree(&prev->kstack_top);
-    kfree(prev);
+    task_t *runner = prev->next;
+    while (runner->next != prev)
+        runner = runner->next;
+    runner->next = prev->next;
+
+    task_t *parent = find_by_pid(prev->parent_pid);
+    if (parent != NULL)
+        parent->state = TASK_READY;
+
+    task_to_reap = prev;
 
     schedule(ctx);
     while (1)
