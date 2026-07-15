@@ -17,6 +17,7 @@
  */
 
 #include <bomboclaat.h>
+#include <drivers/screen.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdarg.h>
@@ -139,6 +140,9 @@ size_t vasprintf(char *buf, const char *fmt, va_list args)
     return ptr;
 }
 
+int x = 0;
+int y = 0;
+
 int printf(const char *fmt, ...)
 {
     char buf[8192];
@@ -153,6 +157,13 @@ int printf(const char *fmt, ...)
         :
         : "a"(1), "D"(buf)
         : "memory");
+    /*int i = 0;
+    while (buf[i])
+    {
+        draw_char(buf[i], x, y, 0xFFFFFF, 0);
+        x += 8;
+        i++;
+    }*/
 
     return out;
 }

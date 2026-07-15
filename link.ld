@@ -71,4 +71,5 @@ SECTIONS
         *(.note .note.*)
     }
     _kernel_end = .;
+    _fbfmem = . + 1;
 }

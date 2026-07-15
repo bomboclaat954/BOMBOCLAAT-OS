@@ -105,7 +105,7 @@ uint64_t syscall_handler(context_t *r)
         r->rax = 1;
         return (uint64_t)r;
     }
-    case 5:
+    case 5: // cls
     {
         cls();
         r->rax = 1;

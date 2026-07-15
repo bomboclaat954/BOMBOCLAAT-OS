@@ -19,8 +19,11 @@
 #include <drivers/screen.h>
 #include <drivers/io.h>
 #include <memory/memtools.h>
+#include <memory/kmalloc.h>
 #include <lib/string.h>
 #include <fonts/terminus-normal.h>
+#include <fs/devfs.h>
+#include <bomboclaat/kprintf.h>
 
 int current_fgc = 0xFFFFFF;
 int current_bgc = 0x000000;
@@ -28,8 +31,14 @@ int cursor_x = 0;
 int cursor_y = 0;
 int ROWS = 0;
 int COLUMNS = 0;
+
 struct limine_framebuffer *fb = 0;
 uint32_t fb_offset = 0;
+dev_t *framebuffer;
+struct dev_ops fbf_ops = {
+    .read = NULL,
+    .write = fbf_write,
+};
 
 void color(int fg, int bg)
 {
@@ -44,6 +53,29 @@ void init_screen_driver(struct limine_framebuffer *fbuf)
     fb = fbuf;
     COLUMNS = fb->width;
     ROWS = fb->height;
+}
+
+void register_framebuffer()
+{
+    framebuffer = (dev_t *)kmalloc(sizeof(dev_t));
+    for (int i = 0; i < MAX_SIZE; i++)
+        framebuffer->data_stack.arr[i] = 0;
+    framebuffer->data_stack.top = 0;
+    framebuffer->data_stack_size = 0;
+    framebuffer->name = "fbf";
+    framebuffer->ops = &fbf_ops;
+    devfs_register_device(framebuffer);
+}
+
+int64_t fbf_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset)
+{
+    uint64_t packed = (uint64_t)buffer;
+    uint32_t color = (uint32_t)(packed >> 32);
+    uint32_t xy = (uint32_t)packed;
+    uint16_t x = (uint16_t)(xy >> 16);
+    uint16_t y = (uint16_t)xy;
+    put_pixel(x, y, color);
+    return size;
 }
 
 void put_pixel(uint32_t x, uint32_t y, uint32_t color)

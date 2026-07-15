@@ -18,6 +18,7 @@
 // Sometimes I wonder why I still want to continue this project
 // and the only thing I can come up with is that it's a punishment for my sins
 #include <bomboclaat/globals.h>
+#include <bomboclaat/kprintf.h>
 #include <memory/kmalloc.h>
 #include <lib/string.h>
 #include <fs/devfs.h>
@@ -96,7 +97,7 @@ int devfs_register_device(struct device *dev)
     devfs_entries[devfs_entry_count].name = dev->name;
     devfs_entries[devfs_entry_count].inode = dev_inode;
     devfs_entry_count++;
-
+    log(LOG_OK, "Registered device: /dev/%s", dev->name);
     return 0;
 }
 

@@ -12,6 +12,7 @@ extern "C"
 #endif
 
 #include <boot/limine.h>
+#include <fs/vfs.h>
 
     extern int cursor_x;
     extern int cursor_y;
@@ -21,6 +22,8 @@ extern "C"
 
     void color(int fg, int bg);
     void init_screen_driver(struct limine_framebuffer *fbuf);
+    void register_framebuffer();
+    int64_t fbf_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
     void put_pixel(uint32_t x, uint32_t y, uint32_t color);
     void fill_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color);
     void draw_char(char c, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg);

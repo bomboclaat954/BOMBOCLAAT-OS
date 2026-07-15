@@ -51,7 +51,7 @@
 
 char *UNAME[3];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "v1.0 beta 7.4.1";
+char *krelease = "v1.0 beta 7.4.2";
 /*
     About versioning system:
         Pattern: X.Y(.Z)
@@ -230,6 +230,11 @@ void kinit(void)
     sprintf(UNAME[1], "%s", krelease);
     sprintf(UNAME[2], "%d", BUILD_NUMBER);
 
+    uint64_t sz;
+    int sysinfo = vfs_open("/proc/sysinfo", 0, &sz);
+    vfs_write(sysinfo, krelease, strlen(krelease));
+    vfs_close(sysinfo);
+
     tmpfs_init();
     log(LOG_OK, "Initialized TMPFS");
     vfs_init();
@@ -240,7 +245,7 @@ void kinit(void)
     log(LOG_OK, "Initialized DEVFS");
 
     keyboard_init();
-    log(LOG_OK, "Initialized keyboard driver");
+    register_framebuffer();
 
     task_init();
     log(LOG_INFO, "Loading initramfs");

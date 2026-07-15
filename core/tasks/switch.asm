@@ -22,8 +22,22 @@ switch_to_task:
     cmp rax, rsi
     je .skip_cr3
     mov cr3, rsi
-.skip_cr3:
-    mov rsp, rdi
+    .skip_cr3:
+        mov rsp, rdi
+
+    movzx eax, word [rsp + 144]
+    and al, 3
+    cmp al, 3
+    jne .kernel_segments
+    mov ax, 0x3B
+    jmp .load_segments
+    .kernel_segments:
+        mov ax, 0x30
+    .load_segments:
+        mov ds, ax
+        mov es, ax
+        mov fs, ax
+        mov gs, ax
 
     pop r15
     pop r14
