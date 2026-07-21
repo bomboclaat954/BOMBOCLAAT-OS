@@ -51,7 +51,7 @@
 
 char *UNAME[3];
 char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "v1.0 beta 7.4.2";
+char *krelease = "v1.0 beta 7.5";
 /*
     About versioning system:
         Pattern: X.Y(.Z)
@@ -62,6 +62,8 @@ char *krelease = "v1.0 beta 7.4.2";
 */
 
 stack_t system_stack;
+uintptr_t fbf_size = 0;
+uintptr_t fbf_phys = 0;
 
 __attribute__((used, section(".limine_requests"))) static volatile uint64_t limine_base_revision[] = LIMINE_BASE_REVISION(6);
 __attribute__((used, section(".limine_requests"))) static volatile struct limine_framebuffer_request framebuffer_request = {
@@ -108,6 +110,9 @@ void sse_enable()
 
 vmm_table_t *kernel_pml4_virt;
 uint64_t hhdm_offset;
+uint64_t fbf_pitch = 0;
+uint64_t fbf_width = 0;
+uint64_t fbf_height = 0;
 
 void cpuid(uint32_t leaf, uint32_t *a, uint32_t *b, uint32_t *c, uint32_t *d)
 {
@@ -161,6 +166,12 @@ void kinit(void)
 
     hhdm_offset = hhdm->offset;
     log(LOG_INFO, "HHDM offset: %x%x", hhdm_offset >> 32, hhdm_offset << 32);
+
+    fbf_size = fb->pitch * fb->height;
+    fbf_phys = (uintptr_t)fb->address - hhdm_offset;
+    fbf_pitch = fb->pitch;
+    fbf_width = fb->width;
+    fbf_height = fb->height;
 
     gdt_tss_init();
     log(LOG_OK, "Initialized GDT and TSS");
@@ -229,11 +240,6 @@ void kinit(void)
     sprintf(UNAME[0], "%s", kname);
     sprintf(UNAME[1], "%s", krelease);
     sprintf(UNAME[2], "%d", BUILD_NUMBER);
-
-    uint64_t sz;
-    int sysinfo = vfs_open("/proc/sysinfo", 0, &sz);
-    vfs_write(sysinfo, krelease, strlen(krelease));
-    vfs_close(sysinfo);
 
     tmpfs_init();
     log(LOG_OK, "Initialized TMPFS");

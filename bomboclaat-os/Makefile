@@ -2,7 +2,7 @@
 # Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
-VER="BOMBOCLAAT-OS v2.0 beta 2.1.2"
+VER="BOMBOCLAAT-OS v2.0 beta 2.1.3"
 
 CFLAGS =-m64 \
         -O2 \

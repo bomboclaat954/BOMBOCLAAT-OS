@@ -71,21 +71,29 @@ vfs_inode_t *tmpfs_lookup(vfs_inode_t *parent, char *name)
 
 vfs_inode_t *tmpfs_mkdir(struct vfs_inode *parent, char *name)
 {
-    tmpfs_dir_t new = {
-        .files = NULL,
-        .files_count = 0,
-        .name = name,
-        .parent_dir = (tmpfs_dir_t *)parent->private_data,
-    };
+    tmpfs_dir_t *parent_dir = (tmpfs_dir_t *)parent->private_data;
+    if (!parent_dir)
+        panic("TMPFS: parent has no private_data", 0, 0);
 
-    vfs_inode_t new_inode = {
-        .id = 0,
-        .mode = VFS_MODE_DIR,
-        .ops = &tmpfs_inode_ops,
-        .private_data = &new,
-        .size = 0,
-    };
-    return &new_inode;
+    tmpfs_dir_t *new_dir = (tmpfs_dir_t *)kmalloc(sizeof(tmpfs_dir_t));
+    if (!new_dir)
+        panic("TMPFS: kmalloc error", 0, 0);
+
+    new_dir->files_count = 0;
+    new_dir->name = name;
+    new_dir->parent_dir = parent_dir;
+
+    vfs_inode_t *new_inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
+    if (!new_inode)
+        panic("VFS: kmalloc error", 0, 0);
+
+    new_inode->id = 0;
+    new_inode->mode = VFS_MODE_DIR;
+    new_inode->ops = &tmpfs_inode_ops;
+    new_inode->private_data = new_dir;
+    new_inode->size = 0;
+
+    return new_inode;
 }
 
 int64_t tmpfs_read(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset)
@@ -111,42 +119,46 @@ int64_t tmpfs_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64
 vfs_inode_t *tmpfs_mkfile(struct vfs_inode *parent, char *name)
 {
     tmpfs_dir_t *dir = (tmpfs_dir_t *)parent->private_data;
-    tmpfs_file_t *new = (tmpfs_file_t *)kmalloc(sizeof(tmpfs_file_t));
-    if (!new)
-        panic("TMPFS: kmalloc error", 0, 0);
-    new->content = (uint8_t *)kmalloc(1024);
-    memset(new->content, 0, 1024);
-    new->dir = dir;
-    new->name = name;
-    new->size = 0;
+    if (!dir)
+        panic("TMPFS: parent has no private_data", 0, 0);
 
-    dir->files[dir->files_count] = new;
+    tmpfs_file_t *new_file = (tmpfs_file_t *)kmalloc(sizeof(tmpfs_file_t));
+    if (!new_file)
+        panic("TMPFS: kmalloc error", 0, 0);
+
+    new_file->content = (uint8_t *)kmalloc(1024);
+    if (!new_file->content)
+        panic("TMPFS: kmalloc error", 0, 0);
+
+    memset(new_file->content, 0, 1024);
+    new_file->dir = dir;
+    new_file->name = name;
+    new_file->size = 0;
+
+    dir->files[dir->files_count] = new_file;
     dir->files_count++;
 
-    vfs_inode_t new_inode = {
-        .id = 0,
-        .mode = VFS_MODE_FILE,
-        .ops = &tmpfs_inode_ops,
-        .private_data = (void *)new,
-        .size = new->size,
-    };
+    vfs_inode_t *new_inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
+    if (!new_inode)
+        panic("VFS: kmalloc error", 0, 0);
 
-    return &new_inode;
+    new_inode->id = 0;
+    new_inode->mode = VFS_MODE_FILE;
+    new_inode->ops = parent->ops;
+    new_inode->private_data = (void *)new_file;
+    new_inode->size = 0;
+
+    return new_inode;
 }
 
 void tmpfs_init()
 {
     tmpfs_root = (tmpfs_dir_t *)kmalloc(sizeof(tmpfs_dir_t));
+    memset(tmpfs_root, 0, sizeof(tmpfs_dir_t));
     tmpfs_root->files_count = 0;
     tmpfs_root->name = "/";
     tmpfs_root->parent_dir = tmpfs_root;
     tmpfs_root_inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
-
-    filesystem_t tmpfs = {
-        .mount = NULL,
-        .name = "tmpfs",
-        .next = NULL,
-    };
 
     tmpfs_root_inode->id = 0;
     tmpfs_root_inode->mode = 0;

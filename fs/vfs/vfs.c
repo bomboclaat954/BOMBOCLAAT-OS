@@ -309,12 +309,13 @@ void vfs_register_fs(filesystem_t *fs)
 
 void vfs_init()
 {
-    root_inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
     extern tmpfs_dir_t *tmpfs_root;
-    vfs_setup_inode(root_inode);
+
+    root_inode = (vfs_inode_t *)kmalloc(sizeof(vfs_inode_t));
     if (!root_inode)
         panic("VFS: kmalloc error", 0, 0);
 
+    vfs_setup_inode(root_inode);
     root_inode->id = 1;
     root_inode->mode = VFS_MODE_DIR;
     root_inode->size = 0;

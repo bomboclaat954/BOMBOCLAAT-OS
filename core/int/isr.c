@@ -28,6 +28,12 @@ void exception_handler(registers_t *r)
     switch (r->int_no)
     {
     case 0:
+        if (r->error_code & (1 << 2))
+        {
+            extern task_t *current_task;
+            kprintf("Division by zero caused by process PID %d, RIP=%x\n", current_task->pid, r->rip);
+            task_exit((context_t *)r);
+        }
         panic("CPU-EXC: division by zero", r, 1);
         break;
     case 1:

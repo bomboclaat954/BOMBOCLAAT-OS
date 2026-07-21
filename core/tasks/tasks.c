@@ -152,7 +152,7 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
         }
     }
 
-    uintptr_t user_stack_virtual = 0xFFFFFFFFD0000000;
+    uintptr_t user_stack_virtual = 0xFFFFFFF000000000; // 0xFFFFFFFFD0000000
 
     void *top_frame_phys = NULL;
     for (int i = 0; i < frames; i++)
@@ -161,6 +161,19 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
         vmm_map_page(new_task->pml4, user_stack_virtual + (i * PAGE_SIZE), (uintptr_t)frame_phys, VMM_PRESENT | VMM_WRITE | VMM_USER);
         if (i == frames - 1)
             top_frame_phys = frame_phys;
+    }
+
+    uintptr_t fbf_virtual = 0x7FFF00000000;
+
+    extern uintptr_t fbf_phys;
+    extern uintptr_t fbf_size;
+    size_t aligned_size = (fbf_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
+
+    for (size_t offset = 0; offset < aligned_size; offset += PAGE_SIZE)
+    {
+        uintptr_t phys = fbf_phys + offset;
+        uintptr_t virt = fbf_virtual + offset;
+        vmm_map_page(new_task->pml4, virt, phys, VMM_PRESENT | VMM_WRITE | VMM_USER);
     }
 
     uintptr_t k_stack_high = (uintptr_t)top_frame_phys + hhdm_offset + PAGE_SIZE;

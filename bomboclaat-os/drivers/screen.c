@@ -20,13 +20,18 @@
 #include <fonts/font-limine.h>
 #include <bomboclaat.h>
 
-void put_pixel(uint32_t x, uint32_t y, uint32_t color) // slow as hell but works
+#define USER_FB_VIRT 0x7FFF00000000
+static volatile uint32_t *framebuffer = (volatile uint32_t *)USER_FB_VIRT;
+
+uint64_t pitch_bytes = 0;
+uint64_t h = 0;
+uint64_t w = 0;
+
+void put_pixel(uint32_t x, uint32_t y, uint32_t color)
 {
-    int fbf = open("/dev/fbf", 0);
-    uint32_t xy = ((uint32_t)x << 16) | y;
-    uint64_t buffer = ((uint64_t)color << 32) | xy;
-    write(fbf, (void *)buffer, 1);
-    close(fbf);
+    uint64_t pitch_in_pixels = pitch_bytes / sizeof(uint32_t);
+    uint64_t index = (y * pitch_in_pixels) + x;
+    framebuffer[index] = color;
 }
 
 void draw_char(char c, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg)
@@ -53,4 +58,27 @@ void draw_string(char *str, uint32_t x, uint32_t y, uint32_t fg, uint32_t bg)
         draw_char(*str++, x, y, fg, bg);
         x += FONT_COLS;
     }
+}
+
+int init_screen_driver()
+{
+    asm volatile(
+        "int $0x80"
+        : "=a"(pitch_bytes)
+        : "a"(6), "D"(0)
+        : "memory");
+    asm volatile(
+        "int $0x80"
+        : "=a"(h)
+        : "a"(6), "D"(1)
+        : "memory");
+    asm volatile(
+        "int $0x80"
+        : "=a"(w)
+        : "a"(6), "D"(2)
+        : "memory");
+    if (pitch_bytes && h && w)
+        return 1;
+    else
+        return 0;
 }

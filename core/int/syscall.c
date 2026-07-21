@@ -111,10 +111,25 @@ uint64_t syscall_handler(context_t *r)
         r->rax = 1;
         return (uint64_t)r;
     }
-    case 6:
+    case 6: // get framebuffer info (RDI = 0 - pitch, RDI = 1 - height, RDI = 2 - width)
     {
-        r->rax = 1;
-        return (uint64_t)r;
+        int x = (int)r->rdi;
+        if (x == 0)
+        {
+            extern uint64_t fbf_pitch;
+            r->rax = fbf_pitch;
+        }
+        else if (x == 1)
+        {
+            extern uint64_t fbf_height;
+            r->rax = fbf_height;
+        }
+        else if (x == 2)
+        {
+            extern uint64_t fbf_width;
+            r->rax = fbf_width;
+        }
+        return r->rax;
     }
     case 7: // uname
     {
@@ -162,14 +177,6 @@ uint64_t syscall_handler(context_t *r)
             return -1;
         uint64_t size = 0;
         int x = vfs_open(path, flags, &size);
-
-        if (x == -1)
-        {
-            extern vfs_inode_t *root_inode;
-            vfs_mkfile(root_inode, path);
-            x = vfs_open(path, flags, &size);
-        }
-
         return x;
     }
     case 11: // file read
