@@ -17,13 +17,27 @@
  */
 
 #include <syscall.h>
+#include <stdint.h>
+#include <stddef.h>
 
-int main(int argc, char **argv)
+int sysinfo(int type, void *buf)
 {
+    int res;
     asm volatile(
         "int $0x80"
-        :
-        : "a"(5)
+        : "=a"(res)
+        : "a"(7), "D"(type), "S"(buf)
         : "memory");
-    return 0;
+    return res;
+}
+
+int sysexec(char *path, int argc, char **argv)
+{
+    int res;
+    asm volatile(
+        "int $0x80"
+        : "=a"(res)
+        : "a"(2), "D"(path), "S"(argv), "d"(argc)
+        : "memory");
+    return res;
 }

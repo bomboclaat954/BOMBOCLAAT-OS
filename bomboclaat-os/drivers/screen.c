@@ -18,7 +18,6 @@
 
 #include <drivers/screen.h>
 #include <fonts/font-limine.h>
-#include <bomboclaat.h>
 
 #define USER_FB_VIRT 0x7FFF00000000
 static volatile uint32_t *framebuffer = (volatile uint32_t *)USER_FB_VIRT;

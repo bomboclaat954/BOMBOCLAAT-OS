@@ -16,7 +16,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <bomboclaat.h>
+#include <stdio.h>
 
 int main(int argc, char **argv)
 {

@@ -165,7 +165,7 @@ uint64_t syscall_handler(context_t *r)
         {
             init_heap_current += i;
             void *frame = pmm_alloc_frame();
-            vmm_map_page(kernel_pml4_virt, (uintptr_t)init_heap_current, (uintptr_t)frame, VMM_PRESENT | VMM_WRITE);
+            vmm_map_page(kernel_pml4_virt, (uintptr_t)init_heap_current, (uintptr_t)frame, VMM_PRESENT | VMM_WRITE | VMM_USER);
         }
         return (uint64_t)previous_heap_end;
     }

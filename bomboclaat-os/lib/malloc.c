@@ -18,22 +18,24 @@
 
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
-#include <bomboclaat.h>
+#include <malloc.h>
 
-typedef struct BlockHeader
+block_header_t *free_list_start = NULL;
+
+void *sbrk(size_t increment)
 {
-    size_t size;
-    bool is_free;
-    struct BlockHeader *next;
-} BlockHeader_t;
+    uint64_t result;
+    asm volatile(
+        "int $0x80"
+        : "=a"(result)
+        : "a"(9), "D"(increment)
+        : "memory");
+    return (void *)result;
+}
 
-#define HEADER_SIZE sizeof(BlockHeader_t)
-BlockHeader_t *free_list_start = NULL;
-
-BlockHeader_t *find_free_block(size_t size)
+block_header_t *find_free_block(size_t size)
 {
-    BlockHeader_t *current = free_list_start;
+    block_header_t *current = free_list_start;
     while (current != NULL)
     {
         if (current->is_free && current->size >= size)
@@ -50,7 +52,7 @@ void *malloc(size_t size)
 
     size = (size + 7) & ~7;
 
-    BlockHeader_t *block = find_free_block(size);
+    block_header_t *block = find_free_block(size);
 
     if (block != NULL)
     {
@@ -59,7 +61,7 @@ void *malloc(size_t size)
     }
 
     size_t total_size = HEADER_SIZE + size;
-    block = (BlockHeader_t *)sbrk(total_size);
+    block = (block_header_t *)sbrk(total_size);
 
     if (block == (void *)-1)
         return NULL;
@@ -72,7 +74,7 @@ void *malloc(size_t size)
         free_list_start = block;
     else
     {
-        BlockHeader_t *current = free_list_start;
+        block_header_t *current = free_list_start;
         while (current->next != NULL)
             current = current->next;
         current->next = block;
@@ -83,7 +85,7 @@ void *malloc(size_t size)
 
 void coalesce_free_blocks(void)
 {
-    BlockHeader_t *current = free_list_start;
+    block_header_t *current = free_list_start;
     while (current != NULL && current->next != NULL)
     {
         if (current->is_free && current->next->is_free)
@@ -100,7 +102,7 @@ void free(void *ptr)
 {
     if (ptr == NULL)
         return;
-    BlockHeader_t *block = (BlockHeader_t *)ptr - 1;
+    block_header_t *block = (block_header_t *)ptr - 1;
     block->is_free = true;
     coalesce_free_blocks();
 }

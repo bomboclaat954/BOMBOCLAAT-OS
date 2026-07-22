@@ -67,6 +67,7 @@ void register_framebuffer()
     devfs_register_device(framebuffer);
 }
 
+// THIS METHOD OF WRITING TO FB IS SHIT, DON'T USE IT
 int64_t fbf_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset)
 {
     uint64_t packed = (uint64_t)buffer;

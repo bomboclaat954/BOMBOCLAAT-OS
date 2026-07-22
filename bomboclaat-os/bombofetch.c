@@ -16,7 +16,9 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <bomboclaat.h>
+#include <string.h>
+#include <stdio.h>
+#include <syscall.h>
 
 static char *logo[] = {
     "             . . .                ",

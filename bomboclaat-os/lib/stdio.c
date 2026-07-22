@@ -15,12 +15,24 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
-#include <bomboclaat.h>
-#include <drivers/screen.h>
+#include <stdio.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stddef.h>
 #include <stdarg.h>
+#include <string.h>
+#include <syscall.h>
+#include <drivers/screen.h>
+
+void scanf(char *buf)
+{
+    // TODO: open /dev/kbd, read scancode from it and convert it to string
+    asm volatile(
+        "int $0x80"
+        :
+        : "a"(4), "D"(buf)
+        : "memory");
+}
 
 void print_dec(unsigned int value, unsigned int width, char *buf, int *ptr)
 {
@@ -84,7 +96,7 @@ void print_hex(unsigned int value, unsigned int width, char *buf, int *ptr)
     }
 }
 
-size_t vasprintf(char *buf, const char *fmt, va_list args)
+size_t vasprintf(char *buf, char *fmt, va_list args)
 {
     va_list aq;
     va_copy(aq, args);
@@ -143,7 +155,7 @@ size_t vasprintf(char *buf, const char *fmt, va_list args)
 int x = 0;
 int y = 0;
 
-int printf(const char *fmt, ...)
+int printf(char *fmt, ...)
 {
     char buf[8192];
     va_list args;
@@ -168,11 +180,55 @@ int printf(const char *fmt, ...)
     return out;
 }
 
-int sprintf(char *buf, const char *fmt, ...)
+int sprintf(char *buf, char *fmt, ...)
 {
     va_list args;
     va_start(args, fmt);
     int out = vasprintf(buf, fmt, args);
     va_end(args);
     return out;
+}
+
+int fopen(char *path, int flags)
+{
+    int fd;
+    asm volatile(
+        "int $0x80"
+        : "=a"(fd)
+        : "a"(10), "D"(path), "S"(flags)
+        : "memory");
+    return fd;
+}
+
+int fread(int fd, void *buf, uint64_t size)
+{
+    int ret;
+    asm volatile(
+        "int $0x80"
+        : "=a"(ret)
+        : "a"(11), "D"(fd), "S"(size), "d"(buf)
+        : "memory");
+    return ret;
+}
+
+int fwrite(int fd, void *buf, uint64_t size)
+{
+    int ret;
+    asm volatile(
+        "int $0x80"
+        : "=a"(ret)
+        : "a"(12), "D"(fd), "S"(size), "d"(buf)
+        : "memory");
+    return ret;
+}
+
+int fclose(int fd)
+{
+    int ret;
+    asm volatile(
+        "int $0x80"
+        : "=a"(ret)
+        : "a"(13), "D"(fd)
+        : "memory");
+    return ret;
 }

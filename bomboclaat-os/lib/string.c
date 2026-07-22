@@ -15,99 +15,9 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+#include <string.h>
 
-#include <bomboclaat.h>
-#include <stdint.h>
-#include <stddef.h>
-
-int sysinfo(int type, void *buf)
-{
-    int res;
-    asm volatile(
-        "int $0x80"
-        : "=a"(res)
-        : "a"(7), "D"(type), "S"(buf)
-        : "memory");
-    return res;
-}
-
-int sysexec(char *path, int argc, char **argv)
-{
-    int res;
-    asm volatile(
-        "int $0x80"
-        : "=a"(res)
-        : "a"(2), "D"(path), "S"(argv), "d"(argc)
-        : "memory");
-    return res;
-}
-
-int open(char *path, int flags)
-{
-    int fd;
-    asm volatile(
-        "int $0x80"
-        : "=a"(fd)
-        : "a"(10), "D"(path), "S"(flags)
-        : "memory");
-    return fd;
-}
-
-int read(int fd, void *buf, uint64_t size)
-{
-    int ret;
-    asm volatile(
-        "int $0x80"
-        : "=a"(ret)
-        : "a"(11), "D"(fd), "S"(size), "d"(buf)
-        : "memory");
-    return ret;
-}
-
-int write(int fd, void *buf, uint64_t size)
-{
-    int ret;
-    asm volatile(
-        "int $0x80"
-        : "=a"(ret)
-        : "a"(12), "D"(fd), "S"(size), "d"(buf)
-        : "memory");
-    return ret;
-}
-
-int close(int fd)
-{
-    int ret;
-    asm volatile(
-        "int $0x80"
-        : "=a"(ret)
-        : "a"(13), "D"(fd)
-        : "memory");
-    return ret;
-}
-
-void *sbrk(size_t increment)
-{
-    uint64_t result;
-    __asm__ volatile(
-        "int $0x80"
-        : "=a"(result)
-        : "a"(9), "D"(increment)
-        : "memory");
-    return (void *)result;
-}
-
-void scanf(char *buf)
-{
-    // TODO: open /dev/kbd, read scancode from it and convert it to string
-    asm volatile(
-        "int $0x80"
-        :
-        : "a"(4), "D"(buf)
-        : "memory");
-}
-
-int strlen(const char *str)
+int strlen(char *str)
 {
     int len = 0;
     while (str[len] != '\0')
@@ -115,7 +25,7 @@ int strlen(const char *str)
     return len;
 }
 
-int strcmp(const char *s1, const char *s2)
+int strcmp(char *s1, char *s2)
 {
     while (*s1 && (*s1 == *s2))
     {
@@ -125,7 +35,7 @@ int strcmp(const char *s1, const char *s2)
     return *(unsigned char *)s1 - *(unsigned char *)s2;
 }
 
-int strncmp(const char *s1, const char *s2, int n)
+int strncmp(char *s1, char *s2, int n)
 {
     while (n > 0 && *s1 && (*s1 == *s2))
     {
@@ -153,8 +63,8 @@ void strcpy(char *s, char *p)
 
 char *strstr(char *str, char *substring)
 {
-    const char *a;
-    const char *b;
+    char *a;
+    char *b;
 
     b = substring;
 
@@ -242,16 +152,16 @@ void *clear_str(char *str)
     str[len - 1] = '\0';
 }
 
-void memcpy(uint8_t *dst, const char *src, uint32_t len)
+void memcpy(uint8_t *dst, char *src, uint32_t len)
 {
     for (uint32_t i = 0; i < len; i++)
         dst[i] = src[i];
 }
 
-void *memmove(void *dst, const void *src, size_t len)
+void *memmove(void *dst, void *src, size_t len)
 {
     uint8_t *dp = (uint8_t *)dst;
-    const uint8_t *sp = (const uint8_t *)src;
+    uint8_t *sp = (uint8_t *)src;
 
     if (sp < dp && sp + len > dp)
     {
@@ -279,10 +189,10 @@ void *memset(void *ptr, int value, uint32_t num)
     return ptr;
 }
 
-int memcmp(const void *buf1, const void *buf2, size_t count)
+int memcmp(void *buf1, void *buf2, size_t count)
 {
-    const unsigned char *s1 = (const unsigned char *)buf1;
-    const unsigned char *s2 = (const unsigned char *)buf2;
+    unsigned char *s1 = (unsigned char *)buf1;
+    unsigned char *s2 = (unsigned char *)buf2;
 
     for (size_t i = 0; i < count; i++)
     {
