@@ -16,6 +16,8 @@ BOMBOCLAAT-OS is a simple x86_64 operating system with own kernel written (mostl
     <li>Separate kernel and user space</li>
 </ol>
 
+Almost none of these works fully correct. Currently I'm trying not to get mentally insane but it's getting harder with every commit. If I don't get a break soon, I may end up like Terry Davis.
+
 ## Notes
 
 1. If you followed versions 1.x, you may think that this project went backwards in development (because there's less commands), but actually it's the biggest progres that could happen. From a dumb, endless loop of stupid CLI it evolved into a real and (theoretically) usable kernel and OS. **This version is still in beta, so some things may not work properly or at all. If you found a bug, please report it to me.**
