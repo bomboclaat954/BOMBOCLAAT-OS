@@ -24,7 +24,7 @@
 #include <memory/kmalloc.h>
 #include <memory/pmm.h>
 
-int strlen(const char *str)
+int strlen(char *str)
 {
     int len = 0;
     while (str[len] != '\0')

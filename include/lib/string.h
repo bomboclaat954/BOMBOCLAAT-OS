@@ -12,7 +12,7 @@ extern "C"
 {
 #endif
 
-    int strlen(const char *str);
+    int strlen(char *str);
     int strcmp(const char *s1, const char *s2);
     int strncmp(const char *s1, const char *s2, int n);
     void strcpy(char *s, char *p);

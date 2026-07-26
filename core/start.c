@@ -47,11 +47,10 @@
 #include <fs/devfs.h>
 #include <tasks/tasks.h>
 #include <lib/string.h>
-#include <lib/math.h>
 
 char *UNAME[3];
-char *kname = "BOMBOCLAAT Kernel";
-char *krelease = "v1.0 beta 7.5";
+static const char *kname = "BOMBOCLAAT Kernel";
+static const char *krelease = "v1.0 beta 7.5";
 /*
     About versioning system:
         Pattern: X.Y(.Z)
@@ -153,13 +152,10 @@ void kinit(void)
     init_screen_driver(fb);
     sse_enable();
     fpu_enable();
-    log(LOG_INFO, "Starting BOMBOCLAAT Kernel");
+    log(LOG_INFO, "Starting %s %s-b%d", kname, krelease, BUILD_NUMBER);
     idt_init();
     pic_disable();
     log(LOG_OK, "Enabled SSE, FPU and IDT");
-
-    asm volatile("sti");
-    log(LOG_OK, "Enabled interrupts");
 
     if (hhdm == NULL)
         panic("error while getting HHDM", 0, 0);
@@ -175,6 +171,9 @@ void kinit(void)
 
     gdt_tss_init();
     log(LOG_OK, "Initialized GDT and TSS");
+
+    init_syscall(0x28, 0x30);
+    log(LOG_OK, "Initialized syscalls");
 
     if (memmap == NULL || memmap->entry_count == 0)
         panic("unable to get memory map", 0, 0);
@@ -234,12 +233,14 @@ void kinit(void)
     log(LOG_OK, "Initialized LAPIC timer");
     ioapic_set_irq(1, 0x21, 0);
 
-    UNAME[0] = kmalloc(sizeof(char) * 128);
-    UNAME[1] = kmalloc(sizeof(char) * 128);
-    UNAME[2] = kmalloc(sizeof(char) * 128);
+    /*
+    TODO: fix it
+    UNAME[0] = kmalloc(sizeof(char) * 32);
+    UNAME[1] = kmalloc(sizeof(char) * 32);
+    UNAME[2] = kmalloc(sizeof(char) * 8);
     sprintf(UNAME[0], "%s", kname);
     sprintf(UNAME[1], "%s", krelease);
-    sprintf(UNAME[2], "%d", BUILD_NUMBER);
+    sprintf(UNAME[2], "%d", BUILD_NUMBER);*/
 
     tmpfs_init();
     log(LOG_OK, "Initialized TMPFS");
@@ -254,6 +255,9 @@ void kinit(void)
     register_framebuffer();
 
     task_init();
+    asm volatile("sti");
+    log(LOG_OK, "Enabled interrupts");
+
     log(LOG_INFO, "Loading initramfs");
     initramfs();
 

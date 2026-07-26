@@ -5,7 +5,7 @@
 #pragma once
 #include <stdint.h>
 
-#define NULL ((void *)0)
+//#define NULL ((void *)0)
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
 void scanf(char *buf);

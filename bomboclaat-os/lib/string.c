@@ -144,7 +144,7 @@ void upper(char *str)
         *p = *p > 0x60 && *p < 0x7B ? *p & ~0x20 : *p;
 }
 
-void *clear_str(char *str)
+void clear_str(char *str)
 {
     int len = strlen(str);
     for (int i = 0; i < len; i++)

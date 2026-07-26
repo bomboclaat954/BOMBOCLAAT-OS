@@ -15,7 +15,7 @@ char *strstr(char *str, char *substring);
 void strrem(char *str, char *substr);
 void lower(char *str);
 void upper(char *str);
-void *clear_str(char *str);
+void clear_str(char *str);
 void memcpy(uint8_t *dst, char *src, uint32_t len);
 void *memmove(void *dst, void *src, size_t len);
 void *memset(void *ptr, int value, uint32_t num);

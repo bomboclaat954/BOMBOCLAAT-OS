@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
+// I have no clue if all these includes are needed but I'm too scared to touch it, if it works, don't touch it
 #include <int/int.h>
 #include <bomboclaat/kprintf.h>
 #include <bomboclaat/globals.h>
@@ -36,14 +36,37 @@
 #include <errno.h>
 
 #define TEMP_MAP_ADDR 0xFFFFFFFFF0000000
+#define IA32_EFER 0xC0000080
+#define IA32_STAR 0xC0000081
+#define IA32_LSTAR 0xC0000082
+#define IA32_FMASK 0xC0000084
+#define EFER_SCE (1ULL << 0)
 
-void syscall_send(uint64_t nsyscall, const char *args)
+extern void syscall_entry(void);
+
+static inline uint64_t rdmsr(uint32_t msr)
 {
-    asm volatile(
-        "int $0x80"
-        :
-        : "a"(nsyscall), "D"(args)
-        : "memory");
+    uint32_t low, high;
+    asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
+    return ((uint64_t)high << 32) | low;
+}
+
+static inline void wrmsr(uint32_t msr, uint64_t value)
+{
+    uint32_t low = (uint32_t)value;
+    uint32_t high = (uint32_t)(value >> 32);
+    asm volatile("wrmsr" : : "a"(low), "d"(high), "c"(msr));
+}
+
+void init_syscall(uint16_t kernel_cs, uint16_t user_cs_base)
+{
+    uint64_t efer = rdmsr(IA32_EFER);
+    wrmsr(IA32_EFER, efer | EFER_SCE);
+    wrmsr(IA32_LSTAR, (uint64_t)syscall_entry);
+
+    uint64_t star = ((uint64_t)kernel_cs << 32) | ((uint64_t)user_cs_base << 48);
+    wrmsr(IA32_STAR, star);
+    wrmsr(IA32_FMASK, 0x200);
 }
 
 uint64_t syscall_handler(context_t *r)
@@ -54,7 +77,6 @@ uint64_t syscall_handler(context_t *r)
     {
     case 1: // printf
     {
-        // TODO: write to /dev/fbf (framebuffer) instead of kprintf
         kprintf((const char *)r->rdi);
         return 0;
     }
@@ -137,11 +159,14 @@ uint64_t syscall_handler(context_t *r)
         char *ret_buf = (char *)r->rsi;
 
         if (type == 0)
-            strcpy(UNAME[0], ret_buf);
+            // strcpy(UNAME[0], ret_buf);
+            memcpy(ret_buf, UNAME[0], strlen(UNAME[0]));
         else if (type == 1)
-            strcpy(UNAME[1], ret_buf);
+            // strcpy(UNAME[1], ret_buf);
+            memcpy(ret_buf, UNAME[1], strlen(UNAME[1]));
         else if (type == 2)
-            strcpy(UNAME[2], ret_buf);
+            // strcpy(UNAME[2], ret_buf);
+            memcpy(ret_buf, UNAME[2], strlen(UNAME[2]));
         r->rax = 1;
         return (uint64_t)r;
     }
