@@ -49,13 +49,14 @@ isr_stub_128:
     push qword 128
     jmp syscall_common_stub
 
+; ! NOT WORKING ! (Claude pls fix that)
 syscall_entry:
     swapgs
-    mov [rel user_rsp_scratch], rsp
-    mov rsp, [rel kernel_stack_ptr]
+;    mov [rel user_rsp_scratch], rsp
+;    mov rsp, [rel kernel_stack_ptr]
 
     push qword 0x1b        ; user ss
-    push qword [rel user_rsp_scratch]
+;    push qword [rel user_rsp_scratch]
     push r11                ; rflags
     push qword 0x23         ; user cs
     push rcx                 ; rip

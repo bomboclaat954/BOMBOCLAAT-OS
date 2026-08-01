@@ -99,23 +99,35 @@ vfs_inode_t *tmpfs_mkdir(struct vfs_inode *parent, char *name)
 int64_t tmpfs_read(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset)
 {
     tmpfs_file_t *file = (tmpfs_file_t *)inode->private_data;
-    memcpy((uint8_t *)buffer, file->content + offset, size);
-    return size;
+    if (!file || !file->content)
+        return -1;
+
+    if (offset >= file->size)
+        return 0;
+
+    uint64_t available = file->size - offset;
+    uint64_t toRead = (size < available) ? size : available;
+
+    memcpy((uint8_t *)buffer, file->content + offset, toRead);
+    return toRead;
 }
 
 int64_t tmpfs_write(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset)
 {
     tmpfs_file_t *file = (tmpfs_file_t *)inode->private_data;
+    if (!file || !file->content)
+        return -1;
+
+    if (offset + size > 1024)
+        return -1;
+
     memcpy(file->content + offset, buffer, size);
-    file->size = file->size + size;
-    inode->private_data = file;
 
     if (offset + size > file->size)
         file->size = offset + size;
 
     return size;
 }
-
 vfs_inode_t *tmpfs_mkfile(struct vfs_inode *parent, char *name)
 {
     tmpfs_dir_t *dir = (tmpfs_dir_t *)parent->private_data;

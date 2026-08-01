@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-// I have no clue if all these includes are needed but I'm too scared to touch it, if it works, don't touch it
+// I have no clue if all these includes are needed but I'm too scared to remove them. If it works, don't touch it.
 #include <int/int.h>
 #include <bomboclaat/kprintf.h>
 #include <bomboclaat/globals.h>

@@ -1,0 +1,6 @@
+BOMBOCLAAT Kernel v1.0 beta 7.5.1:
+    -tried to implement "syscall" instruction instead of int 0x80, mission failed
+
+BOMBOCLAAT-OS v2.0 beta 2.1.4 (31.07.2026):
+    - added new command: updates
+    - added /etc/changelog

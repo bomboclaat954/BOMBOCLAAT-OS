@@ -52,12 +52,12 @@ uint32_t parse_hex(const char *str)
     return result;
 }
 
-uint64_t initramfs_get_files(void *start, tmpfs_file_t **out_buf)
+uint64_t initramfs_get_files(void *start, tmpfs_file_t **out_buf, uint64_t maxFiles)
 {
     uint8_t *ptr = (uint8_t *)start;
     uint64_t idx = 0;
 
-    while (1)
+    while (idx < maxFiles)
     {
         struct cpio_header *header = (struct cpio_header *)ptr;
 
@@ -66,9 +66,7 @@ uint64_t initramfs_get_files(void *start, tmpfs_file_t **out_buf)
 
         uint32_t fileSize = parse_hex(header->c_filesize);
         uint32_t nameSize = parse_hex(header->c_namesize);
-
         char *fileName = (char *)(ptr + 110);
-
         uint32_t dataOffset = (110 + nameSize + 3) & ~3;
 
         if (strcmp(fileName, "TRAILER!!!") == 0)
@@ -85,6 +83,10 @@ uint64_t initramfs_get_files(void *start, tmpfs_file_t **out_buf)
         ptr += nextFileOffset;
         idx++;
     }
+
+    if (idx == maxFiles)
+        panic("initramfs: too many entries for buffer", 0, 0);
+
     return idx;
 }
 
@@ -109,7 +111,7 @@ void initramfs()
     initramfs_files = kmalloc(512 * sizeof(tmpfs_file_t *));
     memset(initramfs_files, 0, 512 * sizeof(tmpfs_file_t *));
 
-    uint64_t file_count = initramfs_get_files(initramfs_base, initramfs_files);
+    uint64_t file_count = initramfs_get_files(initramfs_base, initramfs_files, 512);
 
     for (uint64_t x = 0; x < file_count; x++)
     {
@@ -119,8 +121,8 @@ void initramfs()
     }
     tmpfs_root->files_count = file_count;
 
+    int init_pos = -1;
     uint64_t init_size = 0;
-    uint64_t init_pos = 0;
 
     for (int i = 0; i < file_count; i++)
     {
@@ -132,7 +134,7 @@ void initramfs()
         }
     }
 
-    if (init_pos == 0)
+    if (init_pos == -1)
         panic("didn't find /bin/init in initramfs", 0, 0);
     else
         log(LOG_OK, "Found init file (%d B)", init_size);
