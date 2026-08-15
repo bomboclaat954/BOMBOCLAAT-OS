@@ -258,6 +258,12 @@ void kinit(void)
     asm volatile("sti");
     log(LOG_OK, "Enabled interrupts");
 
+    void *testptr = kmalloc(16);
+    log(LOG_DEBUG, "Pointer size [BEF]: %d", kptrsize(testptr));
+    realloc(testptr, 32);
+    log(LOG_DEBUG, "Pointer size [AFT]: %d", kptrsize(testptr));
+    kfree(testptr);
+
     log(LOG_INFO, "Loading initramfs");
     initramfs();
 

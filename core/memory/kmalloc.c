@@ -189,11 +189,9 @@ void *kmalloc_aligned(size_t size, size_t alignment)
 void *realloc(void *ptr, size_t size)
 {
     chunk_header_t *header = ((chunk_header_t *)ptr) - 1;
-
     void *new_ptr = kmalloc(size);
-    char *chr_ptr = (char *)ptr;
 
-    memcpy(new_ptr, ptr, strlen(chr_ptr));
+    memcpy(new_ptr, ptr, header->size);
     header->size = size;
 
     kfree(ptr);
