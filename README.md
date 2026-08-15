@@ -4,7 +4,7 @@ BOMBOCLAAT-OS is a simple x86_64 operating system with own kernel written (mostl
 
 ## Message from the author
 
-Do you know the feeling when you add something new to your code and 10 other things break down? Well, I feel it every time I try to improve this piece of shit. Every time I try to add or fix anything by myself I end up asking Claude why it doesn't work and spending hours or even days to fix 10 other things. And that's why I'm taking a break from this project for at least 2 weeks (since 1.08.2026), maybe more. But don't worry, I'm not going to abandon the biggest project of my life, I just need to rest a bit. I promise I'll fix all of the errors and bugs in this code and (maybe) by the end of this year you'll see BOMBOCLAAT-OS v2.0 officially released (but I can't guarantee that). For any questions hit me up on Telegram or Discord (see **Contact** below).
+I'M BACK MOTHERFUCKERS! After 2-week long break I can write this piece of shit again. Stay tuned, some big updates are comming.
 
 ## Features
 

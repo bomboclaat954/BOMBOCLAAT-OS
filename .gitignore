@@ -10,4 +10,5 @@ qemu.log
 install.sh
 initramfs.cpio
 bomboclaat-os/test.c
-bomboclaat-os/root/bin/test
+bomboclaat-os/root/bin/
+cscope.out

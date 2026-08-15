@@ -22,11 +22,11 @@ int main(int argc, char **argv)
 {
     printf("Available commands:\n");
     printf("    bombofetch      - show hardware and software info\n");
-    printf("    power [OPT]     - shut down or reboot\n");
+    printf("    power <opt>     - shut down or reboot\n");
     printf("    uname [opt]     - show kernel name and version\n");
     printf("    clear           - clear screen\n");
 
-    printf("[OPT]   - obligatory\n");
+    printf("<opt>   - obligatory\n");
     printf("[opt]   - optional\n");
     return 0;
 }

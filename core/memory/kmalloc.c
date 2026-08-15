@@ -17,6 +17,8 @@
  */
 
 #include <memory/kmalloc.h>
+#include <memory/memtools.h>
+#include <lib/string.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -24,14 +26,6 @@
 #define ALIGN_UP(x, a) ((((uintptr_t)(x)) + ((uintptr_t)(a) - 1u)) & ~((uintptr_t)((a) - 1u)))
 
 #define KMALLOC_ALIGN_MAGIC 0xDEADBEEFu
-
-typedef struct kmem_block
-{
-    size_t size;
-    struct kmem_block *next;
-    uint8_t free;
-
-} kmem_block_t;
 
 static kmem_block_t *free_list = NULL;
 static uint8_t *heap_start = NULL;
@@ -74,7 +68,7 @@ static void split_block(kmem_block_t *block, size_t size)
     block->size = size;
 }
 
-void *kmalloc(size_t size)
+void *_kmalloc(size_t size)
 {
     if (size == 0)
         return NULL;
@@ -98,7 +92,18 @@ void *kmalloc(size_t size)
     return NULL;
 }
 
-void kfree(void *ptr)
+void *kmalloc(size_t size)
+{
+    chunk_header_t *header = _kmalloc(sizeof(chunk_header_t) + size);
+    if (!header)
+        return NULL;
+
+    header->size = size;
+
+    return (void *)(header + 1);
+}
+
+void _kfree(void *ptr)
 {
     if (!ptr)
         return;
@@ -144,6 +149,16 @@ void kfree(void *ptr)
     }
 }
 
+void kfree(void *ptr)
+{
+    if (!ptr)
+        return;
+
+    chunk_header_t *header = ((chunk_header_t *)ptr) - 1;
+
+    _kfree(header);
+}
+
 void *kmalloc_aligned(size_t size, size_t alignment)
 {
     if (size == 0)
@@ -169,4 +184,27 @@ void *kmalloc_aligned(size_t size, size_t alignment)
     *raw_addr = (uintptr_t)raw;
 
     return (void *)aligned;
+}
+
+void *realloc(void *ptr, size_t size)
+{
+    chunk_header_t *header = ((chunk_header_t *)ptr) - 1;
+
+    void *new_ptr = kmalloc(size);
+    char *chr_ptr = (char *)ptr;
+
+    memcpy(new_ptr, ptr, strlen(chr_ptr));
+    header->size = size;
+
+    kfree(ptr);
+    return new_ptr;
+}
+
+size_t kptrsize(void *ptr)
+{
+    if (!ptr)
+        return 0;
+
+    chunk_header_t *header = ((chunk_header_t *)ptr) - 1;
+    return header->size;
 }
