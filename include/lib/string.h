@@ -31,7 +31,7 @@ extern "C"
     int is_number(char *x);
     void *clear_str(char *str);
     int input_key();
-    void *input(char *buf);
+    void input(char *buf, uint32_t max_len);
     void *input_passwd(char *buf, int len);
     char *strchr(const char *s, int c);
     int index(char *str, char x);

@@ -45,16 +45,16 @@ static char *logo[] = {
     "     `._###############_,'        ",
     "        `--..#####..--'           ",
 };
-// it keeps crashing idk why
+
 int main(int argc, char **argv)
 {
     char kname[32];
     char krelease[16];
-    // char cpu[48];
+    char kbuild[8];
 
     sysinfo(0, kname);
     sysinfo(1, krelease);
-    // sysinfo(2, cpu);
+    sysinfo(2, kbuild);
 
     for (int i = 0; i < ARRAY_SIZE(logo); i++)
     {
@@ -70,7 +70,7 @@ int main(int argc, char **argv)
             printf("%s OS: %s\n", logo[i], OSVER);
             break;
         case 3:
-            printf("%s  Kernel: %s v%s\n", logo[i], kname, krelease);
+            printf("%s  Kernel: %s %s-b%s\n", logo[i], kname, krelease, kbuild);
             break;
         default:
             printf("%s\n", logo[i]);

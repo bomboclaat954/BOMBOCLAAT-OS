@@ -183,7 +183,7 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
 
     for (int i = argc - 1; i >= 0; i--)
     {
-        size_t len = strlen(argv[i]) + 1;
+        size_t len = argv[i] ? (strlen(argv[i]) + 1) : 0;
         frame_offset -= len;
 
         char *dest = (char *)(k_stack_high - (PAGE_SIZE - frame_offset));
@@ -302,7 +302,7 @@ static void reap_zombie(void)
     task_t *zombie = task_to_reap;
     task_to_reap = NULL;
 
-    vmm_unmap_page(zombie->pml4, (uintptr_t)zombie->pml4 + hhdm_offset);
+    // vmm_unmap_page(zombie->pml4, (uintptr_t)zombie->pml4 + hhdm_offset);
     pmm_free_frame((void *)((uintptr_t)zombie->pml4 - hhdm_offset));
 
     for (int i = 0; i < 4; i++)

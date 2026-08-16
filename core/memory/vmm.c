@@ -99,6 +99,43 @@ void vmm_unmap_page(vmm_table_t *pml4_virtual, uintptr_t virt)
     asm volatile("invlpg (%0)" ::"r"(virt) : "memory");
 }
 
+int vmm_resolve(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t *phys_out, uint64_t *flags_out)
+{
+    if (!(pml4_virtual->entries[PML4_INDEX(virt)] & VMM_PRESENT))
+        return -1;
+    else
+        pml4_virtual->entries[PML4_INDEX(virt)];
+
+    uintptr_t pdpt_phys = pml4_virtual->entries[PML4_INDEX(virt)] & CLEAR_FLAGS;
+    vmm_table_t *pdpt_virtual = (vmm_table_t *)(pdpt_phys + hhdm_offset);
+
+    if (!(pdpt_virtual->entries[PDPT_INDEX(virt)] & VMM_PRESENT))
+        return -1;
+    else
+        pdpt_virtual->entries[PDPT_INDEX(virt)];
+
+    uintptr_t pd_phys = pdpt_virtual->entries[PDPT_INDEX(virt)] & CLEAR_FLAGS;
+    vmm_table_t *pd_virtual = (vmm_table_t *)(pd_phys + hhdm_offset);
+
+    if (!(pd_virtual->entries[PD_INDEX(virt)] & VMM_PRESENT))
+        return -1;
+    else
+        pd_virtual->entries[PD_INDEX(virt)];
+
+    uintptr_t pt_phys = pd_virtual->entries[PD_INDEX(virt)] & CLEAR_FLAGS;
+    vmm_table_t *pt_virtual = (vmm_table_t *)(pt_phys + hhdm_offset);
+
+    if (!(pt_virtual->entries[PD_INDEX(virt)] & VMM_PRESENT))
+        return -1;
+
+    pt_entry_t entry = pt_virtual->entries[PT_INDEX(virt)];
+    uintptr_t phys = entry & CLEAR_FLAGS;
+    *phys_out = phys | (virt & 0xFFF);
+    *flags_out = entry & 0xFFF;
+
+    return 0;
+}
+
 vmm_table_t *vmm_get_current_pml4(void)
 {
     uintptr_t pml4_phys;

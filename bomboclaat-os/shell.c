@@ -80,7 +80,7 @@ int main(int argc, char **argv)
         char cmd[32];
 
         printf("root@bomboclaat:~# ");
-        scanf(cmd_line);
+        scanf(cmd_line, sizeof(cmd_line));
 
         int i = 0, j = 0;
         while (cmd_line[i] != ' ' && cmd_line[i] != '\0' && i < 31)

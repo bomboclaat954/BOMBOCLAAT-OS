@@ -27,6 +27,7 @@
 #include <memory/pmm.h>
 #include <memory/memtools.h>
 #include <memory/kmalloc.h>
+#include <memory/userspace.h>
 #include <drivers/io.h>
 #include <drivers/acpi.h>
 #include <drivers/screen.h>
@@ -123,7 +124,8 @@ uint64_t syscall_handler(context_t *r)
     {
         // TODO: get rid of this and write to /dev/kbd
         char *buf = (char *)r->rdi;
-        input(buf);
+        uint32_t max_len = (uint32_t)r->rsi;
+        input(buf, max_len);
         r->rax = 1;
         return (uint64_t)r;
     }
@@ -159,14 +161,11 @@ uint64_t syscall_handler(context_t *r)
         char *ret_buf = (char *)r->rsi;
 
         if (type == 0)
-            // strcpy(UNAME[0], ret_buf);
-            memcpy(ret_buf, UNAME[0], strlen(UNAME[0]));
+            copy_to_user(ret_buf, UNAME[0], strlen(UNAME[0]));
         else if (type == 1)
-            // strcpy(UNAME[1], ret_buf);
-            memcpy(ret_buf, UNAME[1], strlen(UNAME[1]));
+            copy_to_user(ret_buf, UNAME[1], strlen(UNAME[1]));
         else if (type == 2)
-            // strcpy(UNAME[2], ret_buf);
-            memcpy(ret_buf, UNAME[2], strlen(UNAME[2]));
+            copy_to_user(ret_buf, UNAME[2], strlen(UNAME[2]));
         r->rax = 1;
         return (uint64_t)r;
     }

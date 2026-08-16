@@ -24,13 +24,13 @@
 #include <syscall.h>
 #include <drivers/screen.h>
 
-void scanf(char *buf)
+void scanf(char *buf, uint32_t max_len)
 {
     // TODO: open /dev/kbd, read scancode from it and convert it to string
     asm volatile(
         "int $0x80"
         :
-        : "a"(4), "D"(buf)
+        : "a"(4), "D"(buf), "S"(max_len)
         : "memory");
 }
 

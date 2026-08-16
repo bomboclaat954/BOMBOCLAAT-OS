@@ -5,10 +5,10 @@
 #pragma once
 #include <stdint.h>
 
-//#define NULL ((void *)0)
+// #define NULL ((void *)0)
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
 
-void scanf(char *buf);
+void scanf(char *buf, uint32_t max_len);
 int printf(char *fmt, ...);
 int sprintf(char *buf, char *fmt, ...);
 int fopen(char *path, int flags);

@@ -16,26 +16,25 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <syscall.h>
-#include <string.h>
+#include <memory/userspace.h>
+#include <memory/vmm.h>
+#include <memory/memtools.h>
+#include <tasks/tasks.h>
+#include <bomboclaat/kprintf.h>
 
-int main(int argc, char **argv)
+int copy_to_user(void *dst, void *src, uint32_t len)
 {
-    char kname[32];
-    char krelease[16];
-    char kbuild[8];
+    extern task_t *current_task;
+    extern uint64_t hhdm_offset;
 
-    sysinfo(0, kname);
-    sysinfo(1, krelease);
-    sysinfo(2, kbuild);
+    uintptr_t phys = 0;
+    uint64_t flags = 0;
 
-    if (strchr(argv[1], 's') != NULL)
-        printf("%s ", kname);
-    if (strchr(argv[1], 'r') != NULL)
-        printf("%s-b%s", krelease, kbuild);
-    if (strchr(argv[1], 'o') != NULL)
-        printf("%s ", OSVER);
+    if (vmm_resolve(current_task->pml4, (uintptr_t)dst, &phys, &flags) != 0)
+        return -1;
+
+    uint8_t *dst_ptr = (uint8_t *)(phys + hhdm_offset);
+    memcpy(dst_ptr, src, len);
 
     return 0;
 }

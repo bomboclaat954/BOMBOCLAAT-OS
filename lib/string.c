@@ -26,6 +26,8 @@
 
 int strlen(char *str)
 {
+    if (!str)
+        return -1;
     int len = 0;
     while (str[len] != '\0')
         len++;
@@ -57,6 +59,8 @@ int strncmp(const char *s1, const char *s2, int n)
 
 void strcpy(char *s, char *p)
 {
+    if (!s || !p)
+        return;
     char *temp1 = s;
     char *temp2 = p;
     while (*temp1 != '\0')
@@ -331,9 +335,9 @@ int input_key()
     }
 }
 
-void *input(char *buf)
+void input(char *buf, uint32_t max_len)
 {
-    int buf_idx = 0;
+    uint32_t buf_idx = 0;
     asm volatile("cli");
     while (1)
     {
@@ -352,7 +356,6 @@ void *input(char *buf)
                     if (c == '\n')
                     {
                         buf[buf_idx] = '\0';
-                        buf_idx = 0;
                         putc('\n');
                         break;
                     }
@@ -364,7 +367,7 @@ void *input(char *buf)
                             putc('\b');
                         }
                     }
-                    else if (c > 0)
+                    else if (c > 0 && buf_idx < max_len - 1)
                     {
                         buf[buf_idx++] = c;
                         putc(c);

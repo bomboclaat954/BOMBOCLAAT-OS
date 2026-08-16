@@ -50,7 +50,7 @@
 
 char *UNAME[3];
 static const char *kname = "BOMBOCLAAT Kernel";
-static const char *krelease = "v1.0 beta 7.5.1";
+static const char *krelease = "v1.0 beta 7.6";
 /*
     About versioning system:
         Pattern: X.Y(.Z)
@@ -233,14 +233,12 @@ void kinit(void)
     log(LOG_OK, "Initialized LAPIC timer");
     ioapic_set_irq(1, 0x21, 0);
 
-    /*
-    TODO: fix it
     UNAME[0] = kmalloc(sizeof(char) * 32);
     UNAME[1] = kmalloc(sizeof(char) * 32);
     UNAME[2] = kmalloc(sizeof(char) * 8);
     sprintf(UNAME[0], "%s", kname);
     sprintf(UNAME[1], "%s", krelease);
-    sprintf(UNAME[2], "%d", BUILD_NUMBER);*/
+    sprintf(UNAME[2], "%d", BUILD_NUMBER);
 
     tmpfs_init();
     log(LOG_OK, "Initialized TMPFS");
@@ -257,12 +255,6 @@ void kinit(void)
     task_init();
     asm volatile("sti");
     log(LOG_OK, "Enabled interrupts");
-
-    void *testptr = kmalloc(16);
-    log(LOG_DEBUG, "Pointer size [BEF]: %d", kptrsize(testptr));
-    realloc(testptr, 32);
-    log(LOG_DEBUG, "Pointer size [AFT]: %d", kptrsize(testptr));
-    kfree(testptr);
 
     log(LOG_INFO, "Loading initramfs");
     initramfs();

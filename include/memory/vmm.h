@@ -28,6 +28,7 @@ typedef struct vmm_table
 
 void vmm_map_page(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t phys, uintptr_t flags);
 void vmm_unmap_page(vmm_table_t *pml4_virtual, uintptr_t virt);
+int vmm_resolve(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t *phys_out, uint64_t *flags_out);
 vmm_table_t *vmm_get_current_pml4(void);
 vmm_table_t *vmm_init();
 void vmm_switch_pml4(vmm_table_t *pml4);

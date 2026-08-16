@@ -16,6 +16,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 #include <string.h>
+#include <malloc.h>
 
 int strlen(char *str)
 {
@@ -91,12 +92,12 @@ char *strstr(char *str, char *substring)
     return NULL;
 }
 
-/*char *strtok(char *s, char *delm)
+char *strtok(char *s, char *delm)
 {
-    static int currIndex = 0;
+    int currIndex = 0;
     if (!s || !delm || s[currIndex] == '\0')
         return NULL;
-    char *W = (char *)kmalloc(sizeof(char) * 100);
+    char *W = (char *)malloc(sizeof(char) * 100);
     int i = currIndex, k = 0, j = 0;
 
     while (s[i] != '\0')
@@ -118,7 +119,7 @@ It:
     W[i] = 0;
     currIndex = i + 1;
     return W;
-}*/
+}
 
 void strrem(char *str, char *substr)
 {
@@ -130,6 +131,16 @@ void strrem(char *str, char *substr)
         if (str[i] == '\0')
             break;
     }
+}
+
+char *strchr(char *s, char c)
+{
+    while (*s != (char)c)
+    {
+        if (!*s++)
+            return NULL;
+    }
+    return (char *)s;
 }
 
 void lower(char *str)
