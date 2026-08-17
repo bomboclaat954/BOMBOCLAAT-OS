@@ -22,3 +22,4 @@ void *memmove(void *dst, void *src, size_t len);
 void *memset(void *ptr, int value, uint32_t num);
 int memcmp(void *buf1, void *buf2, size_t count);
 char *join(char *str1, char *str2, char *output_str, int n);
+int contains(char *s, char c);

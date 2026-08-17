@@ -100,7 +100,10 @@ void *kmalloc(size_t size)
 
     header->size = size;
 
-    return (void *)(header + 1);
+    void *ptr = (void *)(header + 1);
+    memset(ptr, 0, size);
+
+    return ptr;
 }
 
 void _kfree(void *ptr)

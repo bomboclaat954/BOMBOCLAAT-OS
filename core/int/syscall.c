@@ -36,6 +36,8 @@
 #include <stddef.h>
 #include <errno.h>
 
+// TODO: get rid of that old INT 0x80 and migrate to SYSCALL.
+
 #define TEMP_MAP_ADDR 0xFFFFFFFFF0000000
 #define IA32_EFER 0xC0000080
 #define IA32_STAR 0xC0000081
@@ -78,17 +80,25 @@ uint64_t syscall_handler(context_t *r)
     {
     case 1: // printf
     {
-        kprintf((const char *)r->rdi);
+        kprintf((const char *)r->rdi); // A professional OS developer would kill me for that XDD
         return 0;
     }
     case 2: // create a new process (task_t) for an executable file
     {
-        char *name = (char *)r->rdi;
-        char **argv = (char **)r->rsi;
+        char *path = (char *)r->rdi;
+        char **argv_ptr = (char **)r->rsi;
         int argc = (int)r->rdx;
 
+        char *argv[argc];
+        for (int i = 0; i < argc; i++)
+        {
+            size_t len = strlen(argv_ptr[i]);
+            argv[i] = (char *)kmalloc(len + 1);
+            memcpy(argv[i], argv_ptr[i], len + 1);
+        }
+
         uint64_t size = 0;
-        int fd = vfs_open(name, 0, &size);
+        int fd = vfs_open(path, 0, &size);
         if (fd < 0)
             return 0;
 
@@ -105,9 +115,12 @@ uint64_t syscall_handler(context_t *r)
             return 0;
 
         int frames = (size + PAGE_SIZE - 1) >> 12;
-        task_t *new_task = task_create(file, current_task->pid, name, argc, argv, frames);
+        task_t *new_task = task_create(file, current_task->pid, path, argc, argv, frames);
         if (new_task == NULL)
             return 0;
+
+        kfree(file);
+        kfree(argv);
 
         current_task->state = TASK_BLOCKED;
         r->rax = 1;
@@ -207,8 +220,15 @@ uint64_t syscall_handler(context_t *r)
     {
         int fd = (int)r->rdi;
         uint64_t size = (uint64_t)r->rsi;
-        void *buf = (void *)r->rdx;
-        return vfs_read(fd, buf, size);
+        void *ptr = (void *)r->rdx;
+
+        void *tmpbuf = kmalloc(size);
+
+        int bytes_read = vfs_read(fd, tmpbuf, size);
+        copy_to_user(ptr, tmpbuf, bytes_read);
+        kfree(tmpbuf);
+
+        return bytes_read;
     }
     case 12: // file write
     {

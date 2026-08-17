@@ -92,12 +92,12 @@ int main(int argc, char **argv)
 
         char path[32];
         sprintf(path, "/bin/%s", cmd);
-        char *argv[32];
-        int argc = parse_args(cmd_line, argv);
+        char *_argv[32];
+        int _argc = parse_args(cmd_line, _argv);
 
         if (strcmp(cmd_line, "\0") == 0)
             continue;
-        else if (sysexec(path, argc, argv) == 0)
+        else if (sysexec(path, _argc, _argv) == 0)
             printf("Unknown command\n");
     }
     return 0;

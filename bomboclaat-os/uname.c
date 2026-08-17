@@ -30,12 +30,19 @@ int main(int argc, char **argv)
     sysinfo(1, krelease);
     sysinfo(2, kbuild);
 
-    if (strchr(argv[1], 's') != NULL)
-        printf("%s ", kname);
-    if (strchr(argv[1], 'r') != NULL)
-        printf("%s-b%s", krelease, kbuild);
-    if (strchr(argv[1], 'o') != NULL)
-        printf("%s ", OSVER);
+    if (argc > 1)
+    {
+        if (argv[1][1] == 's')
+            printf("%s ", kname);
+        if (argv[1][1] == 'r')
+            printf("%s-b%s", krelease, kbuild);
+        if (argv[1][1] == 'o')
+            printf("%s ", OSVER);
+    }
+    else
+        printf("%s", krelease);
+
+    printf("\n");
 
     return 0;
 }

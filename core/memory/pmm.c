@@ -77,7 +77,7 @@ void pmm_free_frame(void *phys)
     uintptr_t bit_index = frame % 8;
     if ((bitmap[byte_index] & (1 << bit_index)) == 0)
     {
-        kprintf("The frame that's requested to be freed is already free\n");
+        log(LOG_ERR, "The frame that's requested to be freed is already free");
         return;
     }
 
@@ -92,9 +92,7 @@ void pmm_init(struct limine_memmap_response *memmap, struct limine_hhdm_response
     {
         struct limine_memmap_entry *entry = memmap->entries[i];
         if (entry->base + entry->length > top_address)
-        {
             top_address = entry->base + entry->length;
-        }
     }
     total_frames = top_address / PAGE_SIZE;
     uint64_t bitmap_size = total_frames / 8;

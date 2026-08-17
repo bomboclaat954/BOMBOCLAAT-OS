@@ -16,8 +16,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-// It took me over a week to make it work
-// TODO: improve memory cleaning after the task dies
 #include <tasks/tasks.h>
 #include <memory/memtools.h>
 #include <memory/kmalloc.h>
@@ -26,8 +24,17 @@
 #include <int/int.h>
 #include <bomboclaat/elf64.h>
 #include <lib/string.h>
+#include <bomboclaat/kprintf.h>
+
+/*
+    16.08.2026: After adding copy_to_user() this piece of garbage broke down. Writing this shit
+    sometimes feels like talking to a woman. Something's definitely wrong but she won't tell you
+    what. The exact thing happens here. I was debugging it for over 5 hours now and guess what,
+    I still have no clue what's wrong. BTW today is my ex's birthday; it can't be a coincidence.
+*/
 
 #define MAX_TASKS 32
+#define TASK_STACK_SENTINEL 0xC0FFEE00C0FFEE00ULL
 
 extern vmm_table_t *kernel_pml4_virt;
 extern uint64_t hhdm_offset;
@@ -69,6 +76,7 @@ task_t *find_by_pid(int pid)
 
 void kernel_idle_loop()
 {
+    log(LOG_INFO, "Entering kernel idle loop");
     while (1)
         asm volatile("hlt");
 }
@@ -187,7 +195,8 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
         frame_offset -= len;
 
         char *dest = (char *)(k_stack_high - (PAGE_SIZE - frame_offset));
-        strcpy(argv[i], dest);
+        if (argv[i])
+            memcpy(dest, argv[i], strlen(argv[i]));
 
         user_argv_addrs[i] = (user_stack_virtual + (frames * PAGE_SIZE)) - (PAGE_SIZE - frame_offset);
     }
@@ -222,6 +231,9 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     context_t *ctx = (context_t *)new_task->rsp;
     memset(ctx, 0, sizeof(context_t));
 
+    *(uint64_t *)(new_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;
+
+    // You see? That fucking RIP is assigned, but guess what! THAT PIECE OF GARBAGE WILL DISAPPEAR ONCE IT DO A FUCKING SWITCH!
     ctx->rip = header->e_entry;
     ctx->rsp = user_rsp;
     ctx->cs = 0x43;
@@ -285,6 +297,10 @@ context_t *schedule(context_t *ctx)
     tss.rsp0 = current_task->kstack_top;
     uintptr_t next_cr3 = (uintptr_t)current_task->pml4 - hhdm_offset;
 
+    uint64_t *sentinel = (uint64_t *)(current_task->kstack_frames[3] + hhdm_offset + 8);
+    if (*sentinel != TASK_STACK_SENTINEL)
+        log(LOG_ERR, "Task PID %d: stack sentinel is corrupted");
+
     asm volatile("sti");
     switch_to_task(current_task->rsp, next_cr3);
 
@@ -292,9 +308,9 @@ context_t *schedule(context_t *ctx)
         asm volatile("hlt");
 }
 
-static task_t *task_to_reap = NULL;
+task_t *task_to_reap = NULL;
 
-static void reap_zombie(void)
+void reap_zombie(void)
 {
     if (task_to_reap == NULL || task_to_reap == current_task)
         return;
@@ -320,10 +336,15 @@ void task_exit(context_t *ctx)
     if (slot >= 0)
         tasks[slot] = NULL;
 
-    task_t *runner = prev->next;
-    while (runner->next != prev)
-        runner = runner->next;
-    runner->next = prev->next;
+    if (prev->next == prev)
+        ;
+    else
+    {
+        task_t *runner = prev->next;
+        while (runner->next != prev)
+            runner = runner->next;
+        runner->next = prev->next;
+    }
 
     task_t *parent = find_by_pid(prev->parent_pid);
     if (parent != NULL)

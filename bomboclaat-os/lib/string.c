@@ -135,12 +135,10 @@ void strrem(char *str, char *substr)
 
 char *strchr(char *s, char c)
 {
-    while (*s != (char)c)
-    {
-        if (!*s++)
-            return NULL;
-    }
-    return (char *)s;
+    for (; *s != '\0' && *s != c; ++s)
+        ;
+
+    return *s == c ? (char *)s : 0;
 }
 
 void lower(char *str)
@@ -228,4 +226,15 @@ char *join(char *str1, char *str2, char *output_str, int n)
         output_str[start++] = '\n';
     output_str[start] = '\0';
     return output_str;
+}
+
+int contains(char *s, char c)
+{
+    while (*s)
+    {
+        if (*s == c)
+            return 1;
+        *s++;
+    }
+    return 0;
 }
