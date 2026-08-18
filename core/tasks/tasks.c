@@ -74,6 +74,26 @@ task_t *find_by_pid(int pid)
     return NULL;
 }
 
+int task_insert(task_t *t)
+{
+    int slot = find_free_slot();
+    if (!slot)
+        return -1;
+
+    tasks[slot] = t;
+    return memcmp(tasks[slot], t, sizeof(*t)); // if something fucks up you'll know abt it
+}
+
+task_t *find_just_forked()
+{
+    for (int i = 0; i < MAX_TASKS; i++)
+    {
+        if (tasks[i] && tasks[i]->state == TASK_NEW)
+            return tasks[i];
+    }
+    return NULL;
+}
+
 void kernel_idle_loop()
 {
     log(LOG_INFO, "Entering kernel idle loop");
@@ -95,6 +115,9 @@ void task_init(void)
 
     context_t *ctx = (context_t *)kernel_task->rsp;
     memset(ctx, 0, sizeof(context_t));
+
+    *(uint64_t *)(kernel_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;
+
     ctx->rip = (uint64_t)kernel_idle_loop;
     ctx->cs = 0x28;
     ctx->ss = 0x30;
@@ -231,7 +254,7 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     context_t *ctx = (context_t *)new_task->rsp;
     memset(ctx, 0, sizeof(context_t));
 
-    *(uint64_t *)(new_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;
+    *(uint64_t *)(new_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL; // will be checked later, don't worry
 
     // You see? That fucking RIP is assigned, but guess what! THAT PIECE OF GARBAGE WILL DISAPPEAR ONCE IT DO A FUCKING SWITCH!
     ctx->rip = header->e_entry;
@@ -248,10 +271,7 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     current_task->next = new_task;
     new_task->state = TASK_READY;
 
-    int slot = find_free_slot();
-    if (slot < 0)
-        return NULL;
-    tasks[slot] = new_task;
+    task_insert(new_task);
     return new_task;
 }
 
@@ -259,6 +279,7 @@ static void reap_zombie(void);
 
 context_t *schedule(context_t *ctx)
 {
+    asm volatile("cli");
     reap_zombie();
     if (current_task == NULL)
         return ctx;
@@ -299,7 +320,8 @@ context_t *schedule(context_t *ctx)
 
     uint64_t *sentinel = (uint64_t *)(current_task->kstack_frames[3] + hhdm_offset + 8);
     if (*sentinel != TASK_STACK_SENTINEL)
-        log(LOG_ERR, "Task PID %d: stack sentinel is corrupted");
+        // I forgot to add current_task->pid and it showed some random garbage from the memory, genius moment
+        log(LOG_ERR, "Task PID %d: stack sentinel is corrupted", current_task->pid);
 
     asm volatile("sti");
     switch_to_task(current_task->rsp, next_cr3);

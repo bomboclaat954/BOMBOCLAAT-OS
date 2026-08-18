@@ -20,7 +20,7 @@
 #include <stddef.h>
 #include <memory/memtools.h>
 
-gdtEntries gdt = {0};
+gdt_entries gdt = {0};
 gdt_ptr gdtr = {0};
 tss_ptr tss = {0};
 

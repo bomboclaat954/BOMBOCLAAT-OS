@@ -52,39 +52,39 @@ uint32_t parse_hex(const char *str)
     return result;
 }
 
-uint64_t initramfs_get_files(void *start, tmpfs_file_t **out_buf, uint64_t maxFiles)
+uint64_t initramfs_get_files(void *start, tmpfs_file_t **out_buf, uint64_t max_files)
 {
     uint8_t *ptr = (uint8_t *)start;
     uint64_t idx = 0;
 
-    while (idx < maxFiles)
+    while (idx < max_files)
     {
         struct cpio_header *header = (struct cpio_header *)ptr;
 
         if (strncmp(header->c_magic, "070701", 6) != 0)
             break;
 
-        uint32_t fileSize = parse_hex(header->c_filesize);
-        uint32_t nameSize = parse_hex(header->c_namesize);
-        char *fileName = (char *)(ptr + 110);
-        uint32_t dataOffset = (110 + nameSize + 3) & ~3;
+        uint32_t file_size = parse_hex(header->c_filesize);
+        uint32_t name_size = parse_hex(header->c_namesize);
+        char *file_name = (char *)(ptr + 110);
+        uint32_t data_offset = (110 + name_size + 3) & ~3;
 
-        if (strcmp(fileName, "TRAILER!!!") == 0)
+        if (strcmp(file_name, "TRAILER!!!") == 0)
             break;
 
-        uint8_t *fileData = ptr + dataOffset;
+        uint8_t *fileData = ptr + data_offset;
         out_buf[idx] = (tmpfs_file_t *)kmalloc(sizeof(tmpfs_file_t));
         out_buf[idx]->content = fileData;
         out_buf[idx]->dir = tmpfs_root;
-        out_buf[idx]->name = join("/", fileName, 0);
-        out_buf[idx]->size = fileSize;
+        out_buf[idx]->name = join("/", file_name, 0);
+        out_buf[idx]->size = file_size;
 
-        uint32_t nextFileOffset = dataOffset + ((fileSize + 3) & ~3);
-        ptr += nextFileOffset;
+        uint32_t next_file_offset = data_offset + ((file_size + 3) & ~3);
+        ptr += next_file_offset;
         idx++;
     }
 
-    if (idx == maxFiles)
+    if (idx == max_files)
         panic("initramfs: too many entries for buffer", 0, 0);
 
     return idx;

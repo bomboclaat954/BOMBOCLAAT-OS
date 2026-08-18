@@ -2,7 +2,11 @@
  * Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
-// Everything that's connected with interrupts
+/*
+    This file contains some EXTREMELY old and useless shit from 1.x.
+    It should be split into at least 3 files but that's not very urgent,
+    I'll do it one day.
+*/
 #ifndef INT_H
 #define INT_H
 
@@ -98,9 +102,9 @@ typedef struct
 {
     gdt_entry descs[11];
     tss_entry tss;
-} __attribute__((packed)) gdtEntries;
+} __attribute__((packed)) gdt_entries;
 
-extern gdtEntries gdt;
+extern gdt_entries gdt;
 extern gdt_ptr gdtr;
 extern tss_ptr tss;
 

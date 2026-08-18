@@ -2,6 +2,7 @@
 # Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+# change -O2 to -Og or -O0 when debugging
 CFLAGS =-m64 \
         -O2 \
         -pipe \
@@ -118,8 +119,8 @@ run:
     	-device virtio-balloon \
 	> /dev/null 2>&1
 
-run-debug:
-	@echo "Running in QEMU"
+run-gdb:
+	@echo "Running in QEMU (gdb debug mode)"
 	@qemu-system-x86_64 \
 	    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/x64/OVMF_CODE.4m.fd \
 	    -drive if=pflash,format=raw,file=./OVMF_VARS.fd \
@@ -128,16 +129,13 @@ run-debug:
 	    -boot d \
 	    -audiodev pipewire,id=speaker \
 	    -machine pcspk-audiodev=speaker \
-	    -m 1024M \
-		-no-shutdown \
-		-no-reboot \
-		-d int,cpu_reset \
-		-D qemu.log \
-		-monitor stdio \
+	    -m 2048M \
 		-machine q35,acpi=on \
-		-device virtio-balloon \
-		-cpu Qemu64,+x2apic \
-	> /dev/null 2>&1
+    	-device virtio-balloon \
+		-no-reboot \
+		-no-shutdown \
+		-S \
+		-s
 
 disk-img:
 	@qemu-img create -f raw disk.img 256M

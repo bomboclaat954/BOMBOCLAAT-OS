@@ -18,6 +18,7 @@
 
 #include <memory/kmalloc.h>
 #include <memory/memtools.h>
+#include <bomboclaat/kprintf.h>
 #include <lib/string.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -30,6 +31,7 @@
 static kmem_block_t *free_list = NULL;
 static uint8_t *heap_start = NULL;
 static uint8_t *heap_end = NULL;
+const char *kmalloc_sign = "BetterCallSaul!";
 
 static void split_block(kmem_block_t *block, size_t size);
 
@@ -99,6 +101,7 @@ void *kmalloc(size_t size)
         return NULL;
 
     header->size = size;
+    //memcpy(header->sign, kmalloc_sign, strlen(kmalloc_sign));
 
     void *ptr = (void *)(header + 1);
     memset(ptr, 0, size);
@@ -158,6 +161,8 @@ void kfree(void *ptr)
         return;
 
     chunk_header_t *header = ((chunk_header_t *)ptr) - 1;
+    if (strcmp(header->sign, kmalloc_sign) != 0)
+        return;
 
     _kfree(header);
 }

@@ -78,8 +78,8 @@ void exception_handler(registers_t *r)
         if (r->error_code & (1 << 2))
         {
             extern task_t *current_task;
-            kprintf("Segmentation fault caused by process PID %d, at: 0x%x, RIP=%x, err_code=0x%x\n",
-                    current_task->pid, fault_addr, r->rip, r->error_code);
+            log(LOG_ERR, "Segmentation fault caused by process PID %d, at: 0x%x, RIP: %x, err_code: 0x%x",
+                current_task->pid, fault_addr, r->rip, r->error_code);
             task_exit((context_t *)r);
         }
         char buf[128];

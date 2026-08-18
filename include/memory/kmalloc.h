@@ -20,6 +20,7 @@ typedef struct kmem_block
 typedef struct
 {
     size_t size;
+    char sign[16];
 } chunk_header_t;
 
 #ifdef __cplusplus

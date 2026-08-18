@@ -97,8 +97,10 @@ int main(int argc, char **argv)
 
         if (strcmp(cmd_line, "\0") == 0)
             continue;
-        else if (sysexec(path, _argc, _argv) == 0)
-            printf("Unknown command\n");
+
+        int stat = sysexec(path, _argc, _argv);
+        if (stat != 0)
+            printf("Error while executing command. Status code: %d\n", stat);
     }
     return 0;
 }

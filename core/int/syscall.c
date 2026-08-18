@@ -32,11 +32,13 @@
 #include <drivers/acpi.h>
 #include <drivers/screen.h>
 #include <tasks/tasks.h>
+#include <tasks/exec.h>
 #include <fs/vfs.h>
 #include <stddef.h>
 #include <errno.h>
 
 // TODO: get rid of that old INT 0x80 and migrate to SYSCALL.
+// TODO: UNIX-like syscalls: fork, execve, exit, etc.
 
 #define TEMP_MAP_ADDR 0xFFFFFFFFF0000000
 #define IA32_EFER 0xC0000080
@@ -83,7 +85,7 @@ uint64_t syscall_handler(context_t *r)
         kprintf((const char *)r->rdi); // A professional OS developer would kill me for that XDD
         return 0;
     }
-    case 2: // create a new process (task_t) for an executable file
+    case 2: // exec (old, stupid)
     {
         char *path = (char *)r->rdi;
         char **argv_ptr = (char **)r->rsi;
@@ -100,30 +102,29 @@ uint64_t syscall_handler(context_t *r)
         uint64_t size = 0;
         int fd = vfs_open(path, 0, &size);
         if (fd < 0)
-            return 0;
+            return 1;
 
         void *file = kmalloc(size + 1);
         if (file == NULL)
         {
             vfs_close(fd);
-            return 0;
+            return 2;
         }
 
         int64_t read_bytes = vfs_read(fd, file, size);
         vfs_close(fd);
         if (read_bytes < 0)
-            return 0;
+            return 3;
 
         int frames = (size + PAGE_SIZE - 1) >> 12;
         task_t *new_task = task_create(file, current_task->pid, path, argc, argv, frames);
         if (new_task == NULL)
-            return 0;
+            return 4;
 
         kfree(file);
-        kfree(argv);
 
         current_task->state = TASK_BLOCKED;
-        r->rax = 1;
+        r->rax = 0;
         schedule(r);
         return (uint64_t)r;
     }
@@ -138,14 +139,19 @@ uint64_t syscall_handler(context_t *r)
         // TODO: get rid of this and write to /dev/kbd
         char *buf = (char *)r->rdi;
         uint32_t max_len = (uint32_t)r->rsi;
-        input(buf, max_len);
-        r->rax = 1;
+
+        char *tmpbuf = kmalloc(max_len);
+
+        input(tmpbuf, max_len);
+        copy_to_user(buf, tmpbuf, strlen(tmpbuf) + 1);
+
+        r->rax = 0;
         return (uint64_t)r;
     }
     case 5: // cls
     {
         cls();
-        r->rax = 1;
+        r->rax = 0;
         return (uint64_t)r;
     }
     case 6: // get framebuffer info (RDI = 0 - pitch, RDI = 1 - height, RDI = 2 - width)
@@ -241,6 +247,59 @@ uint64_t syscall_handler(context_t *r)
     {
         int fd = (int)r->rdi;
         return vfs_close(fd);
+    }
+    case 14: // fork
+    {
+        extern task_t *current_task;
+
+        if (!current_task)
+            return 1;
+
+        task_t *new = (task_t *)kmalloc(sizeof(task_t));
+        if (!new)
+            return 1;
+
+        memcpy((uint8_t *)new, (uint8_t *)current_task, sizeof(*current_task));
+        if (memcmp(new, current_task, sizeof(*current_task)) != 0)
+            return 2;
+
+        new->state = TASK_NEW;
+        new->parent_pid = current_task->pid;
+        new->pid = current_task->pid + 1;
+
+        return task_insert(new);
+    }
+    case 15: // soon to be execve
+    {
+        char *path = (char *)r->rdi;
+        char **argv_ptr = (char **)r->rsi;
+        int argc = (int)r->rdx;
+
+        if (argc < 1 || argc > 32)
+        {
+            log(LOG_ERR, "Error: argc < 1 OR argc > 32, aborting new process");
+            schedule(r);
+            return (uint64_t)r;
+        }
+
+        char *argv[argc];
+        for (int i = 0; i < argc; i++)
+        {
+            size_t len = strlen(argv_ptr[i]);
+            argv[i] = (char *)kmalloc(len + 1);
+            memcpy(argv[i], argv_ptr[i], len + 1);
+        }
+
+        execve(path, argv, NULL);
+        r->rax = 0;
+        schedule(r);
+        return (uint64_t)r;
+    }
+    case 16: // get current task's PID
+    {
+        // r->rax = current_task->pid;
+        // return (uint64_t)r;
+        return (uint64_t)current_task->pid;
     }
     default:
     {

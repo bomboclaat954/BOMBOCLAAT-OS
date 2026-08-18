@@ -32,7 +32,8 @@ typedef enum
     TASK_READY,
     TASK_RUNNING,
     TASK_BLOCKED,
-    TASK_ZOMBIE
+    TASK_ZOMBIE,
+    TASK_NEW,
 } task_state_t;
 
 typedef struct task
@@ -44,7 +45,7 @@ typedef struct task
     uintptr_t kstack_top;
     uintptr_t kstack_frames[4];
     uintptr_t rsp;
-    char name[16];
+    char name[64];
     struct task *next;
     vfs_file_t *fd_table[MAX_FILES_PER_TASK];
 } task_t;
@@ -52,6 +53,8 @@ typedef struct task
 extern volatile int need_reschedule;
 
 void task_init(void);
+int task_insert(task_t *t);
+task_t *find_just_forked();
 task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char **argv, int frames);
 context_t *schedule(context_t *ctx);
 void task_exit(context_t *ctx);

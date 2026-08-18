@@ -54,7 +54,7 @@ void idt_init(void)
 
     idt_set_descriptor(32, isr_stub_table[32], 0x8E);
     idt_set_descriptor(33, isr_stub_table[33], 0x8E);
-    idt_set_descriptor(128, (void *)isr_stub_128, 0xEE); // syscall 0x80
+    idt_set_descriptor(128, (void *)isr_stub_128, 0xEE); // int 0x80
 
     asm volatile("lidt %0" : : "m"(idtr));
 }

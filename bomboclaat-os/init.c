@@ -23,6 +23,10 @@
 int main(int argc, char **argv)
 {
     printf("%s\n", OSVER);
-    sysexec("/bin/shell", 0, 0);
+
+    int _argc = 1;
+    char *_argv[1];
+
+    sysexec("/bin/shell", _argc, _argv);
     return 0;
 }

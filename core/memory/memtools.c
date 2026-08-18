@@ -73,16 +73,6 @@ int memcmp(void *buf1, void *buf2, size_t count)
     return 0;
 }
 
-void ptrtab_push(void **src, void *val, int count, size_t size)
-{
-    void **new = kmalloc((count + 1) * sizeof(size));
-    for (int i = 0; i < count; i++)
-        new[i] = src[i];
-    new[count] = val;
-    kfree(src);
-    src = new;
-}
-
 void write_u64(uint8_t *dst, uint64_t val)
 {
     dst[0] = val & 0xFF;
@@ -109,6 +99,7 @@ void write_u16(uint8_t *dst, uint16_t val)
     dst[1] = (val >> 8) & 0xFF;
 }
 
+// Was I high while writing this? God, it's really useless... (but I'll keep it in case if something really needs it)
 void write_u8(uint8_t *dst, uint8_t val)
 {
     dst[0] = val & 0xFF;
