@@ -50,7 +50,7 @@
 
 char *UNAME[3];
 static const char *kname = "BOMBOCLAAT Kernel";
-static const char *krelease = "v1.0 beta 7.6.1";
+static const char *krelease = "v1.0 beta 7.6.2";
 /*
     About versioning system:
         Pattern: X.Y(.Z)
@@ -83,6 +83,10 @@ __attribute__((used, section(".limine_requests"))) volatile struct limine_module
 };
 __attribute__((used, section(".limine_requests"))) volatile struct limine_rsdp_request rsdp_request = {
     .id = LIMINE_RSDP_REQUEST_ID,
+    .revision = 0,
+};
+__attribute__((used, section(".limine_requests"))) volatile struct limine_firmware_type_request firmware_request = {
+    .id = LIMINE_FIRMWARE_TYPE_REQUEST_ID,
     .revision = 0,
 };
 __attribute__((used, section(".limine_requests_start"))) static volatile uint64_t limine_requests_start_marker[] = LIMINE_REQUESTS_START_MARKER;
@@ -153,6 +157,21 @@ void kinit(void)
     sse_enable();
     fpu_enable();
     log(LOG_INFO, "Starting %s %s-b%d", kname, krelease, BUILD_NUMBER);
+
+    char cpu[49];
+    get_cpu_model(cpu);
+    log(LOG_INFO, "Detected CPU model: %s", cpu);
+
+    if (firmware_request.response)
+    {
+        if (firmware_request.response->firmware_type == LIMINE_FIRMWARE_TYPE_EFI64)
+            log(LOG_OK, "Running on UEFI");
+        else
+            log(LOG_ERR, "Running on BIOS. Some features may not work properly");
+    }
+    else
+        panic("error while getting firmware type", 0, 0);
+
     idt_init();
     pic_disable();
     log(LOG_OK, "Enabled SSE, FPU and IDT");
