@@ -101,7 +101,7 @@ void *kmalloc(size_t size)
         return NULL;
 
     header->size = size;
-    //memcpy(header->sign, kmalloc_sign, strlen(kmalloc_sign));
+    memcpy(header->sign, kmalloc_sign, strlen(kmalloc_sign));
 
     void *ptr = (void *)(header + 1);
     memset(ptr, 0, size);

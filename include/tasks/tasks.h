@@ -11,6 +11,8 @@
 #include <fs/vfs.h>
 
 #define MAX_FILES_PER_TASK 32
+#define MAX_TASKS 32
+#define TASK_STACK_SENTINEL 0xC0FFEE00C0FFEE00ULL
 
 typedef struct vmm_table vmm_table_t;
 

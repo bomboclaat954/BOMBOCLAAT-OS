@@ -25,7 +25,7 @@
 
 extern uint64_t hhdm_offset;
 
-void vmm_map_page(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t phys, uintptr_t flags)
+int vmm_map_page(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t phys, uintptr_t flags)
 {
     uintptr_t perm_flags = flags & 0xFFF;
 
@@ -33,7 +33,7 @@ void vmm_map_page(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t phys, uin
     {
         uintptr_t new_table_phys = (uintptr_t)pmm_alloc_frame();
         if (new_table_phys == 0)
-            panic("vmm_map_page: pmm_alloc_frame failed", 0, 0);
+            return 1;
         vmm_table_t *new_table_virt = (vmm_table_t *)(new_table_phys + hhdm_offset);
         memset(new_table_virt, 0, sizeof(vmm_table_t));
         pml4_virtual->entries[PML4_INDEX(virt)] = new_table_phys | perm_flags;
@@ -48,7 +48,7 @@ void vmm_map_page(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t phys, uin
     {
         uintptr_t new_table_phys = (uintptr_t)pmm_alloc_frame();
         if (new_table_phys == 0)
-            panic("vmm_map_page: pmm_alloc_frame failed", 0, 0);
+            return 2;
         vmm_table_t *new_table_virt = (vmm_table_t *)(new_table_phys + hhdm_offset);
         memset(new_table_virt, 0, sizeof(vmm_table_t));
         pdpt_virtual->entries[PDPT_INDEX(virt)] = new_table_phys | perm_flags;
@@ -63,7 +63,7 @@ void vmm_map_page(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t phys, uin
     {
         uintptr_t new_table_phys = (uintptr_t)pmm_alloc_frame();
         if (new_table_phys == 0)
-            panic("vmm_map_page: pmm_alloc_frame failed", 0, 0);
+            return 3;
         vmm_table_t *new_table_virt = (vmm_table_t *)(new_table_phys + hhdm_offset);
         memset(new_table_virt, 0, sizeof(vmm_table_t));
         pd_virtual->entries[PD_INDEX(virt)] = new_table_phys | perm_flags;
@@ -76,6 +76,7 @@ void vmm_map_page(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t phys, uin
     pt_virtual->entries[PT_INDEX(virt)] = phys | flags | VMM_PRESENT;
 
     asm volatile("invlpg (%0)" ::"r"(virt) : "memory");
+    return 0;
 }
 
 void vmm_unmap_page(vmm_table_t *pml4_virtual, uintptr_t virt)

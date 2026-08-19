@@ -75,12 +75,18 @@ void exception_handler(registers_t *r)
     case 14:
         uint64_t fault_addr;
         asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
+        extern task_t *current_task;
         if (r->error_code & (1 << 2))
         {
-            extern task_t *current_task;
             log(LOG_ERR, "Segmentation fault caused by process PID %d, at: 0x%x, RIP: %x, err_code: 0x%x",
                 current_task->pid, fault_addr, r->rip, r->error_code);
             task_exit((context_t *)r);
+        }
+        else if (fault_addr == 0)
+        {
+            log(LOG_ERR, "Process PID %d tried to write at NULL", current_task->pid);
+            task_exit((context_t *)r);
+            return;
         }
         char buf[128];
         sprintf(buf, "CPU-EXC: page fault at: %x", fault_addr);

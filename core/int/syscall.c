@@ -141,7 +141,11 @@ uint64_t syscall_handler(context_t *r)
         uint32_t max_len = (uint32_t)r->rsi;
 
         char *tmpbuf = kmalloc(max_len);
-
+        if (!tmpbuf)
+        {
+            r->rax = 1;
+            return (uint64_t)r;
+        }
         input(tmpbuf, max_len);
         copy_to_user(buf, tmpbuf, strlen(tmpbuf) + 1);
 
@@ -290,10 +294,7 @@ uint64_t syscall_handler(context_t *r)
             memcpy(argv[i], argv_ptr[i], len + 1);
         }
 
-        execve(path, argv, NULL);
-        r->rax = 0;
-        schedule(r);
-        return (uint64_t)r;
+        return execve(path, argv, argc, NULL);
     }
     case 16: // get current task's PID
     {

@@ -26,16 +26,6 @@
 #include <lib/string.h>
 #include <bomboclaat/kprintf.h>
 
-/*
-    16.08.2026: After adding copy_to_user() this piece of garbage broke down. Writing this shit
-    sometimes feels like talking to a woman. Something's definitely wrong but she won't tell you
-    what. The exact thing happens here. I was debugging it for over 5 hours now and guess what,
-    I still have no clue what's wrong. BTW today is my ex's birthday; it can't be a coincidence.
-*/
-
-#define MAX_TASKS 32
-#define TASK_STACK_SENTINEL 0xC0FFEE00C0FFEE00ULL
-
 extern vmm_table_t *kernel_pml4_virt;
 extern uint64_t hhdm_offset;
 extern tss_ptr tss;
@@ -256,7 +246,6 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
 
     *(uint64_t *)(new_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL; // will be checked later, don't worry
 
-    // You see? That fucking RIP is assigned, but guess what! THAT PIECE OF GARBAGE WILL DISAPPEAR ONCE IT DO A FUCKING SWITCH!
     ctx->rip = header->e_entry;
     ctx->rsp = user_rsp;
     ctx->cs = 0x43;

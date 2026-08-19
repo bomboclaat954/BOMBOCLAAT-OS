@@ -15,7 +15,7 @@ extern "C"
 #endif
 
 #define NULL ((void *)0)
-#define HEAP_SIZE 16 * (1024 * 1024) // 16 MB
+#define HEAP_SIZE 128 * (1024 * 1024) // 128 MB
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
     extern char *UNAME[3];
     extern stack_t system_stack;

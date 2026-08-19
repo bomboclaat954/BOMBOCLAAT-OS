@@ -6,6 +6,6 @@
 #ifndef EXEC_H
 #define EXEC_H
 
-int execve(char *path, char *argv[], char *envp[]);
+int execve(char *path, char *argv[], int argc, char *envp[]);
 
 #endif
