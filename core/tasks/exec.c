@@ -49,7 +49,6 @@ int elf_alloc(void *elf_data, task_t *task, ELF64_Phdr *ph_table, uint16_t e_phn
             while (bytes_written < mem_size)
             {
                 void *phys_frame = pmm_alloc_frame();
-                log(LOG_DEBUG, "ELF_ALLOC: allocated frame address: %x", phys_frame);
                 if (!phys_frame)
                     return 1;
 
@@ -88,7 +87,6 @@ context_t *prepare_stack(task_t *task, int frames, int argc, char **argv, uint64
     for (int i = 0; i < frames; i++)
     {
         void *frame_phys = pmm_alloc_frame();
-        log(LOG_DEBUG, "PREPARE_STACK: allocated frame address: %x", frame_phys);
         if (!frame_phys)
             return NULL;
 
