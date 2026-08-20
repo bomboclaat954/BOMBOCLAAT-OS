@@ -64,7 +64,8 @@ void register_framebuffer()
     framebuffer->data_stack_size = 0;
     framebuffer->name = "fbf";
     framebuffer->ops = &fbf_ops;
-    devfs_register_device(framebuffer);
+    if (devfs_register_device(framebuffer) != 0)
+        log(LOG_ERR, "Framebuffer init error");
 }
 
 // THIS METHOD OF WRITING TO FB IS SHIT, DON'T USE IT

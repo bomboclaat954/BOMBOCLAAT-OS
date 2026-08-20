@@ -22,6 +22,12 @@
 
 int main(int argc, char **argv)
 {
+    asm volatile(
+        "int $0x80"
+        :
+        : "a"(5)
+        : "memory");
+
     printf("%s\n", OSVER);
 
     int _argc = 1;

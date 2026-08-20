@@ -50,7 +50,7 @@
 
 char *UNAME[3];
 static const char *kname = "BOMBOCLAAT Kernel";
-static const char *krelease = "v1.0 beta 7.6.3";
+static const char *krelease = "v1.0 beta 7.6.4";
 /*
     About versioning system:
         Pattern: X.Y(.Z)

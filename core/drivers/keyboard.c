@@ -107,5 +107,6 @@ void keyboard_init()
     kbd->data_stack_size = 0;
     kbd->name = "kbd";
 
-    devfs_register_device(kbd);
+    if (devfs_register_device(kbd) != 0)
+        log(LOG_ERR, "Keyboard init error");
 }

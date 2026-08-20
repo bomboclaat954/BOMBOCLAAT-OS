@@ -194,19 +194,19 @@ context_t *prepare_stack(task_t *task, int frames, int argc, char **argv, uint64
 int execve(char *path, char *argv[], int argc, char *envp[])
 {
     uint64_t size = 0;
-    int fd = vfs_open(path, 0, &size);
+    int fd = vfs_open(path, 0, &size, current_task->fd_table);
     if (fd < 0)
         return fd * -1;
 
     void *file = kmalloc(size + 1);
     if (file == NULL)
     {
-        vfs_close(fd);
+        vfs_close(fd, current_task->fd_table);
         return 1;
     }
 
     int64_t read_bytes = vfs_read(fd, file, size);
-    vfs_close(fd);
+    vfs_close(fd, current_task->fd_table);
     if (read_bytes <= 0)
         return ENOENT;
 

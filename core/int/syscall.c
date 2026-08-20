@@ -100,19 +100,19 @@ uint64_t syscall_handler(context_t *r)
         }
 
         uint64_t size = 0;
-        int fd = vfs_open(path, 0, &size);
+        int fd = vfs_open(path, 0, &size, current_task->fd_table);
         if (fd < 0)
             return 1;
 
         void *file = kmalloc(size + 1);
         if (file == NULL)
         {
-            vfs_close(fd);
+            vfs_close(fd, current_task->fd_table);
             return 2;
         }
 
         int64_t read_bytes = vfs_read(fd, file, size);
-        vfs_close(fd);
+        vfs_close(fd, current_task->fd_table);
         if (read_bytes < 0)
             return 3;
 
@@ -223,7 +223,7 @@ uint64_t syscall_handler(context_t *r)
         if (path[0] != '/')
             return -1;
         uint64_t size = 0;
-        int x = vfs_open(path, flags, &size);
+        int x = vfs_open(path, flags, &size, current_task->fd_table);
         return x;
     }
     case 11: // file read
@@ -250,7 +250,7 @@ uint64_t syscall_handler(context_t *r)
     case 13: // file close
     {
         int fd = (int)r->rdi;
-        return vfs_close(fd);
+        return vfs_close(fd, current_task->fd_table);
     }
     case 14: // fork
     {

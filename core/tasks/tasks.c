@@ -25,6 +25,7 @@
 #include <bomboclaat/elf64.h>
 #include <lib/string.h>
 #include <bomboclaat/kprintf.h>
+#include <fs/tmpfs.h>
 
 extern vmm_table_t *kernel_pml4_virt;
 extern uint64_t hhdm_offset;
@@ -243,6 +244,9 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     new_task->rsp = new_task->kstack_top - sizeof(context_t);
     context_t *ctx = (context_t *)new_task->rsp;
     memset(ctx, 0, sizeof(context_t));
+
+    uint64_t kbdsz = 0;
+    vfs_open("/dev/kbd", 0, &kbdsz, new_task->fd_table);
 
     *(uint64_t *)(new_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL; // will be checked later, don't worry
 

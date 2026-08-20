@@ -15,8 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-// i znowu sie kurwa pierdolone dziadostwo rozjebało. ruszysz jedną rzecz to sie kurwa jebią 3 inne
-// jak tak dalej pójdzie to ja w Choroszczy wyląduję w jebanej izolatce
+
 #include <fs/vfs.h>
 #include <fs/tmpfs.h>
 #include <fs/devfs.h>
@@ -103,16 +102,15 @@ vfs_inode_t *vfs_mkdir(vfs_inode_t *parent, char *name)
     return parent->ops->mkdir(parent, name);
 }
 
-int vfs_open(char *path, int flags, uint64_t *size_buf)
+int vfs_open(char *path, int flags, uint64_t *size_buf, vfs_file_t **fd_table)
 {
-    extern task_t *current_task;
-    if (current_task == NULL)
+    if (fd_table == NULL)
         return -ESRCH;
 
     int fd = -1;
     for (int i = 0; i < MAX_FILES_PER_TASK; i++)
     {
-        if (current_task->fd_table[i] == NULL)
+        if (fd_table[i] == NULL)
         {
             fd = i;
             break;
@@ -136,24 +134,23 @@ int vfs_open(char *path, int flags, uint64_t *size_buf)
     file->offset = 0;
     file->ref_count = 1;
 
-    current_task->fd_table[fd] = file;
+    fd_table[fd] = file;
     *size_buf = inode->size;
     return fd;
 }
 
-int vfs_close(int fd)
+int vfs_close(int fd, vfs_file_t **fd_table)
 {
-    extern task_t *current_task;
-    if (current_task == NULL)
+    if (fd_table == NULL)
         return ESRCH;
     if (fd < 0 || fd >= MAX_FILES_PER_TASK)
         return EMFILE;
 
-    vfs_file_t *file = current_task->fd_table[fd];
+    vfs_file_t *file = fd_table[fd];
     if (file == NULL)
         return ENOENT;
 
-    current_task->fd_table[fd] = NULL;
+    fd_table[fd] = NULL;
 
     file->ref_count--;
     if (file->ref_count == 0)

@@ -136,8 +136,6 @@ void initramfs()
 
     if (init_pos == -1)
         panic("didn't find /bin/init in initramfs", 0, 0);
-    else
-        log(LOG_OK, "Found init file (%d B)", init_size);
 
     void *init_data = initramfs_files[init_pos]->content;
 
@@ -147,6 +145,4 @@ void initramfs()
     task_t *init_task = task_create(init_data, 0, "/bin/init", 0, 0, frames);
     if (init_task == NULL)
         panic("Failed to create init process", 0, 0);
-
-    log(LOG_OK, "Created init process");
 }

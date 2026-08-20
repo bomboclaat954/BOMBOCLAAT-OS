@@ -97,7 +97,7 @@ int devfs_register_device(struct device *dev)
     devfs_entries[devfs_entry_count].name = dev->name;
     devfs_entries[devfs_entry_count].inode = dev_inode;
     devfs_entry_count++;
-    log(LOG_OK, "Registered device: /dev/%s", dev->name);
+
     return 0;
 }
 

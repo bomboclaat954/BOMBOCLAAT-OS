@@ -162,7 +162,10 @@ void kfree(void *ptr)
 
     chunk_header_t *header = ((chunk_header_t *)ptr) - 1;
     if (strcmp(header->sign, kmalloc_sign) != 0)
+    {
+        log(LOG_ERR, "kfree: signature mismatch, aborting");
         return;
+    }
 
     _kfree(header);
 }
