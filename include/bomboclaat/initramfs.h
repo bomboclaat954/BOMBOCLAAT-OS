@@ -26,7 +26,6 @@ struct cpio_header
 
 void *initramfs_find_file(void *ramfs_start, const char *name, uint64_t *out_size);
 void initramfs();
-extern uint8_t *init_heap_current;
 extern volatile struct limine_module_request module_request;
 
 #endif

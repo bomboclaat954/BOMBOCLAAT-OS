@@ -32,7 +32,7 @@
 #include <tasks/tasks.h>
 #include <fs/tmpfs.h>
 
-uint8_t *init_heap_current;
+uint8_t *task_heap;
 tmpfs_file_t **initramfs_files;
 extern tmpfs_dir_t *tmpfs_root;
 
@@ -139,7 +139,7 @@ void initramfs()
 
     void *init_data = initramfs_files[init_pos]->content;
 
-    init_heap_current = kmalloc(65536);
+    task_heap = kmalloc(65536);
     int frames = (init_size + PAGE_SIZE - 1) >> 12;
 
     task_t *init_task = task_create(init_data, 0, "/bin/init", 0, 0, frames);

@@ -123,7 +123,6 @@ extern "C"
     void pic_disable(void);
     uint64_t pit_get_ticks(void);
     void delay_ms(uint64_t ms);
-    void init_syscall(uint16_t kernel_cs, uint16_t user_cs);
     void gdt_tss_init(void);
 
     void lapic_init();

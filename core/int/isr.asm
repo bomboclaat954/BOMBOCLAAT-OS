@@ -34,77 +34,18 @@ isr_stub_%1:
 extern irq_handler
 extern exception_handler
 extern schedule
-extern syscall_handler  
+extern int128_handler  
 extern kernel_stack_ptr
 extern user_rsp_scratch
 
 global isr_stub_default
 global isr_stub_128
-global syscall_exit
-global syscall_entry
 
 isr_stub_128:
     cli
     push qword 0
     push qword 128
     jmp syscall_common_stub
-
-; ! NOT WORKING ! (Claude pls fix that)
-syscall_entry:
-    swapgs
-;    mov [rel user_rsp_scratch], rsp
-;    mov rsp, [rel kernel_stack_ptr]
-
-    push qword 0x1b        ; user ss
-;    push qword [rel user_rsp_scratch]
-    push r11                ; rflags
-    push qword 0x23         ; user cs
-    push rcx                 ; rip
-    push qword 0              ; err_code
-    push qword 0              ; int_no
-    push rax
-    push rbx
-    push rcx
-    push rdx
-    push rsi
-    push rdi
-    push rbp
-    push r8
-    push r9
-    push r10
-    push r11
-    push r12
-    push r13
-    push r14
-    push r15
-
-    mov rcx, r10
-    mov rdi, rsp
-
-    call syscall_handler
-
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop r11
-    pop r10
-    pop r9
-    pop r8
-    pop rbp
-    pop rdi
-    pop rsi
-    pop rdx
-    pop rcx
-    pop rbx
-    pop rax
-    add rsp, 16              ; int_no, err_code
-    pop rcx                   ; rip
-    add rsp, 8                ; cs
-    pop r11                   ; rflags
-    pop rsp                   ; user rsp
-    swapgs
-    o64 sysret
 
 syscall_common_stub:
     cli
@@ -127,31 +68,11 @@ syscall_common_stub:
     sub rsp, 8
     mov rdi, rsp
     add rdi, 8
-    call syscall_handler
+    call int128_handler
     add rsp, 8
 
     mov [rsp + 112], rax
 
-    pop r15
-    pop r14
-    pop r13
-    pop r12
-    pop r11
-    pop r10
-    pop r9
-    pop r8
-    pop rbp
-    pop rdi
-    pop rsi
-    pop rdx
-    pop rcx
-    pop rbx
-    pop rax
-    add rsp, 16
-    iretq
-
-syscall_exit:
-    mov [rsp + 112], rax
     pop r15
     pop r14
     pop r13

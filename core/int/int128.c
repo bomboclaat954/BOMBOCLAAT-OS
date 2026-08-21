@@ -40,41 +40,31 @@
 // TODO: get rid of that old INT 0x80 and migrate to SYSCALL.
 // TODO: UNIX-like syscalls: fork, execve, exit, etc.
 
+/*
+    Recently I came up with an interesting idea on managing syscalls.
+    What if instead of using the standard way like INT 0x80 or SYSCALL
+    we used JSON sent to a specific address readable to both user and
+    kernel space and then simply send an interrupt?
+    For example syscall 2 (look below in int128_handler switch case 2):
+    {
+        "syscall_num": 2,
+        "data": {
+            "path": "/bin/shell",
+            "argv_ptr": 0x...,
+            "argc": 3
+        },
+        "caller_pid": 8
+    }
+    Then the code hits INT 0x80
+    And the kernel parses it and does its job. It may take a bit longer
+    than now but I think it would be way more human readable and easier to
+    understand. If you see this, tell me what do you think, my tg is in readme.
+*/
+// That ain't working... (see core/syscall/syscall.c)
+
 #define TEMP_MAP_ADDR 0xFFFFFFFFF0000000
-#define IA32_EFER 0xC0000080
-#define IA32_STAR 0xC0000081
-#define IA32_LSTAR 0xC0000082
-#define IA32_FMASK 0xC0000084
-#define EFER_SCE (1ULL << 0)
 
-extern void syscall_entry(void);
-
-static inline uint64_t rdmsr(uint32_t msr)
-{
-    uint32_t low, high;
-    asm volatile("rdmsr" : "=a"(low), "=d"(high) : "c"(msr));
-    return ((uint64_t)high << 32) | low;
-}
-
-static inline void wrmsr(uint32_t msr, uint64_t value)
-{
-    uint32_t low = (uint32_t)value;
-    uint32_t high = (uint32_t)(value >> 32);
-    asm volatile("wrmsr" : : "a"(low), "d"(high), "c"(msr));
-}
-
-void init_syscall(uint16_t kernel_cs, uint16_t user_cs_base)
-{
-    uint64_t efer = rdmsr(IA32_EFER);
-    wrmsr(IA32_EFER, efer | EFER_SCE);
-    wrmsr(IA32_LSTAR, (uint64_t)syscall_entry);
-
-    uint64_t star = ((uint64_t)kernel_cs << 32) | ((uint64_t)user_cs_base << 48);
-    wrmsr(IA32_STAR, star);
-    wrmsr(IA32_FMASK, 0x200);
-}
-
-uint64_t syscall_handler(context_t *r)
+uint64_t int128_handler(context_t *r)
 {
     extern task_t *current_task;
     extern task_t *task_list_head;
@@ -205,14 +195,15 @@ uint64_t syscall_handler(context_t *r)
     case 9: // malloc
     {
         extern vmm_table_t *kernel_pml4_virt;
+        extern uint8_t *task_heap;
         size_t increment = (size_t)r->rdi;
-        uint8_t *previous_heap_end = init_heap_current;
-        init_heap_current += increment;
+        uint8_t *previous_heap_end = task_heap;
+        task_heap += increment;
         for (int i = 0; i < (increment / PAGE_SIZE) + 1; i++)
         {
-            init_heap_current += i;
+            task_heap += i;
             void *frame = pmm_alloc_frame();
-            vmm_map_page(kernel_pml4_virt, (uintptr_t)init_heap_current, (uintptr_t)frame, VMM_PRESENT | VMM_WRITE | VMM_USER);
+            vmm_map_page(kernel_pml4_virt, (uintptr_t)task_heap, (uintptr_t)frame, VMM_PRESENT | VMM_WRITE | VMM_USER);
         }
         return (uint64_t)previous_heap_end;
     }

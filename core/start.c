@@ -29,6 +29,7 @@
 #include <bomboclaat/globals.h>
 #include <bomboclaat/panic.h>
 #include <bomboclaat/initramfs.h>
+#include <bomboclaat/syscall.h>
 #include <drivers/io.h>
 #include <drivers/screen.h>
 #include <drivers/ata.h>
@@ -50,7 +51,7 @@
 
 char *UNAME[3];
 static const char *kname = "BOMBOCLAAT Kernel";
-static const char *krelease = "v1.0 beta 7.6.4";
+static const char *krelease = "v1.0 beta 7.7";
 /*
     About versioning system:
         Pattern: X.Y(.Z)
