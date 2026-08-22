@@ -22,7 +22,7 @@
 void shutdown()
 {
     asm volatile(
-        "int $0x80"
+        "syscall"
         :
         : "a"(8), "D"(1)
         : "memory");
@@ -31,7 +31,7 @@ void shutdown()
 void reboot()
 {
     asm volatile(
-        "int $0x80"
+        "syscall"
         :
         : "a"(8), "D"(0)
         : "memory");
@@ -42,7 +42,7 @@ int main(int argc, char **argv)
     if (argc < 2)
     {
         printf("Usage: power [-s: shutdown, -r: reboot]\n");
-        return 1;
+        return 1; // idk how's that possible but this 1 causes segfault, if it's 0 it doesn't
     }
 
     if (strcmp(argv[1], "-s") == 0)

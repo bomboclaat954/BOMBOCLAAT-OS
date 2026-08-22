@@ -32,6 +32,7 @@
 #include <bomboclaat/panic.h>
 #include <bomboclaat/initramfs.h>
 #include <bomboclaat/syscall.h>
+#include <bomboclaat/utsname.h>
 #include <tasks/loader.h>
 #include <lib/string.h>
 #include <memory/vmm.h>
@@ -182,15 +183,26 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     }
     case 7: // uname
     {
-        int type = (int)ctx->arg1;
-        char *ret_buf = (char *)ctx->arg2;
+        struct utsname *buf = (struct utsname *)ctx->arg1;
+        extern struct utsname bomboclaat_utsname;
 
-        if (type == 0)
-            copy_to_user(ret_buf, UNAME[0], strlen(UNAME[0]));
-        else if (type == 1)
-            copy_to_user(ret_buf, UNAME[1], strlen(UNAME[1]));
-        else if (type == 2)
-            copy_to_user(ret_buf, UNAME[2], strlen(UNAME[2]));
+        memset(buf->sysname, 0, _UTSNAME_LENGTH);
+        memset(buf->nodename, 0, _UTSNAME_LENGTH);
+        memset(buf->release, 0, _UTSNAME_LENGTH);
+        memset(buf->version, 0, _UTSNAME_LENGTH);
+        memset(buf->machine, 0, _UTSNAME_LENGTH);
+
+        if (copy_to_user(buf->sysname, bomboclaat_utsname.sysname, _UTSNAME_LENGTH) != 0)
+            return -1;
+        if (copy_to_user(buf->nodename, bomboclaat_utsname.nodename, _UTSNAME_LENGTH) != 0)
+            return -1;
+        if (copy_to_user(buf->release, bomboclaat_utsname.release, _UTSNAME_LENGTH) != 0)
+            return -1;
+        if (copy_to_user(buf->version, bomboclaat_utsname.version, _UTSNAME_LENGTH) != 0)
+            return -1;
+        if (copy_to_user(buf->machine, bomboclaat_utsname.machine, _UTSNAME_LENGTH) != 0)
+            return -1;
+
         return 0;
     }
     case 8: // reboot / shutdown

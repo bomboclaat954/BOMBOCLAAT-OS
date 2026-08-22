@@ -170,7 +170,7 @@ uint64_t int128_handler(context_t *r)
     }
     case 7: // uname
     {
-        int type = (int)r->rdi;
+        /*int type = (int)r->rdi;
         char *ret_buf = (char *)r->rsi;
 
         if (type == 0)
@@ -180,7 +180,7 @@ uint64_t int128_handler(context_t *r)
         else if (type == 2)
             copy_to_user(ret_buf, UNAME[2], strlen(UNAME[2]));
         r->rax = 1;
-        return (uint64_t)r;
+        return (uint64_t)r;*/
     }
     case 8: // reboot / shutdown
     {

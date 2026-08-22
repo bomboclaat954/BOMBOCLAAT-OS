@@ -17,32 +17,40 @@
  */
 
 #include <stdio.h>
-#include <syscall.h>
 #include <string.h>
+#include <sys/utsname.h>
+#include <malloc.h>
 
 int main(int argc, char **argv)
 {
-    char kname[32];
-    char krelease[16];
-    char kbuild[8];
+    struct utsname __name;
 
-    sysinfo(0, kname);
-    sysinfo(1, krelease);
-    sysinfo(2, kbuild);
+    if (uname(&__name) != 0)
+        return 1;
 
-    if (argc > 1)
+    printf("%s %s %s %s %s\n", __name.sysname, __name.release, __name.version, __name.nodename, __name.machine);
+
+    //! WARNING: THIS SHIT BELOW CAUSES SOME STUPID ERRORS, DON'T USE IT
+    /*if (argc < 2)
     {
-        if (argv[1][1] == 's')
-            printf("%s ", kname);
-        if (argv[1][1] == 'r')
-            printf("%s-b%s", krelease, kbuild);
-        if (argv[1][1] == 'o')
-            printf("%s ", OSVER);
+        printf("%s\n", __name.sysname);
+        return 0;
     }
     else
-        printf("%s", krelease);
-
-    printf("\n");
+    {
+        if (contains(argv[1], 'r'))
+            printf("%s\n", __name.release);
+        else if (contains(argv[1], 's'))
+            printf("%s\n", __name.sysname);
+        else if (contains(argv[1], 'm'))
+            printf("%s\n", __name.machine);
+        else if (contains(argv[1], 'n'))
+            printf("%s\n", __name.nodename);
+        else if (contains(argv[1], 'v'))
+            printf("%s\n", __name.version);
+        else if (contains(argv[1], 'a'))
+            printf("%s %s %s %s %s\n", __name.sysname, __name.release, __name.version, __name.nodename, __name.machine);
+    }*/
 
     return 0;
 }

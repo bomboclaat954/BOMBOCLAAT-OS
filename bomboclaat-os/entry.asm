@@ -22,8 +22,7 @@ _start:
     mov rdi, [rsp] ;argc
     lea rsi, [rsp + 8] ;argv
     call main
-    
-    mov rdi, rax    
+
     mov rax, 3
     int 0x80
     .dead_loop: ;in case if the syscall didn't work

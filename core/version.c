@@ -16,29 +16,12 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <syscall.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <sys/utsname.h>
+#include <bomboclaat/utsname.h>
 
-int uname(struct utsname *_utsname)
-{
-    int res = 0;
-    asm volatile(
-        "syscall"
-        : "=a"(res)
-        : "a"(7), "D"(_utsname)
-        : "memory");
-    return res;
-}
-
-int sysexec(char *path, int argc, char **argv) // TO BE REPLACED WITH FORK AND EXECVE
-{
-    int res;
-    asm volatile(
-        "int $0x80"
-        : "=a"(res)
-        : "a"(2), "D"(path), "S"(argv), "d"(argc)
-        : "memory");
-    return res;
-}
+struct utsname bomboclaat_utsname = {
+    .sysname = "BOMBOCLAAT Kernel\0",
+    .nodename = "bbcltOS\0",
+    .release = "v1.0 beta 7.7\0",
+    .version = "\0",
+    .machine = "x86_64\0",
+};

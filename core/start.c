@@ -48,10 +48,10 @@
 #include <fs/devfs.h>
 #include <tasks/tasks.h>
 #include <lib/string.h>
+#include <sys/utsname.h>
 
-char *UNAME[3];
-static const char *kname = "BOMBOCLAAT Kernel";
-static const char *krelease = "v1.0 beta 7.7";
+extern struct utsname bomboclaat_utsname;
+
 /*
     About versioning system:
         Pattern: X.Y(.Z)
@@ -157,7 +157,8 @@ void kinit(void)
     init_screen_driver(fb);
     sse_enable();
     fpu_enable();
-    log(LOG_INFO, "Starting %s %s-b%d", kname, krelease, BUILD_NUMBER);
+    log(LOG_INFO, "Starting %s %s-b%d", bomboclaat_utsname.sysname, bomboclaat_utsname.release, BUILD_NUMBER);
+    sprintf(bomboclaat_utsname.version, "BUILD #%d", BUILD_NUMBER);
 
     char cpu[49];
     get_cpu_model(cpu);
@@ -252,13 +253,6 @@ void kinit(void)
     lapic_timer_calibrate();
     log(LOG_OK, "Initialized LAPIC timer");
     ioapic_set_irq(1, 0x21, 0);
-
-    UNAME[0] = kmalloc(sizeof(char) * 32);
-    UNAME[1] = kmalloc(sizeof(char) * 32);
-    UNAME[2] = kmalloc(sizeof(char) * 8);
-    sprintf(UNAME[0], "%s", kname);
-    sprintf(UNAME[1], "%s", krelease);
-    sprintf(UNAME[2], "%d", BUILD_NUMBER);
 
     tmpfs_init();
     log(LOG_OK, "Initialized TMPFS");

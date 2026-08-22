@@ -26,7 +26,7 @@ void *sbrk(size_t increment)
 {
     uint64_t result;
     asm volatile(
-        "int $0x80"
+        "syscall"
         : "=a"(result)
         : "a"(9), "D"(increment)
         : "memory");
