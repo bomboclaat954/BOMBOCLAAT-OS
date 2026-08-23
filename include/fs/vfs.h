@@ -18,6 +18,7 @@ struct vfs_inode_ops
 {
     int64_t (*read)(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
     int64_t (*write)(struct vfs_inode *inode, void *buffer, uint64_t size, uint64_t offset);
+    int64_t (*delete)(struct vfs_inode *inode);
     struct vfs_inode *(*lookup)(struct vfs_inode *parent, char *name);
     struct vfs_inode *(*mkfile)(struct vfs_inode *parent, char *name);
     struct vfs_inode *(*mkdir)(struct vfs_inode *parent, char *name);
@@ -66,9 +67,10 @@ struct vfs_file
 
 extern vfs_dentry_t *vfs_root_dentry;
 
+int vfs_new_id();
 int vfs_setup_inode(vfs_inode_t *inode);
-int vfs_read(int fd, void *buf, uint64_t size);
-int vfs_write(int fd, void *buf, uint64_t size);
+int vfs_read(int fd, vfs_file_t **fd_table, void *buf, uint64_t size);
+int vfs_write(int fd, vfs_file_t **fd_table, void *buf, uint64_t size);
 vfs_inode_t *vfs_mkfile(vfs_inode_t *parent, char *name);
 vfs_inode_t *vfs_mkdir(vfs_inode_t *parent, char *name);
 int vfs_open(char *path, int flags, uint64_t *size_buf, vfs_file_t **fd_table);
@@ -77,6 +79,7 @@ int parse_path(char *path, char *out_buf[]);
 vfs_dentry_t *vfs_find(char *path);
 int vfs_mount(void *dev, char *target, char *fs_type, void *flags);
 void vfs_register_fs(filesystem_t *fs);
+int vfs_delete(int fd, vfs_file_t **fd_table);
 void vfs_init();
 
 #endif

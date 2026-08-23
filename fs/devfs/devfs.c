@@ -48,6 +48,7 @@ static int devfs_entry_count = 0;
 static struct vfs_inode_ops devfs_inode_ops = {
     .read = NULL,
     .write = NULL,
+    .delete = NULL,
     .lookup = devfs_lookup,
     .mkfile = NULL,
     .mkdir = NULL,

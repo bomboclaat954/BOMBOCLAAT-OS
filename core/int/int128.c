@@ -101,7 +101,7 @@ uint64_t int128_handler(context_t *r)
             return 2;
         }
 
-        int64_t read_bytes = vfs_read(fd, file, size);
+        int64_t read_bytes = vfs_read(fd, current_task->fd_table, file, size);
         vfs_close(fd, current_task->fd_table);
         if (read_bytes < 0)
             return 3;
@@ -225,7 +225,7 @@ uint64_t int128_handler(context_t *r)
 
         void *tmpbuf = kmalloc(size);
 
-        int bytes_read = vfs_read(fd, tmpbuf, size);
+        int bytes_read = vfs_read(fd, current_task->fd_table, tmpbuf, size);
         copy_to_user(ptr, tmpbuf, bytes_read);
         kfree(tmpbuf);
 
@@ -236,7 +236,7 @@ uint64_t int128_handler(context_t *r)
         int fd = (int)r->rdi;
         uint64_t size = (uint64_t)r->rsi;
         void *buf = (void *)r->rdx;
-        return vfs_write(fd, buf, size);
+        return vfs_write(fd, current_task->fd_table, buf, size);
     }
     case 13: // file close
     {

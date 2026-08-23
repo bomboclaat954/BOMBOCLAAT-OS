@@ -240,7 +240,7 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
 
         void *tmpbuf = kmalloc(size);
 
-        int bytes_read = vfs_read(fd, tmpbuf, size);
+        int bytes_read = vfs_read(fd, current_task->fd_table, tmpbuf, size);
         copy_to_user(ptr, tmpbuf, bytes_read);
         kfree(tmpbuf);
 
@@ -251,7 +251,7 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
         int fd = (int)ctx->arg1;
         uint64_t size = (uint64_t)ctx->arg2;
         void *buf = (void *)ctx->arg3;
-        return vfs_write(fd, buf, size);
+        return vfs_write(fd, current_task->fd_table, buf, size);
     }
     case 13: // file close
     {

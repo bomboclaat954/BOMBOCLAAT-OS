@@ -12,3 +12,4 @@ initramfs.cpio
 bomboclaat-os/test.c
 bomboclaat-os/root/bin/
 cscope.out
+*.py

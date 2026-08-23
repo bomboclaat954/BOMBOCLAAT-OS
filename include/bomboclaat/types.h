@@ -14,11 +14,8 @@ struct list_head
 {
     struct list_head *next, *prev;
 } typedef list_head_t;
-typedef int pid_t;
 
-#define LIST_HEAD_INIT(name) {&(name), &(name)}
-#define LIST_HEAD(name) \
-    struct list_head name = LIST_HEAD_INIT(name)
+typedef int pid_t;
 
 #define offsetof(TYPE, MEMBER) ((size_t)&((TYPE *)0)->MEMBER)
 

@@ -30,31 +30,34 @@
 
 vfs_dentry_t *vfs_root_dentry;
 vfs_inode_t *root_inode;
-filesystem_t *registered_filesystems = NULL;
-int next_id = 1;
+filesystem_t *registered_filesystems;
+int next_id = 0;
+
+int vfs_new_id()
+{
+    return next_id++;
+}
 
 int vfs_setup_inode(vfs_inode_t *inode)
 {
     if (!inode)
-        return 0;
+        return 1;
 
-    inode->id = next_id;
+    inode->id = vfs_new_id();
     inode->mode = 0;
     inode->size = 0;
 
-    next_id++;
-    return 1;
+    return 0;
 }
 
-int vfs_read(int fd, void *buf, uint64_t size)
+int vfs_read(int fd, vfs_file_t **fd_table, void *buf, uint64_t size)
 {
-    extern task_t *current_task;
-    if (current_task == NULL)
+    if (fd_table == NULL)
         return -1;
     if (fd < 0 || fd >= MAX_FILES_PER_TASK)
         return -1;
 
-    vfs_file_t *file = current_task->fd_table[fd];
+    vfs_file_t *file = fd_table[fd];
     if (file == NULL)
         return -1;
 
@@ -69,15 +72,14 @@ int vfs_read(int fd, void *buf, uint64_t size)
     return bytes_read;
 }
 
-int vfs_write(int fd, void *buf, uint64_t size)
+int vfs_write(int fd, vfs_file_t **fd_table, void *buf, uint64_t size)
 {
-    extern task_t *current_task;
-    if (current_task == NULL)
+    if (fd_table == NULL)
         return -1;
     if (fd < 0 || fd >= MAX_FILES_PER_TASK)
         return -1;
 
-    vfs_file_t *file = current_task->fd_table[fd];
+    vfs_file_t *file = fd_table[fd];
     if (file == NULL)
         return -1;
 
@@ -302,6 +304,23 @@ void vfs_register_fs(filesystem_t *fs)
 
     fs->next = registered_filesystems;
     registered_filesystems = fs;
+}
+
+int vfs_delete(int fd, vfs_file_t **fd_table)
+{
+    if (!fd_table)
+        return -1;
+
+    vfs_file_t *file = fd_table[fd];
+    if (!file)
+        return -1;
+
+    int del_stat = file->inode->ops->delete(file->inode);
+    if (del_stat != 0)
+        return del_stat;
+
+    kfree(file);
+    return 0;
 }
 
 void vfs_init()

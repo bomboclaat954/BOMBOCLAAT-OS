@@ -62,3 +62,5 @@ int fork()
 
     return new->pid;
 }
+
+// TODO: vfork and other useless ones to make it look "professional"

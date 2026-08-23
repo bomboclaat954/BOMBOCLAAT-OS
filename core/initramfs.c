@@ -115,11 +115,11 @@ void initramfs()
 
     for (uint64_t x = 0; x < file_count; x++)
     {
-        if (x >= 1024)
-            panic("too many files for tmpfs root directory!", 0, 0);
-        tmpfs_root->files[x] = initramfs_files[x];
+        tmpfs_file_t *file = initramfs_files[x];
+        INIT_LIST_HEAD(&file->node);
+        list_add_tail(&file->node, &tmpfs_root->files);
     }
-    tmpfs_root->files_count = file_count;
+    tmpfs_root->nfiles = file_count;
 
     int init_pos = -1;
     uint64_t init_size = 0;

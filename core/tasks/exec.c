@@ -205,7 +205,7 @@ int execve(char *path, char *argv[], int argc, char *envp[])
         return 1;
     }
 
-    int64_t read_bytes = vfs_read(fd, file, size);
+    int64_t read_bytes = vfs_read(fd, current_task->fd_table, file, size);
     vfs_close(fd, current_task->fd_table);
     if (read_bytes <= 0)
         return ENOENT;
