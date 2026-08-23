@@ -23,15 +23,14 @@
 int main(int argc, char **argv)
 {
     asm volatile(
-        "int $0x80"
+        "syscall"
         :
-        : "a"(5)
-        : "memory");
+        : "a"(14));
 
     printf("%s\n", OSVER);
 
     int _argc = 1;
-    char *_argv[1];
+    char *_argv[1] = {0};
 
     sysexec("/bin/shell", _argc, _argv);
     return 0;

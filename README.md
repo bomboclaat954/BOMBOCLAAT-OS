@@ -1,6 +1,10 @@
 # BOMBOCLAAT-OS 2.x
 
-BOMBOCLAAT-OS is a simple x86_64 operating system with own kernel written (mostly) in C. This version evolved evolved from BOMBOCLAAT-OS 1.x (see *legacy* branch) and is way more mature and advanced.
+BOMBOCLAAT-OS is a simple x86_64 operating system with own kernel (*Mierdux*) written (mostly) in C. This version evolved evolved from BOMBOCLAAT-OS 1.x (see *legacy* branch) and is way more mature and advanced.
+
+## Mierdux
+
+Mierdux stands for mierda (which means shit in Spanish) and UNIX (because it's supposed to be UNIX-like). I named it like that because once I was writing the code, I got a bit mad (like always) and this beautful word came to my mind. As you can see Spanish is really worth learning.
 
 ## Features
 
@@ -16,9 +20,7 @@ BOMBOCLAAT-OS is a simple x86_64 operating system with own kernel written (mostl
     <li>Separate kernel and user space</li>
 </ol>
 
-Almost none of these works fully correct. Currently I'm trying not to get mentally insane but it's getting harder with every commit.
-
-## Notes
+# Notes
 
 1. If you followed versions 1.x, you may think that this project went backwards in development (because there's less commands), but actually it's the biggest progres that could happen. From a dumb, endless loop of stupid CLI it evolved into a real and (theoretically) usable kernel and OS. **This version is still in beta, so some things may not work properly or at all. If you found a bug, please report it to me.**
 2. It's highly recommended to use BOMBOCLAAT-OS with UEFI; some things might not work on BIOS or errors may occur.

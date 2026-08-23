@@ -259,7 +259,7 @@ uint64_t int128_handler(context_t *r)
             return 2;
 
         new->state = TASK_NEW;
-        new->parent_pid = current_task->pid;
+        new->parent = current_task;
         new->pid = current_task->pid + 1;
 
         return task_insert(new);

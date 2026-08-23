@@ -98,6 +98,18 @@ int main(int argc, char **argv)
         if (strcmp(cmd_line, "\0") == 0)
             continue;
 
+        /*  NEW WAY OF EXECUTING COMMANDS (will be used once I fix the syscalls):
+            pid_t cmd_task = fork();
+            if (cmd_task > 0)
+            {
+                execve(path, _argc, _argv);
+                int stat = waitpid(cmd_task);
+                if (stat != 0)
+                    printf("Error while executing command. Status code: %d\n", stat);
+            }
+        */
+        // btw I have to port some usable libc because my one sucks
+
         int stat = sysexec(path, _argc, _argv);
         if (stat != 0)
             printf("Error while executing command. Status code: %d\n", stat);

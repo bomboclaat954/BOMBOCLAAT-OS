@@ -16,42 +16,49 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <memory/userspace.h>
-#include <memory/vmm.h>
-#include <memory/memtools.h>
+#include <bomboclaat/types.h>
 #include <tasks/tasks.h>
-#include <bomboclaat/kprintf.h>
+#include <memory/kmalloc.h>
+#include <memory/memtools.h>
 
-int copy_to_user(void *dst, void *src, uint32_t len)
+task_t *create_child(task_t *parent)
 {
-    extern task_t *current_task;
-    extern uint64_t hhdm_offset;
+    if (!parent)
+        return NULL;
 
-    uintptr_t phys = 0;
-    uint64_t flags = 0;
+    task_t *new = (task_t *)kmalloc(sizeof(task_t));
+    if (!new)
+        return NULL;
 
-    if (vmm_resolve(current_task->pml4, (uintptr_t)dst, &phys, &flags) != 0)
-        return -1;
+    memcpy((uint8_t *)new, (uint8_t *)parent, sizeof(task_t));
 
-    uint8_t *dst_ptr = (uint8_t *)(phys + hhdm_offset);
-    memcpy(dst_ptr, src, len);
+    new->parent = parent;
+    new->pid = new_pid();
+    new->state = TASK_NEW;
 
-    return 0;
+    INIT_LIST_HEAD(&new->children);
+    list_add_tail(&new->sibling, &parent->children);
+
+    return new;
 }
 
-int copy_from_user(void *dst, void *src, uint32_t len)
+int fork()
 {
     extern task_t *current_task;
-    extern uint64_t hhdm_offset;
 
-    uintptr_t phys = 0;
-    uint64_t flags = 0;
-
-    if (vmm_resolve(current_task->pml4, (uintptr_t)src, &phys, &flags) != 0)
+    if (!current_task)
         return -1;
 
-    uint8_t *src_ptr = (uint8_t *)(phys + hhdm_offset);
-    memcpy(dst, src_ptr, len);
+    task_t *new = create_child(current_task);
+    if (!new)
+        return -1;
 
-    return 0;
+    if (task_insert(new) < 0)
+    {
+        list_del(&new->sibling);
+        kfree(new);
+        return -1;
+    }
+
+    return new->pid;
 }

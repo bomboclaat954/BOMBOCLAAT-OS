@@ -18,7 +18,7 @@
 
 #include <string.h>
 #include <stdio.h>
-#include <syscall.h>
+#include <sys/utsname.h>
 
 static char *logo[] = {
     "             . . .                ",
@@ -48,6 +48,11 @@ static char *logo[] = {
 
 int main(int argc, char **argv)
 {
+    struct utsname __name;
+
+    if (uname(&__name) != 0)
+        return 1;
+
     for (int i = 0; i < ARRAY_SIZE(logo); i++)
     {
         switch (i)
@@ -62,7 +67,7 @@ int main(int argc, char **argv)
             printf("%s OS: %s\n", logo[i], OSVER);
             break;
         case 3:
-            printf("%s  Kernel: %s %s-b%s\n", logo[i] /*, kname, krelease, kbuild*/);
+            printf("%s  Kernel: %s %s %s\n", logo[i], __name.sysname, __name.release, __name.version);
             break;
         default:
             printf("%s\n", logo[i]);

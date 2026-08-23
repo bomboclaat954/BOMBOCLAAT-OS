@@ -101,7 +101,8 @@ void *kmalloc(size_t size)
         return NULL;
 
     header->size = size;
-    memcpy(header->sign, kmalloc_sign, strlen(kmalloc_sign));
+    // I FORGOT ABOUT FUCKING NULL TERMINATOR (but it's fixed now)
+    memcpy(header->sign, kmalloc_sign, strlen(kmalloc_sign) + 1);
 
     void *ptr = (void *)(header + 1);
     memset(ptr, 0, size);
@@ -163,7 +164,7 @@ void kfree(void *ptr)
     chunk_header_t *header = ((chunk_header_t *)ptr) - 1;
     if (strcmp(header->sign, kmalloc_sign) != 0)
     {
-        log(LOG_ERR, "kfree: signature mismatch, aborting");
+        log(LOG_ERR, "kfree: signature mismatch, aborting (%s != %s)", header->sign, kmalloc_sign);
         return;
     }
 

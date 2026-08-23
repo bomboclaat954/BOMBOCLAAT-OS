@@ -19,7 +19,7 @@
 // Yes that's a Dire Straits reference
 
 /*
- * This is a completely new BOMBOCLAAT Kernel syscall interface.
+ * This is a completely new Mierdux syscall interface.
  * Instead of using old INT 0x80 it uses new, faster SYSCALL instruction
  * Some syscalls were removed because they're useless and there's better
  * way to do the same. For example old syscall 1 (printf) was dropped.
@@ -33,7 +33,9 @@
 #include <bomboclaat/initramfs.h>
 #include <bomboclaat/syscall.h>
 #include <bomboclaat/utsname.h>
+#include <bomboclaat/types.h>
 #include <tasks/loader.h>
+#include <tasks/fork.h>
 #include <lib/string.h>
 #include <memory/vmm.h>
 #include <memory/pmm.h>
@@ -109,24 +111,8 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     }
     case 2: // fork
     {
-        extern task_t *current_task;
-
-        if (!current_task)
-            return 1;
-
-        task_t *new = (task_t *)kmalloc(sizeof(task_t));
-        if (!new)
-            return 2;
-
-        memcpy((uint8_t *)new, (uint8_t *)current_task, sizeof(*current_task));
-        if (memcmp(new, current_task, sizeof(*current_task)) != 0)
-            return 3;
-
-        new->state = TASK_NEW;
-        new->parent_pid = current_task->pid;
-        new->pid = current_task->pid + 1;
-
-        return task_insert(new);
+        pid_t res = fork();
+        return res;
     }
     case 3: // execve
     {
@@ -159,6 +145,12 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     case 5: // exit
     {
         // TODO: exit
+        /*
+            void remove_child(task_t *child) // will be useful, I'll move it to exit.c
+            {
+                list_del(&child->sibling);
+            }
+        */
         return 0;
     }
     case 6: // get framebuffer info (RDI = 0 - pitch, RDI = 1 - height, RDI = 2 - width)
@@ -214,9 +206,9 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
             acpi_shutdown();
         return 0;
     }
-    case 9: // malloc
+    case 9: // brk
     {
-        // TODO: fix it
+        // TODO: fix it (but execve has to be fixed first)
         extern vmm_table_t *kernel_pml4_virt;
         extern uint8_t *task_heap;
         size_t increment = (size_t)ctx->arg1;
@@ -265,6 +257,11 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     {
         int fd = (int)ctx->arg1;
         return vfs_close(fd, current_task->fd_table);
+    }
+    case 14: // cls, TO BE REMOVED ONCE USER-SIDE SCREEN DRIVER IS DONE
+    {
+        cls();
+        return 0;
     }
     default:
         return -1;

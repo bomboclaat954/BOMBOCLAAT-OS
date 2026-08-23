@@ -13,6 +13,15 @@ typedef struct vmm_table
     pt_entry_t entries[512];
 } __attribute__((aligned(4096))) vmm_table_t;
 
+// Yeah the idea was stolen from Linux (but I simplified it)
+struct mm_struct
+{
+    unsigned long code_start, code_end;
+    unsigned long data_start, data_end;
+    unsigned long brk_start, brk;
+    unsigned long stack_start;
+} typedef mm_t;
+
 #define PROGRAM_START 0x400000
 #define VMM_PRESENT (1ULL << 0)
 #define VMM_WRITE (1ULL << 1)

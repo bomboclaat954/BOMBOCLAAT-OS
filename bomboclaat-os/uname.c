@@ -23,33 +23,33 @@
 
 int main(int argc, char **argv)
 {
-    struct utsname __name;
+    struct utsname name;
 
-    if (uname(&__name) != 0)
+    if (uname(&name) != 0)
         return 1;
 
-    printf("%s %s %s %s %s\n", __name.sysname, __name.release, __name.version, __name.nodename, __name.machine);
+    printf("%s %s %s %s %s\n", name.sysname, name.release, name.version, name.nodename, name.machine);
 
     //! WARNING: THIS SHIT BELOW CAUSES SOME STUPID ERRORS, DON'T USE IT
     /*if (argc < 2)
     {
-        printf("%s\n", __name.sysname);
+        printf("%s\n", name.sysname);
         return 0;
     }
     else
     {
         if (contains(argv[1], 'r'))
-            printf("%s\n", __name.release);
+            printf("%s\n", name.release);
         else if (contains(argv[1], 's'))
-            printf("%s\n", __name.sysname);
+            printf("%s\n", name.sysname);
         else if (contains(argv[1], 'm'))
-            printf("%s\n", __name.machine);
+            printf("%s\n", name.machine);
         else if (contains(argv[1], 'n'))
-            printf("%s\n", __name.nodename);
+            printf("%s\n", name.nodename);
         else if (contains(argv[1], 'v'))
-            printf("%s\n", __name.version);
+            printf("%s\n", name.version);
         else if (contains(argv[1], 'a'))
-            printf("%s %s %s %s %s\n", __name.sysname, __name.release, __name.version, __name.nodename, __name.machine);
+            printf("%s %s %s %s %s\n", name.sysname, name.release, name.version, name.nodename, name.machine);
     }*/
 
     return 0;

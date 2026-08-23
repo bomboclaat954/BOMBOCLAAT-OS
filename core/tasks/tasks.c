@@ -23,8 +23,9 @@
 #include <memory/pmm.h>
 #include <int/int.h>
 #include <bomboclaat/elf64.h>
-#include <lib/string.h>
+#include <bomboclaat/types.h>
 #include <bomboclaat/kprintf.h>
+#include <lib/string.h>
 #include <fs/tmpfs.h>
 
 extern vmm_table_t *kernel_pml4_virt;
@@ -116,9 +117,11 @@ void task_init(void)
     ctx->rsp = kernel_task->kstack_top;
 
     kernel_task->next = kernel_task;
-    kernel_task->parent_pid = 0;
+    kernel_task->parent = kernel_task;
     current_task = kernel_task;
     tasks[0] = kernel_task;
+
+    INIT_LIST_HEAD(&kernel_task->children);
 }
 
 task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char **argv, int frames)
@@ -130,8 +133,12 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     task_t *new_task = (task_t *)kmalloc(sizeof(task_t));
     strcpy(name, new_task->name);
     new_task->pid = next_pid++;
-    new_task->parent_pid = parent_pid;
+    new_task->parent = current_task;
     new_task->pml4 = vmm_init();
+
+    INIT_LIST_HEAD(&new_task->children);
+    list_add_tail(&new_task->sibling, &current_task->children);
+
     ELF64_Phdr *ph_table = (ELF64_Phdr *)((uintptr_t)elf_data + header->e_phoff);
     for (int i = 0; i < header->e_phnum; i++)
     {
@@ -361,7 +368,7 @@ void task_exit(context_t *ctx)
         runner->next = prev->next;
     }
 
-    task_t *parent = find_by_pid(prev->parent_pid);
+    task_t *parent = find_by_pid(prev->parent->pid);
     if (parent != NULL)
         parent->state = TASK_READY;
 
@@ -370,4 +377,9 @@ void task_exit(context_t *ctx)
     schedule(ctx);
     while (1)
         asm volatile("hlt");
+}
+
+pid_t new_pid()
+{
+    return next_pid++;
 }

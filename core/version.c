@@ -19,9 +19,9 @@
 #include <bomboclaat/utsname.h>
 
 struct utsname bomboclaat_utsname = {
-    .sysname = "BOMBOCLAAT Kernel\0",
+    .sysname = "Mierdux\0", // "Mierda" means "shit" in Spanish, "ux" is here because it's UNIX-like kernel
     .nodename = "bbcltOS\0",
-    .release = "v1.0 beta 7.7\0",
+    .release = "v1.0 beta 7.7.1\0",
     .version = "\0",
     .machine = "x86_64\0",
 };

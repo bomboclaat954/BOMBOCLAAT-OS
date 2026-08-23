@@ -224,6 +224,7 @@ int execve(char *path, char *argv[], int argc, char *envp[])
 
     memset(new_task->name, 0, sizeof(char) * 64);
     memset(new_task->fd_table, 0, sizeof(vfs_file_t) * 32);
+    memset(new_task->pml4, 0, sizeof(vmm_table_t));
     strcpy(path, new_task->name);
     new_task->pml4 = vmm_init();
 
@@ -248,7 +249,7 @@ int execve(char *path, char *argv[], int argc, char *envp[])
     new_task->next = current_task->next;
     current_task->next = new_task;
     current_task->state = TASK_BLOCKED;
-    new_task->state = TASK_READY;
+    new_task->state = TASK_RUNNING;
 
     task_insert(new_task);
     schedule(ctx);
