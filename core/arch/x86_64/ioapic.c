@@ -16,7 +16,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <int/int.h>
+#include <x86_64/lapic.h>
 
 extern volatile uintptr_t ioapic_base;
 

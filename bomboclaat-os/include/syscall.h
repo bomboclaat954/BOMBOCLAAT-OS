@@ -8,5 +8,9 @@
 #include <stddef.h>
 #include <stdint.h>
 
-int sysinfo(int type, void *buf);
-int sysexec(char *path, int argc, char **argv);
+typedef int pid_t;
+
+pid_t sys_fork();
+int sys_execve(char *path, char **argv);
+int sys_waitpid(pid_t pid);
+int sys_exit(int code);

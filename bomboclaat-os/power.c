@@ -42,7 +42,7 @@ int main(int argc, char **argv)
     if (argc < 2)
     {
         printf("Usage: power [-s: shutdown, -r: reboot]\n");
-        return 1; // idk how's that possible but this 1 causes segfault, if it's 0 it doesn't
+        return 1;
     }
 
     if (strcmp(argv[1], "-s") == 0)

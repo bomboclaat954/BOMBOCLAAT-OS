@@ -5,7 +5,7 @@
 #ifndef SYSCALL_H
 #define SYSCALL_H
 
-struct syscall_ctx
+typedef struct
 {
     uint64_t sys_num; // RAX
     uint64_t arg1;    // RDI
@@ -16,7 +16,13 @@ struct syscall_ctx
     uint64_t arg6;    // R9
     uint64_t rip;     // RCX
     uint64_t rflags;  // R11
-} typedef syscall_ctx_t;
+    uint64_t rbx;
+    uint64_t rbp;
+    uint64_t r12;
+    uint64_t r13;
+    uint64_t r14;
+    uint64_t r15;
+} __attribute__((packed)) syscall_ctx_t;
 
 void init_syscall(uint16_t kernel_cs, uint16_t user_cs_base);
 

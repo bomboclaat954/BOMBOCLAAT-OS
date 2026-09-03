@@ -16,12 +16,13 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <int/int.h>
+#include <x86_64/cpu.h>
 #include <bomboclaat/panic.h>
 #include <bomboclaat/kprintf.h>
-#include <drivers/screen.h>
 #include <lib/string.h>
 #include <tasks/tasks.h>
+#include <tasks/exit.h>
+#include <memory/pmm.h>
 
 void exception_handler(registers_t *r)
 {
@@ -32,7 +33,7 @@ void exception_handler(registers_t *r)
         {
             extern task_t *current_task;
             kprintf("Division by zero caused by process PID %d, RIP=%x\n", current_task->pid, r->rip);
-            task_exit((context_t *)r);
+            exit(1);
         }
         panic("CPU-EXC: division by zero", r, 1);
         break;
@@ -76,21 +77,25 @@ void exception_handler(registers_t *r)
         uint64_t fault_addr;
         asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
         extern task_t *current_task;
-        if (r->error_code & (1 << 2))
+        if (r->error_code & (1 << 2) && fault_addr > 0)
         {
-            log(LOG_ERR, "Segmentation fault caused by process PID %d, at: 0x%x, RIP: %x, err_code: 0x%x",
+            log(LOG_ERR, "PID %d: segfault at 0x%x, RIP: %x, err: 0x%x",
                 current_task->pid, fault_addr, r->rip, r->error_code);
-            task_exit((context_t *)r);
+            uintptr_t page_addr = fault_addr & ~0xFFFULL;
+
+            void *phys = pmm_alloc_frame();
+            vmm_map_page(current_task->pml4, page_addr, (uintptr_t)phys, VMM_PRESENT | VMM_WRITE | VMM_USER);
+            return;
         }
         else if (fault_addr == 0)
         {
-            log(LOG_ERR, "Process PID %d tried to write at NULL", current_task->pid);
-            task_exit((context_t *)r);
+            log(LOG_ERR, "PID %d: process tried to write at NULL, RIP: 0x%x", current_task->pid, r->rip);
+            exit(1);
             return;
         }
         char buf[128];
         sprintf(buf, "CPU-EXC: page fault at: %x", fault_addr);
-        panic(buf, r, 1);
+        // panic(buf, r, 1);
         break;
     case 16:
         panic("CPU-EXC: x87 float", r, 1);

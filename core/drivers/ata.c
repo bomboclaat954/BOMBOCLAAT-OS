@@ -15,7 +15,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
+// The ancient one, not updated since May 2026.
 #include <drivers/ata.h>
 #include <drivers/io.h>
 #include <bomboclaat/panic.h>

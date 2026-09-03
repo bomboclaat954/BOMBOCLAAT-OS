@@ -14,15 +14,23 @@
 ; * You should have received a copy of the GNU General Public License
 ; * along with this program. If not, see <https://www.gnu.org/licenses/>.
 ; Fuck assembly
+bits 64
 
 global syscall_entry
 extern syscall_handler
 
 syscall_entry:
     swapgs
-    mov [gs:0x10], rsp
+    mov [gs:0x08], rsp
     mov rsp, [gs:0x00]
+    sub rsp, 8
 
+    push r15
+    push r14
+    push r13
+    push r12
+    push rbp
+    push rbx
     push r11
     push rcx
     push r9
@@ -45,7 +53,13 @@ syscall_entry:
     pop r9
     pop rcx
     pop r11
+    pop rbx
+    pop rbp
+    pop r12
+    pop r13
+    pop r14
+    pop r15
 
-    mov rsp, [gs:0x10]
+    mov rsp, [gs:0x08]
     swapgs
     o64 sysret

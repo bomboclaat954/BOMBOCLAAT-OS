@@ -16,9 +16,11 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <int/int.h>
+#include <x86_64/cpu.h>
+#include <x86_64/lapic.h>
 #include <drivers/io.h>
 #include <drivers/keyboard.h>
+#include <tasks/tasks.h>
 
 extern volatile uint64_t ticks;
 
@@ -28,6 +30,7 @@ void irq_handler(registers_t *r)
     {
     case 32:
         ticks++;
+        sched();
         break;
     case 33:
         keyboard_handler();

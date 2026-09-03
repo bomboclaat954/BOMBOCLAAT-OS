@@ -30,6 +30,7 @@
 #include <bomboclaat/panic.h>
 #include <bomboclaat/initramfs.h>
 #include <bomboclaat/syscall.h>
+#include <bomboclaat/logo.h>
 #include <drivers/io.h>
 #include <drivers/screen.h>
 #include <drivers/ata.h>
@@ -37,7 +38,12 @@
 #include <drivers/acpi.h>
 #include <drivers/keyboard.h>
 #include <boot/limine.h>
-#include <int/int.h>
+#include <x86_64/cpu.h>
+#include <x86_64/gdt_tss.h>
+#include <x86_64/idt.h>
+#include <x86_64/lapic.h>
+#include <x86_64/pic.h>
+#include <x86_64/pit.h>
 #include <memory/pmm.h>
 #include <memory/vmm.h>
 #include <memory/kmalloc.h>
@@ -50,7 +56,7 @@
 #include <lib/string.h>
 #include <sys/utsname.h>
 
-extern struct utsname bomboclaat_utsname;
+extern struct utsname utsname;
 
 /*
     About versioning system:
@@ -157,32 +163,40 @@ void kinit(void)
     init_screen_driver(fb);
     sse_enable();
     fpu_enable();
-    log(LOG_INFO, "Starting %s %s-b%d", bomboclaat_utsname.sysname, bomboclaat_utsname.release, BUILD_NUMBER);
-    sprintf(bomboclaat_utsname.version, "BUILD #%d", BUILD_NUMBER);
+    sprintf(utsname.version, "BUILD #%d", BUILD_NUMBER);
+    for (int i = 0; i < LOGO_HEIGHT; i++)
+        kprintf(logo[i]);
+
+    log(LOG_INFO, "Kernel version: %s %s", utsname.release, utsname.version);
 
     char cpu[49];
     get_cpu_model(cpu);
-    log(LOG_INFO, "Detected CPU model: %s", cpu);
+    log(LOG_INFO, "CPU: %s", cpu);
+
+    if (memmap == NULL || memmap->entry_count == 0)
+        panic("unable to get memory map", 0, 0);
+
+    ram_t mem = init_memmap(memmap);
+    if (mem.total == 0 || mem.usable == 0)
+        panic("error while getting RAM size", 0, 0);
+    log(LOG_INFO, "RAM: %d MB", mem.total / (1024 * 1024));
 
     if (firmware_request.response)
     {
-        if (firmware_request.response->firmware_type == LIMINE_FIRMWARE_TYPE_EFI64)
-            log(LOG_OK, "Running on UEFI");
-        else
-            log(LOG_ERR, "Running on BIOS. Some features may not work properly");
+        if (firmware_request.response->firmware_type != LIMINE_FIRMWARE_TYPE_EFI64)
+            log(LOG_ERR, "BIOS detected");
     }
     else
         panic("error while getting firmware type", 0, 0);
 
     idt_init();
     pic_disable();
-    log(LOG_OK, "Enabled SSE, FPU and IDT");
+    log(LOG_OK, "SSE, FPU & IDT OK");
 
     if (hhdm == NULL)
         panic("error while getting HHDM", 0, 0);
 
     hhdm_offset = hhdm->offset;
-    log(LOG_INFO, "HHDM offset: %x%x", hhdm_offset >> 32, hhdm_offset << 32);
 
     fbf_size = fb->pitch * fb->height;
     fbf_phys = (uintptr_t)fb->address - hhdm_offset;
@@ -191,27 +205,28 @@ void kinit(void)
     fbf_height = fb->height;
 
     gdt_tss_init();
-    log(LOG_OK, "Initialized GDT and TSS");
+    log(LOG_OK, "GDT & TSS OK");
 
     init_syscall(0x28, 0x30);
-    log(LOG_OK, "Initialized syscalls");
+    log(LOG_OK, "Syscalls OK");
 
-    if (memmap == NULL || memmap->entry_count == 0)
-        panic("unable to get memory map", 0, 0);
+    if (rsdp == NULL)
+        log(LOG_ERR, "Couldn't find RSDP address");
+    else if (rsdp->address == NULL)
+        log(LOG_ERR, "RSDP address is null");
+    int acpi = acpi_init((RSDP_t *)rsdp->address);
+    if (acpi)
+        log(LOG_OK, "ACPI OK");
+    else
+        log(LOG_ERR, "Error while initializing ACPI");
 
-    log(LOG_INFO, "Getting memory map");
-    ram_t mem = init_memmap(memmap);
-    if (mem.total == 0 || mem.usable == 0)
-        panic("error while getting RAM size", 0, 0);
-    log(LOG_INFO, "Total detected RAM: %d MB", mem.total / (1024 * 1024));
-    log(LOG_OK, "Initialized memory map");
     pmm_init(memmap, hhdm);
-    log(LOG_OK, "Initialized PMM");
+    log(LOG_OK, "PMM OK");
     extern vmm_table_t *vmm_init_kernel();
     kernel_pml4_virt = vmm_init_kernel();
     uintptr_t kernel_pml4_phys = (uintptr_t)kernel_pml4_virt - hhdm_offset;
     asm volatile("mov %0, %%cr3" ::"r"(kernel_pml4_phys) : "memory");
-    log(LOG_OK, "Initialized VMM");
+    log(LOG_OK, "VMM OK");
 
     uintptr_t heap_virtual_start = 0xFFFFFFFFC0000000;
     for (size_t offset = 0; offset < HEAP_SIZE; offset += PAGE_SIZE)
@@ -224,18 +239,7 @@ void kinit(void)
 
     heap_init((void *)heap_virtual_start, HEAP_SIZE);
     stack_init(&system_stack);
-    log(LOG_OK, "Set up heap and system stack");
-
-    if (rsdp == NULL)
-        log(LOG_ERR, "Couldn't find RSDP address");
-    else if (rsdp->address == NULL)
-        log(LOG_ERR, "RSDP address is null");
-    log(LOG_OK, "Found RSDP at 0x%x", rsdp->address);
-    int acpi = acpi_init((RSDP_t *)rsdp->address);
-    if (acpi)
-        log(LOG_OK, "Initialized ACPI");
-    else
-        log(LOG_ERR, "Error while initializing ACPI");
+    log(LOG_OK, "Heap & stack OK");
 
     extern uintptr_t lapic_base;
     uint32_t lapic_phys = (uint32_t)lapic_base;
@@ -251,32 +255,29 @@ void kinit(void)
     lapic_init();
     lapic_timer_init(1000000);
     lapic_timer_calibrate();
-    log(LOG_OK, "Initialized LAPIC timer");
+    log(LOG_OK, "LAPIC OK");
     ioapic_set_irq(1, 0x21, 0);
 
     tmpfs_init();
-    log(LOG_OK, "Initialized TMPFS");
+    log(LOG_OK, "TMPFS OK");
     vfs_init();
-    log(LOG_OK, "Initialized VFS");
+    log(LOG_OK, "VFS OK");
     fat32_init();
-    log(LOG_OK, "Initialized FAT32");
+    log(LOG_OK, "FAT32 OK");
     devfs_init();
-    log(LOG_OK, "Initialized DEVFS");
+    log(LOG_OK, "DEVFS OK");
 
     keyboard_init();
     register_framebuffer();
 
     task_init();
-    asm volatile("sti");
-    log(LOG_OK, "Enabled interrupts");
 
     log(LOG_INFO, "Loading initramfs");
     initramfs();
 
-    extern void reg_dump(registers_t * r);
-    context_t *ctx = (context_t *)kmalloc(sizeof(context_t));
-    reg_dump((registers_t *)ctx); // registers_t and context_t are the same
-    schedule(ctx);
+    asm volatile("sti");
+    sched();
+
     while (1)
-        asm volatile("hlt");
+        ;
 }

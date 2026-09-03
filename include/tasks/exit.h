@@ -2,10 +2,11 @@
  * Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
-#include <bomboclaat/syscall.h>
-#ifndef FORK_H
-#define FORK_H
+#ifndef EXIT_H
+#define EXIT_H
+#include <bomboclaat/types.h>
 
-int fork(syscall_ctx_t *ctx);
+int exit(int status);
+int waitpid(pid_t pid);
 
 #endif

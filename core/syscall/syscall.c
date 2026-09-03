@@ -47,6 +47,7 @@
 #include <drivers/screen.h>
 #include <tasks/tasks.h>
 #include <tasks/exec.h>
+#include <tasks/exit.h>
 #include <fs/vfs.h>
 #include <stddef.h>
 
@@ -102,7 +103,7 @@ void init_syscall(uint16_t kernel_cs, uint16_t user_cs_base)
 uint64_t syscall_handler(syscall_ctx_t *ctx)
 {
     extern task_t *current_task;
-    extern task_t *task_list_head;
+
     switch (ctx->sys_num)
     {
     case 1: // getpid
@@ -111,46 +112,33 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     }
     case 2: // fork
     {
-        pid_t res = fork();
+        pid_t res = fork(ctx);
         return res;
     }
     case 3: // execve
     {
         char *path = (char *)ctx->arg1;
-        char **argv_ptr = (char **)ctx->arg2;
-        int argc = (int)ctx->arg3;
+        char **argv = (char **)ctx->arg2;
 
-        if (argc < 1 || argc > 32)
-        {
-            log(LOG_ERR, "Error: argc < 1 OR argc > 32, aborting new process");
-            // schedule(r);
-            return 1;
-        }
+        current_task->state = TASK_BLOCKED;
 
-        char *argv[argc];
-        for (int i = 0; i < argc; i++)
-        {
-            size_t len = strlen(argv_ptr[i]);
-            argv[i] = (char *)kmalloc(len + 1);
-            memcpy(argv[i], argv_ptr[i], len + 1);
-        }
-
-        return execve(path, argv, argc, NULL);
+        struct execve_args e_args = {
+            .path = path,
+            .argv = argv,
+            .envp = NULL,
+        };
+        return execve(e_args);
     }
-    case 4:
+    case 4: // waitpid
     {
-        // TODO: waitpid
-        return 0;
+        int pid = (int)ctx->arg1;
+        int status = waitpid(pid);
+        return status;
     }
-    case 5: // exit
+    case 5: // exit (current task)
     {
-        // TODO: exit
-        /*
-            void remove_child(task_t *child) // will be useful, I'll move it to exit.c
-            {
-                list_del(&child->sibling);
-            }
-        */
+        int stat = (int)ctx->arg1;
+        exit(stat);
         return 0;
     }
     case 6: // get framebuffer info (RDI = 0 - pitch, RDI = 1 - height, RDI = 2 - width)
@@ -176,7 +164,7 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     case 7: // uname
     {
         struct utsname *buf = (struct utsname *)ctx->arg1;
-        extern struct utsname bomboclaat_utsname;
+        extern struct utsname utsname;
 
         memset(buf->sysname, 0, _UTSNAME_LENGTH);
         memset(buf->nodename, 0, _UTSNAME_LENGTH);
@@ -184,15 +172,15 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
         memset(buf->version, 0, _UTSNAME_LENGTH);
         memset(buf->machine, 0, _UTSNAME_LENGTH);
 
-        if (copy_to_user(buf->sysname, bomboclaat_utsname.sysname, _UTSNAME_LENGTH) != 0)
+        if (copy_to_user(buf->sysname, utsname.sysname, _UTSNAME_LENGTH) != 0)
             return -1;
-        if (copy_to_user(buf->nodename, bomboclaat_utsname.nodename, _UTSNAME_LENGTH) != 0)
+        if (copy_to_user(buf->nodename, utsname.nodename, _UTSNAME_LENGTH) != 0)
             return -1;
-        if (copy_to_user(buf->release, bomboclaat_utsname.release, _UTSNAME_LENGTH) != 0)
+        if (copy_to_user(buf->release, utsname.release, _UTSNAME_LENGTH) != 0)
             return -1;
-        if (copy_to_user(buf->version, bomboclaat_utsname.version, _UTSNAME_LENGTH) != 0)
+        if (copy_to_user(buf->version, utsname.version, _UTSNAME_LENGTH) != 0)
             return -1;
-        if (copy_to_user(buf->machine, bomboclaat_utsname.machine, _UTSNAME_LENGTH) != 0)
+        if (copy_to_user(buf->machine, utsname.machine, _UTSNAME_LENGTH) != 0)
             return -1;
 
         return 0;
@@ -209,18 +197,6 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     case 9: // brk
     {
         // TODO: fix it (but execve has to be fixed first)
-        extern vmm_table_t *kernel_pml4_virt;
-        extern uint8_t *task_heap;
-        size_t increment = (size_t)ctx->arg1;
-        uint8_t *previous_heap_end = task_heap;
-        task_heap += increment;
-        for (int i = 0; i < (increment / PAGE_SIZE) + 1; i++)
-        {
-            task_heap += i;
-            void *frame = pmm_alloc_frame();
-            vmm_map_page(kernel_pml4_virt, (uintptr_t)task_heap, (uintptr_t)frame, VMM_PRESENT | VMM_WRITE | VMM_USER);
-        }
-        return (uint64_t)previous_heap_end;
     }
     case 10: // file open
     {
@@ -266,4 +242,14 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     default:
         return -1;
     }
+}
+
+void set_syscall_kernel_stack(uint64_t rsp)
+{
+    cpu_data.kernel_rsp = rsp;
+}
+
+uint64_t get_user_rsp(void)
+{
+    return cpu_data.user_rsp;
 }

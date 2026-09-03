@@ -20,7 +20,7 @@
 #include <syscall.h>
 #include <stdint.h>
 
-int main(int argc, char **argv)
+int main()
 {
     asm volatile(
         "syscall"
@@ -29,9 +29,14 @@ int main(int argc, char **argv)
 
     printf("%s\n", OSVER);
 
-    int _argc = 1;
-    char *_argv[1] = {0};
+    int status = 0;
+    int pid = sys_fork();
 
-    sysexec("/bin/shell", _argc, _argv);
+    char *argv[2] = {"/bin/shell", NULL};
+
+    sys_execve("/bin/shell", argv);
+    status = sys_waitpid(pid);
+    printf("/bin/shell ended with status %d\n", status);
+
     return 0;
 }

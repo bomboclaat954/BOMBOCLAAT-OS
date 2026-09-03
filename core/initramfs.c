@@ -28,11 +28,12 @@
 #include <bomboclaat/kprintf.h>
 #include <bomboclaat/panic.h>
 #include <bomboclaat/initramfs.h>
-#include <tasks/loader.h>
+#include <bomboclaat/types.h>
 #include <tasks/tasks.h>
+#include <tasks/fork.h>
+#include <tasks/exec.h>
 #include <fs/tmpfs.h>
 
-uint8_t *task_heap;
 tmpfs_file_t **initramfs_files;
 extern tmpfs_dir_t *tmpfs_root;
 
@@ -139,10 +140,12 @@ void initramfs()
 
     void *init_data = initramfs_files[init_pos]->content;
 
-    task_heap = kmalloc(65536);
-    int frames = (init_size + PAGE_SIZE - 1) >> 12;
+    /*
+        THEORETICALLY I could use fork() and execve() here (because the kernel task is already running),
+        but I'm a bit afraid it won't work so I'll keep it like that.
+    */
+    task_t *init_task = task_create(init_data, 0, "/bin/init", 0, 0, 4);
 
-    task_t *init_task = task_create(init_data, 0, "/bin/init", 0, 0, frames);
     if (init_task == NULL)
         panic("Failed to create init process", 0, 0);
 }

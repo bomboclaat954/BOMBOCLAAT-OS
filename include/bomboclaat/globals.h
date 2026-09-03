@@ -7,7 +7,6 @@
 #define GLOBALS_H
 #include <int/int.h>
 #include <memory/stack.h>
-#include <boot/limine.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -15,9 +14,10 @@ extern "C"
 #endif
 
 #define NULL ((void *)0)
-#define HEAP_SIZE 64 * (1024 * 1024) // 64 MB
+#define HEAP_SIZE 32 * (1024 * 1024) // 32 MB
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
-    extern char *UNAME[3];
+#define SHIFT_L(x, y) x << y
+#define SHIFT_R(x, y) x >> y
     extern stack_t system_stack;
     extern uint64_t hhdm_offset;
 

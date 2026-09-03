@@ -15,10 +15,14 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
+/*
+    That file is an absolute dinosaur of this project. Back in the
+    day when I still developed 1.x it was used to play Layla on the
+    PC speaker. Now it's completely useless.
+*/
 #include <lib/music.h>
 #include <drivers/io.h>
-#include <int/int.h>
+#include <x86_64/pit.h>
 
 void tone(uint32_t freq)
 {
@@ -33,9 +37,7 @@ void tone(uint32_t freq)
     tmp = inb(0x61);
 
     if (!(tmp & 3))
-    {
         outb(0x61, tmp | 3);
-    }
 }
 
 void noTone()

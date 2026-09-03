@@ -35,12 +35,14 @@ NEW_BUILD_NO := $(shell echo $$(($(BUILD_NO) + 1)))
 
 INITRAMFS = init.cpio
 
-all: limine_download prepare $(ALL_OBJECTS) link $(INITRAMFS) iso_gen
+all: iso_gen
 	@echo "Done"
 
 prepare:
 	@echo $(NEW_BUILD_NO) > build_no.txt
 	@mkdir -p build iso
+
+$(ALL_OBJECTS): | prepare
 
 limine_download:
 	@if [ ! -d "limine-binary" ]; then \
@@ -75,19 +77,19 @@ build_os:
 $(INITRAMFS): build_os
 	@mv bomboclaat-os/init.cpio $(INITRAMFS)
 
-link:
+link: $(ALL_OBJECTS)
 	$(eval ALL_OBJ := $(shell find build -name "*.o"))
 	$(eval BOOT_OBJ := $(shell find build -name "boot.asm.o"))
 	$(eval OTHER_OBJ := $(filter-out $(BOOT_OBJ), $(ALL_OBJ)))
-	@echo "  LD   build/bomboclaat"
-	@ld $(LDFLAGS) -o build/bomboclaat $(BOOT_OBJ) $(OTHER_OBJ)
+	@echo "  LD   build/mierdux"
+	@ld $(LDFLAGS) -o build/mierdux $(BOOT_OBJ) $(OTHER_OBJ)
 
-iso_gen:
+iso_gen: link $(INITRAMFS) limine_download
 	@echo "Generating ISO image..."
 	@mkdir -p iso/boot/limine
 	@mkdir -p iso/EFI/BOOT
 	
-	@cp build/bomboclaat iso/boot/
+	@cp build/mierdux iso/boot/
 	@cp limine.conf iso/boot/limine/
 	@cp init.cpio iso/boot/
 	
@@ -110,7 +112,6 @@ run:
 	    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/x64/OVMF_CODE.4m.fd \
 	    -drive if=pflash,format=raw,file=./OVMF_VARS.fd \
 	    -cdrom bomboclaat-os.iso \
-	    -hda disk.img \
 	    -boot d \
 	    -audiodev pipewire,id=speaker \
 	    -machine pcspk-audiodev=speaker \
@@ -125,7 +126,6 @@ run-gdb:
 	    -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/x64/OVMF_CODE.4m.fd \
 	    -drive if=pflash,format=raw,file=./OVMF_VARS.fd \
 	    -cdrom bomboclaat-os.iso \
-	    -hda disk.img \
 	    -boot d \
 	    -audiodev pipewire,id=speaker \
 	    -machine pcspk-audiodev=speaker \
@@ -150,4 +150,4 @@ clean:
 clean-all: clean
 	@rm -rf limine-binary
 
-.PHONY: all prepare build_os clean clean-all run disk-img limine_download
+.PHONY: all prepare build_os clean clean-all run run-gdb disk-img limine_download link iso_gen

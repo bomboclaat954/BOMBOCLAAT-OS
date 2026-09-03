@@ -30,11 +30,13 @@ CPP_OBJECTS = $(patsubst ./%, build/%.o, $(CPP_SOURCES))
 ASM_OBJECTS = $(patsubst ./%, build/%.o, $(ASM_SOURCES))
 ALL_OBJECTS = $(C_OBJECTS) $(CPP_OBJECTS) $(ASM_OBJECTS)
 
-all: prepare $(ALL_OBJECTS) link mkramfs
+all: link mkramfs
 
 prepare:
 	@rm -rf build
 	@mkdir -p build
+
+$(ALL_OBJECTS): | prepare
 
 build/%.c.o: %.c
 	@mkdir -p "$(dir $@)"
@@ -51,7 +53,7 @@ build/%.asm.o: %.asm
 	@echo "  AS   $<"
 	@nasm -f elf64 $< -o $@
 
-link:
+link: $(ALL_OBJECTS)
 	$(eval ALL_OBJS := $(wildcard build/*.o))
 	$(eval ENTRY_OBJ := build/entry.asm.o)
 	$(eval APP_OBJS := $(filter-out $(ENTRY_OBJ),$(ALL_OBJS)))
@@ -63,7 +65,7 @@ link:
 		ld $(LDFLAGS) -o build/$$name.elf $(ENTRY_OBJ) $$obj $(LIB_OBJS) $(CMD_OBJS); \
 	done
 
-mkramfs:
+mkramfs: link
 	$(eval ELF_OBJS := $(wildcard build/*.elf))
 	@for obj in $(ELF_OBJS); do \
 		name=$$(basename $$obj .elf); \

@@ -13,18 +13,52 @@
 ; *
 ; * You should have received a copy of the GNU General Public License
 ; * along with this program. If not, see <https://www.gnu.org/licenses/>.
-
+; In case if you don't understand this code, don't worry, neither do I
 bits 64
 
-global switch_to_task
-switch_to_task:
-    mov rax, cr3
-    cmp rax, rsi
-    je .skip_cr3
-    mov cr3, rsi
-    .skip_cr3:
-        mov rsp, rdi
+global cpu_switch_context
+global ret_from_fork
 
+cpu_switch_context:
+    push rax
+    push rbx
+    push rcx
+    push rdx
+    push rsi
+    push rdi
+    push rbp
+    push r8
+    push r9
+    push r10
+    push r11
+    push r12
+    push r13
+    push r14
+    push r15
+
+    mov [rdi], rsp
+    mov rsp, rsi
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    add rsp, 16
+    sti
+    ret
+
+ret_from_fork:
     movzx eax, word [rsp + 144]
     and al, 3
     cmp al, 3

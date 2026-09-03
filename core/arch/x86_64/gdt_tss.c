@@ -16,7 +16,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <int/int.h>
+#include <x86_64/gdt_tss.h>
 #include <stddef.h>
 #include <memory/memtools.h>
 

@@ -17,7 +17,8 @@
  */
 
 #include <drivers/io.h>
-#include <int/int.h>
+#include <x86_64/lapic.h>
+#include <x86_64/pit.h>
 #include <memory/vmm.h>
 
 volatile uintptr_t lapic_base = 0;

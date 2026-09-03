@@ -19,11 +19,12 @@ extern main
 global _start
 
 _start:
-    mov rdi, [rsp] ;argc
-    lea rsi, [rsp + 8] ;argv
+    mov rdi, [rsp]      ;argc
+    lea rsi, [rsp + 8]  ;argv
     call main
-
-    mov rax, 3
-    int 0x80
+    
+    mov rdi, rax
+    mov rax, 5
+    syscall
     .dead_loop: ;in case if the syscall didn't work
         jmp .dead_loop

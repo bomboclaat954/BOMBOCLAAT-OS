@@ -6,6 +6,19 @@
 #ifndef EXEC_H
 #define EXEC_H
 
-int execve(char *path, char *argv[], int argc, char *envp[]);
+#include <tasks/tasks.h>
+
+/*
+    I saw this one in FreeBSD's code and I thought it looks nice
+    so I stole the idea and here it is :)
+*/
+struct execve_args
+{
+    char *path;
+    char **argv;
+    char **envp;
+};
+
+int execve(struct execve_args args);
 
 #endif

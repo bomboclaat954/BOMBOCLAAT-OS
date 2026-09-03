@@ -21,7 +21,7 @@
 #include <memory/memtools.h>
 #include <memory/kmalloc.h>
 #include <lib/string.h>
-#include <fonts/terminus-normal.h>
+#include <fonts/terminus-bold.h>
 #include <fs/devfs.h>
 #include <bomboclaat/kprintf.h>
 

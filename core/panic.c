@@ -16,7 +16,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <int/int.h>
+#include <x86_64/cpu.h>
 #include <bomboclaat/globals.h>
 #include <bomboclaat/kprintf.h>
 #include <drivers/screen.h>
@@ -57,6 +57,10 @@ void reg_dump(registers_t *r)
           "=m"(r->r15));
 }
 
+/*
+    If something goes REALLY bad, that bad that the system cannot continue
+    its work because it'll only make things worse, this function will be called.
+*/
 void panic(char *msg, registers_t *r, int from_cpu)
 {
     if (!r)

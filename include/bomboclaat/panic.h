@@ -5,7 +5,7 @@
 
 #ifndef PANIC_H
 #define PANIC_H
-#include <int/int.h>
+#include <x86_64/cpu.h>
 
 void panic(char *msg, registers_t *r, int from_cpu);
 

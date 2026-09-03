@@ -16,20 +16,11 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stdint.h>
 #include <drivers/io.h>
-#include <int/int.h>
+#include <x86_64/pic.h>
 
-volatile uint64_t ticks = 0;
-
-uint64_t pit_get_ticks(void)
+void pic_disable(void)
 {
-    return ticks;
-}
-
-void delay_ms(uint64_t ms)
-{
-    uint64_t target = ticks + ms;
-    while (ticks < target)
-        ;
+    outb(0x21, 0xFF);
+    outb(0xA1, 0xFF);
 }

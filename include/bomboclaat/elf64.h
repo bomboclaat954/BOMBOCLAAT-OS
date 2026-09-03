@@ -9,6 +9,10 @@
 #include <stdint.h>
 
 #define ELF_MAGIC 0x464C457F
+#define PT_LOAD 1
+#define PF_X 0x01
+#define PF_W 0x02
+#define PF_R 0x04
 
 typedef struct
 {
@@ -40,6 +44,18 @@ typedef struct
     uint64_t p_align;
 } __attribute__((packed)) ELF64_Phdr;
 
-#define PT_LOAD 1
+typedef struct
+{
+    uint32_t sh_name;
+    uint32_t sh_type;
+    uint64_t sh_flags;
+    uint64_t sh_addr;
+    uint64_t sh_offset;
+    uint64_t sh_size;
+    uint32_t sh_link;
+    uint32_t sh_info;
+    uint64_t sh_addralign;
+    uint64_t sh_entsize;
+} __attribute__((packed)) ELF64_Shdr;
 
 #endif

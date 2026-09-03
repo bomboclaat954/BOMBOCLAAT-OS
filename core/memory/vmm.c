@@ -79,25 +79,38 @@ int vmm_map_page(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t phys, uint
     return 0;
 }
 
-void vmm_unmap_page(vmm_table_t *pml4_virtual, uintptr_t virt)
+int vmm_unmap_page(vmm_table_t *pml4_virtual, uintptr_t virt)
 {
     pt_entry_t pml4_entry = pml4_virtual->entries[PML4_INDEX(virt)];
     if (!(pml4_entry & VMM_PRESENT))
-        return;
+        return -1;
     uintptr_t pdpt_phys = pml4_entry & CLEAR_FLAGS;
     vmm_table_t *pdpt_virtual = (vmm_table_t *)(pdpt_phys + hhdm_offset);
     pt_entry_t pdpt_entry = pdpt_virtual->entries[PDPT_INDEX(virt)];
     if (!(pdpt_entry & VMM_PRESENT))
-        return;
+        return -1;
     uintptr_t pd_phys = pdpt_entry & CLEAR_FLAGS;
     vmm_table_t *pd_virtual = (vmm_table_t *)(pd_phys + hhdm_offset);
     pt_entry_t pd_entry = pd_virtual->entries[PD_INDEX(virt)];
     if (!(pd_entry & VMM_PRESENT))
-        return;
+        return -1;
     uintptr_t pt_phys = pd_entry & CLEAR_FLAGS;
     vmm_table_t *pt_virtual = (vmm_table_t *)(pt_phys + hhdm_offset);
     pt_virtual->entries[PT_INDEX(virt)] = 0;
     asm volatile("invlpg (%0)" ::"r"(virt) : "memory");
+
+    return 0;
+}
+
+int vmm_remap_page(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t phys, uintptr_t flags)
+{
+    if (vmm_unmap_page(pml4_virtual, virt) != 0)
+        return -1;
+
+    if (vmm_map_page(pml4_virtual, virt, phys, flags) != 0)
+        return -1;
+
+    return 0;
 }
 
 int vmm_resolve(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t *phys_out, uint64_t *flags_out)
@@ -160,6 +173,22 @@ vmm_table_t *vmm_init()
         table->entries[i] = kernel_pml4_virt->entries[i];
 
     return table;
+}
+
+vmm_table_t *vmm_clone_user_space(vmm_table_t *parent_pml4)
+{
+    vmm_table_t *ret = (vmm_table_t *)kmalloc(sizeof(vmm_table_t));
+
+    ret = vmm_init();
+    for (int i = 0; i < 256; i++)
+        ret->entries[i] = parent_pml4->entries[i];
+
+    return ret;
+}
+
+void vmm_free(vmm_table_t *pml4)
+{
+    return;
 }
 
 vmm_table_t *vmm_init_kernel()

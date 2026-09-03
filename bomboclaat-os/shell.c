@@ -72,7 +72,7 @@ int parse_args(char *cmdline, char *out_buf[])
     return argc;
 }
 
-int main(int argc, char **argv)
+int main()
 {
     while (1)
     {
@@ -92,27 +92,22 @@ int main(int argc, char **argv)
 
         char path[32];
         sprintf(path, "/bin/%s", cmd);
-        char *_argv[32];
-        int _argc = parse_args(cmd_line, _argv);
+        char *argv[32];
+        parse_args(cmd_line, argv);
 
         if (strcmp(cmd_line, "\0") == 0)
             continue;
 
-        /*  NEW WAY OF EXECUTING COMMANDS (will be used once I fix the syscalls):
-            pid_t cmd_task = fork();
-            if (cmd_task > 0)
-            {
-                execve(path, _argc, _argv);
-                int stat = waitpid(cmd_task);
-                if (stat != 0)
-                    printf("Error while executing command. Status code: %d\n", stat);
-            }
-        */
-        // btw I have to port some usable libc because my one sucks
+        int status = 0;
+        int pid = sys_fork();
 
-        int stat = sysexec(path, _argc, _argv);
-        if (stat != 0)
-            printf("Error while executing command. Status code: %d\n", stat);
+        status = sys_execve(path, argv);
+        if (status != 0)
+            printf("Process returned status %d\n", status);
+
+        status = sys_waitpid(pid);
+        if (status != 0)
+            printf("Process returned status %d\n", status);
     }
     return 0;
 }

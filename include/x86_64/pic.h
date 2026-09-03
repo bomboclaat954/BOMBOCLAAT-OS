@@ -3,9 +3,9 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-#ifndef CALC_H
-#define CALC_H
+#ifndef PIC_H
+#define PIC_H
 
-void calc_main(char *x);
+void pic_disable(void);
 
 #endif

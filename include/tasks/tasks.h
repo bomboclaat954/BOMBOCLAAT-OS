@@ -11,25 +11,13 @@
 #include <fs/vfs.h>
 #include <memory/vmm.h>
 #include <bomboclaat/types.h>
+#include <x86_64/cpu.h>
 
 #define MAX_FILES_PER_TASK 32
 #define MAX_TASKS 32
 #define TASK_STACK_SENTINEL 0xC0FFEE00C0FFEE00ULL
 
-typedef struct vmm_table vmm_table_t;
-
-typedef struct
-{
-    uint64_t r15, r14, r13, r12, r11, r10, r9, r8;
-    uint64_t rbp, rdi, rsi, rdx, rcx, rbx, rax;
-    uint64_t int_no;
-    uint64_t err_code;
-    uint64_t rip;
-    uint64_t cs;
-    uint64_t rflags;
-    uint64_t rsp;
-    uint64_t ss;
-} __attribute__((packed)) context_t;
+typedef registers_t context_t; // same struct btw
 
 typedef enum
 {
@@ -49,32 +37,33 @@ typedef enum
 struct task
 {
     pid_t pid;
-
     struct task *parent;
     list_head_t children;
     list_head_t sibling; // why in singular form?
     task_state_t state;
-
     vmm_table_t *pml4;
     uintptr_t kstack_top;
+    uintptr_t kernel_rsp;
     uintptr_t kstack_frames[4];
-    uintptr_t rsp;
-    mm_t *mm; // not used in old task_create, but used in execve
-
+    context_t cpu_ctx;
+    mm_t mm;
     char name[64];
     struct task *next;
-
     vfs_file_t *fd_table[MAX_FILES_PER_TASK];
+    vfs_inode_t *current_dir;
+    int exit_code;
 } typedef task_t;
 
 void task_init(void);
+task_t *find_by_pid(int pid);
+int find_in_array(task_t *t);
 int task_insert(task_t *t);
 task_t *find_just_forked();
 task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char **argv, int frames);
-context_t *schedule(context_t *ctx);
-void task_exit(context_t *ctx);
 pid_t new_pid();
+void sched(void);
 
-extern void switch_to_task(uintptr_t next_rsp, uintptr_t next_cr3) __attribute__((noreturn));
+extern void cpu_switch_context(uintptr_t *old_rsp, uintptr_t new_rsp);
+extern task_t *current_task;
 
 #endif

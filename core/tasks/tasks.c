@@ -21,7 +21,7 @@
 #include <memory/kmalloc.h>
 #include <memory/vmm.h>
 #include <memory/pmm.h>
-#include <int/int.h>
+#include <x86_64/gdt_tss.h>
 #include <bomboclaat/elf64.h>
 #include <bomboclaat/types.h>
 #include <bomboclaat/kprintf.h>
@@ -30,11 +30,27 @@
 
 extern vmm_table_t *kernel_pml4_virt;
 extern uint64_t hhdm_offset;
-extern tss_ptr tss;
+extern int elf_alloc(void *elf_data, task_t *task, ELF64_Phdr *ph_table, uint16_t e_phnum);
+extern void ret_from_fork();
 
 task_t *tasks[MAX_TASKS] = {NULL};
 task_t *current_task = NULL;
+task_t *task_to_reap = NULL;
 int next_pid = 1;
+
+uintptr_t build_kernel_frame(task_t *task)
+{
+    uintptr_t base = (task->kstack_top - sizeof(context_t) - 144) & ~0xFULL;
+    uint64_t *dummy_regs = (uint64_t *)base;
+
+    for (int i = 0; i < 15; i++)
+        dummy_regs[i] = 0;
+
+    *(uint64_t *)(base + 136) = (uint64_t)ret_from_fork;
+    *(context_t *)(base + 144) = task->cpu_ctx;
+
+    return base;
+}
 
 int find_free_slot()
 {
@@ -69,11 +85,11 @@ task_t *find_by_pid(int pid)
 int task_insert(task_t *t)
 {
     int slot = find_free_slot();
-    if (!slot)
+    if (slot < 0)
         return -1;
 
     tasks[slot] = t;
-    return memcmp(tasks[slot], t, sizeof(*t)); // if something fucks up you'll know abt it
+    return 0;
 }
 
 task_t *find_just_forked()
@@ -96,25 +112,27 @@ void kernel_idle_loop()
 void task_init(void)
 {
     task_t *kernel_task = (task_t *)kmalloc(sizeof(task_t));
+    memset(kernel_task, 0, sizeof(task_t));
+
     kernel_task->pid = 0;
     strcpy("kernel", kernel_task->name);
     kernel_task->state = TASK_BLOCKED;
     kernel_task->pml4 = kernel_pml4_virt;
 
-    void *kstack_phys = pmm_alloc_frame();
-    kernel_task->kstack_top = (uintptr_t)kstack_phys + hhdm_offset + PAGE_SIZE;
-    kernel_task->rsp = kernel_task->kstack_top - sizeof(context_t);
-
-    context_t *ctx = (context_t *)kernel_task->rsp;
-    memset(ctx, 0, sizeof(context_t));
-
+    for (int i = 0; i < 4; i++)
+    {
+        void *frame = pmm_alloc_frame();
+        kernel_task->kstack_frames[i] = (uintptr_t)frame;
+    }
+    kernel_task->kstack_top = kernel_task->kstack_frames[3] + hhdm_offset + PAGE_SIZE;
     *(uint64_t *)(kernel_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;
+    kernel_task->kernel_rsp = build_kernel_frame(kernel_task);
 
-    ctx->rip = (uint64_t)kernel_idle_loop;
-    ctx->cs = 0x28;
-    ctx->ss = 0x30;
-    ctx->rflags = 0x202;
-    ctx->rsp = kernel_task->kstack_top;
+    kernel_task->cpu_ctx.cs = 0x28;
+    kernel_task->cpu_ctx.ss = 0x30;
+    kernel_task->cpu_ctx.rflags = 0x202;
+    kernel_task->cpu_ctx.rsp = kernel_task->kstack_top;
+    kernel_task->cpu_ctx.rip = (uint64_t)kernel_idle_loop;
 
     kernel_task->next = kernel_task;
     kernel_task->parent = kernel_task;
@@ -131,6 +149,10 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
         return NULL;
 
     task_t *new_task = (task_t *)kmalloc(sizeof(task_t));
+    if (!new_task)
+        return NULL;
+    memset(new_task, 0, sizeof(task_t));
+
     strcpy(name, new_task->name);
     new_task->pid = next_pid++;
     new_task->parent = current_task;
@@ -140,54 +162,30 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     list_add_tail(&new_task->sibling, &current_task->children);
 
     ELF64_Phdr *ph_table = (ELF64_Phdr *)((uintptr_t)elf_data + header->e_phoff);
-    for (int i = 0; i < header->e_phnum; i++)
+    if (elf_alloc(elf_data, new_task, ph_table, header->e_phnum) != 0)
     {
-        ELF64_Phdr *phdr = &ph_table[i];
-        if (phdr->p_type == PT_LOAD)
-        {
-            uintptr_t page_boundary_dist = phdr->p_vaddr & 0xFFF;
-
-            uintptr_t current_virt = phdr->p_vaddr & ~0xFFFULL;
-            size_t bytes_written = 0;
-            size_t mem_size = phdr->p_memsz;
-            size_t file_size = phdr->p_filesz;
-            size_t file_bytes_written = 0;
-
-            while (bytes_written < mem_size)
-            {
-                void *phys_frame = pmm_alloc_frame();
-                vmm_map_page(new_task->pml4, current_virt, (uintptr_t)phys_frame, VMM_PRESENT | VMM_WRITE | VMM_USER);
-
-                uint8_t *kvirt = (uint8_t *)((uintptr_t)phys_frame + hhdm_offset);
-                memset(kvirt, 0, PAGE_SIZE);
-
-                uintptr_t dest_off = (bytes_written == 0) ? page_boundary_dist : 0;
-                size_t space = PAGE_SIZE - dest_off;
-
-                if (file_bytes_written < file_size)
-                {
-                    size_t to_copy = file_size - file_bytes_written;
-                    if (to_copy > space)
-                        to_copy = space;
-
-                    memcpy(kvirt + dest_off, (uint8_t *)elf_data + phdr->p_offset + file_bytes_written, to_copy);
-
-                    file_bytes_written += to_copy;
-                }
-
-                bytes_written += space;
-                current_virt += PAGE_SIZE;
-            }
-        }
+        kfree(new_task);
+        return NULL;
     }
 
-    uintptr_t user_stack_virtual = 0xFFFFFFF000000000; // 0xFFFFFFFFD0000000
+    uintptr_t user_stack_virtual = 0xFFFFFFF000000000;
 
     void *top_frame_phys = NULL;
     for (int i = 0; i < frames; i++)
     {
         void *frame_phys = pmm_alloc_frame();
-        vmm_map_page(new_task->pml4, user_stack_virtual + (i * PAGE_SIZE), (uintptr_t)frame_phys, VMM_PRESENT | VMM_WRITE | VMM_USER);
+        if (!frame_phys)
+        {
+            kfree(new_task);
+            return NULL;
+        }
+
+        if (vmm_map_page(new_task->pml4, user_stack_virtual + (i * PAGE_SIZE), (uintptr_t)frame_phys, VMM_PRESENT | VMM_WRITE | VMM_USER) != 0)
+        {
+            kfree(new_task);
+            return NULL;
+        }
+
         if (i == frames - 1)
             top_frame_phys = frame_phys;
     }
@@ -205,17 +203,30 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
         vmm_map_page(new_task->pml4, virt, phys, VMM_PRESENT | VMM_WRITE | VMM_USER);
     }
 
-    uintptr_t k_stack_high = (uintptr_t)top_frame_phys + hhdm_offset + PAGE_SIZE;
-    size_t frame_offset = PAGE_SIZE;
+    uintptr_t top_frame_kvirt = (uintptr_t)top_frame_phys + hhdm_offset;
+    uintptr_t frame_offset = PAGE_SIZE;
 
     uintptr_t *user_argv_addrs = (uintptr_t *)kmalloc(sizeof(uintptr_t) * (argc + 1));
+    if (!user_argv_addrs)
+    {
+        kfree(new_task);
+        return NULL;
+    }
 
     for (int i = argc - 1; i >= 0; i--)
     {
         size_t len = argv[i] ? (strlen(argv[i]) + 1) : 0;
+
+        if (len > frame_offset)
+        {
+            kfree(user_argv_addrs);
+            kfree(new_task);
+            return NULL;
+        }
+
         frame_offset -= len;
 
-        char *dest = (char *)(k_stack_high - (PAGE_SIZE - frame_offset));
+        char *dest = (char *)(top_frame_kvirt + frame_offset);
         if (argv[i])
             memcpy(dest, argv[i], strlen(argv[i]));
 
@@ -228,13 +239,13 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     size_t argv_array_size = sizeof(uintptr_t) * (argc + 1);
     frame_offset -= argv_array_size;
 
-    uintptr_t *dest_argv_array = (uintptr_t *)(k_stack_high - (PAGE_SIZE - frame_offset));
+    uintptr_t *dest_argv_array = (uintptr_t *)(top_frame_kvirt + frame_offset);
     memcpy((uint8_t *)dest_argv_array, (uint8_t *)user_argv_addrs, argv_array_size);
 
     uintptr_t user_argv_ptr = (user_stack_virtual + (frames * PAGE_SIZE)) - (PAGE_SIZE - frame_offset);
 
     frame_offset -= sizeof(uintptr_t);
-    uintptr_t *dest_argc = (uintptr_t *)(k_stack_high - (PAGE_SIZE - frame_offset));
+    uintptr_t *dest_argc = (uintptr_t *)(top_frame_kvirt + frame_offset);
     *dest_argc = (uintptr_t)argc;
 
     uintptr_t user_rsp = (user_stack_virtual + (frames * PAGE_SIZE)) - (PAGE_SIZE - frame_offset);
@@ -244,93 +255,51 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     for (int i = 0; i < 4; i++)
     {
         void *kstack_phys = pmm_alloc_frame();
+        if (!kstack_phys)
+        {
+            kfree(new_task);
+            return NULL;
+        }
         new_task->kstack_frames[i] = (uintptr_t)kstack_phys;
     }
     new_task->kstack_top = new_task->kstack_frames[3] + hhdm_offset + PAGE_SIZE;
+    *(uint64_t *)(new_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;
+    new_task->kernel_rsp = build_kernel_frame(new_task);
 
-    new_task->rsp = new_task->kstack_top - sizeof(context_t);
-    context_t *ctx = (context_t *)new_task->rsp;
-    memset(ctx, 0, sizeof(context_t));
-
-    uint64_t kbdsz = 0;
-    vfs_open("/dev/kbd", 0, &kbdsz, new_task->fd_table);
-
-    *(uint64_t *)(new_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL; // will be checked later, don't worry
-
-    ctx->rip = header->e_entry;
-    ctx->rsp = user_rsp;
-    ctx->cs = 0x43;
-    ctx->ss = 0x3B;
-    ctx->rflags = 0x202;
-    ctx->int_no = 0;
-    ctx->err_code = 0;
-    ctx->rdi = argc;
-    ctx->rsi = user_argv_ptr;
+    new_task->cpu_ctx.rip = header->e_entry;
+    new_task->cpu_ctx.rsp = user_rsp;
+    new_task->cpu_ctx.cs = 0x43;
+    new_task->cpu_ctx.ss = 0x3B;
+    new_task->cpu_ctx.rflags = 0x202;
+    new_task->cpu_ctx.rdi = argc;
+    new_task->cpu_ctx.rsi = user_argv_ptr;
 
     new_task->next = current_task->next;
     current_task->next = new_task;
     new_task->state = TASK_READY;
 
-    task_insert(new_task);
+    if (task_insert(new_task) < 0)
+    {
+        kfree(new_task);
+        return NULL;
+    }
+
     return new_task;
 }
 
-static void reap_zombie(void);
-
-context_t *schedule(context_t *ctx)
+void unlink_from_runqueue(task_t *victim)
 {
-    asm volatile("cli");
-    reap_zombie();
-    if (current_task == NULL)
-        return ctx;
-
-    current_task->rsp = (uintptr_t)ctx;
-
-    if (current_task->state == TASK_RUNNING)
-        current_task->state = TASK_READY;
-
-    task_t *next = current_task->next;
-    int safety_counter = 0;
-
-    while (next->state != TASK_READY && safety_counter < 64)
+    task_t *node = current_task;
+    do
     {
-        next = next->next;
-        safety_counter++;
-    }
-
-    if (next->state != TASK_READY)
-    {
-        task_t *search = current_task;
-        do
+        if (node->next == victim)
         {
-            if (search->pid == 0)
-            {
-                next = search;
-                break;
-            }
-            search = search->next;
-        } while (search != current_task);
-    }
-
-    current_task = next;
-    current_task->state = TASK_RUNNING;
-
-    tss.rsp0 = current_task->kstack_top;
-    uintptr_t next_cr3 = (uintptr_t)current_task->pml4 - hhdm_offset;
-
-    uint64_t *sentinel = (uint64_t *)(current_task->kstack_frames[3] + hhdm_offset + 8);
-    if (*sentinel != TASK_STACK_SENTINEL)
-        // I forgot to add current_task->pid and it showed some random garbage from the memory, genius moment
-        log(LOG_ERR, "Task PID %d: stack sentinel is corrupted", current_task->pid);
-
-    asm volatile("sti");
-    switch_to_task(current_task->rsp, next_cr3);
-
-    while (1)
-        asm volatile("hlt");
+            node->next = victim->next;
+            break;
+        }
+        node = node->next;
+    } while (node != current_task);
 }
-
-task_t *task_to_reap = NULL;
 
 void reap_zombie(void)
 {
@@ -340,43 +309,13 @@ void reap_zombie(void)
     task_t *zombie = task_to_reap;
     task_to_reap = NULL;
 
-    // vmm_unmap_page(zombie->pml4, (uintptr_t)zombie->pml4 + hhdm_offset);
+    unlink_from_runqueue(zombie);
     pmm_free_frame((void *)((uintptr_t)zombie->pml4 - hhdm_offset));
 
     for (int i = 0; i < 4; i++)
         pmm_free_frame((void *)zombie->kstack_frames[i]);
 
     kfree(zombie);
-}
-
-void task_exit(context_t *ctx)
-{
-    task_t *prev = current_task;
-    prev->state = TASK_ZOMBIE;
-
-    int slot = find_in_array(prev);
-    if (slot >= 0)
-        tasks[slot] = NULL;
-
-    if (prev->next == prev)
-        ;
-    else
-    {
-        task_t *runner = prev->next;
-        while (runner->next != prev)
-            runner = runner->next;
-        runner->next = prev->next;
-    }
-
-    task_t *parent = find_by_pid(prev->parent->pid);
-    if (parent != NULL)
-        parent->state = TASK_READY;
-
-    task_to_reap = prev;
-
-    schedule(ctx);
-    while (1)
-        asm volatile("hlt");
 }
 
 pid_t new_pid()

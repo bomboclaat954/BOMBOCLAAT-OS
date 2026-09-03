@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <sys/utsname.h>
+typedef int pid_t;
 
 int uname(struct utsname *_utsname)
 {
@@ -32,13 +33,48 @@ int uname(struct utsname *_utsname)
     return res;
 }
 
-int sysexec(char *path, int argc, char **argv) // TO BE REPLACED WITH FORK AND EXECVE
+pid_t sys_fork()
 {
-    int res;
+    pid_t res = 0;
     asm volatile(
-        "int $0x80"
+        "syscall"
         : "=a"(res)
-        : "a"(2), "D"(path), "S"(argv), "d"(argc)
-        : "memory");
+        : "a"(2)
+        : "rcx", "r11", "memory");
+    return res;
+}
+
+int sys_execve(char *path, char **argv)
+{
+    int res = 0;
+
+    asm volatile(
+        "syscall"
+        : "=a"(res)
+        : "a"(3), "D"(path), "S"(argv)
+        : "rcx", "r11", "memory");
+
+    return res;
+}
+
+int sys_waitpid(pid_t pid)
+{
+    int res = 0;
+    asm volatile(
+        "syscall"
+        : "=a"(res)
+        : "a"(4), "D"(pid)
+        : "rcx", "r11", "memory");
+    return res;
+}
+
+int sys_exit(int code)
+{
+    int res = 0;
+    asm volatile(
+        "syscall"
+        : "=a"(res)
+        : "a"(5)
+        : "rcx", "r11", "memory");
     return res;
 }

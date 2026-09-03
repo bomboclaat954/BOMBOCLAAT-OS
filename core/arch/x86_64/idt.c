@@ -16,7 +16,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <int/int.h>
+#include <x86_64/idt.h>
 #include <bomboclaat/kprintf.h>
 
 __attribute__((aligned(0x10))) static idt_entry_t idt[256];

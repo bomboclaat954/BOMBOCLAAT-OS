@@ -21,9 +21,9 @@
 int main(int argc, char **argv)
 {
     asm volatile(
-        "int $0x80"
+        "syscall"
         :
-        : "a"(5)
+        : "a"(14)
         : "memory");
     return 0;
 }

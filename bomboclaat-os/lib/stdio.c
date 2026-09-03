@@ -167,7 +167,7 @@ int printf(char *fmt, ...)
     asm volatile(
         "int $0x80"
         :
-        : "a"(1), "D"(buf)
+        : "a"(1), "D"(buf), "S"(strlen(buf))
         : "memory");
     /*int i = 0;
     while (buf[i])
