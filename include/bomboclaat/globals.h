@@ -5,7 +5,6 @@
 
 #ifndef GLOBALS_H
 #define GLOBALS_H
-#include <int/int.h>
 #include <memory/stack.h>
 
 #ifdef __cplusplus

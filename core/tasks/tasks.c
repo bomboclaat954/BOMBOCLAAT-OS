@@ -31,25 +31,43 @@
 extern vmm_table_t *kernel_pml4_virt;
 extern uint64_t hhdm_offset;
 extern int elf_alloc(void *elf_data, task_t *task, ELF64_Phdr *ph_table, uint16_t e_phnum);
-extern void ret_from_fork();
+extern void ret_from_fork(void);
+extern void ret_from_fork_syscall(void);
 
 task_t *tasks[MAX_TASKS] = {NULL};
 task_t *current_task = NULL;
 task_t *task_to_reap = NULL;
 int next_pid = 1;
 
+static uintptr_t build_kernel_frame_generic(task_t *task, void (*trampoline)(void))
+{
+    uintptr_t base = (task->kstack_top - 56 - sizeof(context_t)) & ~0xFULL;
+    uint64_t *callee_saved = (uint64_t *)base;
+
+    for (int i = 0; i < 6; i++)
+        callee_saved[i] = 0;
+
+    *(uint64_t *)(base + 48) = (uint64_t)trampoline;
+
+    context_t *frame = (context_t *)(base + 56);
+    *frame = task->cpu_ctx;
+
+    uint64_t *gp_regs = (uint64_t *)frame;
+    for (int i = 0; i < 15; i++)
+        gp_regs[i] = 0;
+
+    task->kernel_rsp = base;
+    return base;
+}
+
 uintptr_t build_kernel_frame(task_t *task)
 {
-    uintptr_t base = (task->kstack_top - sizeof(context_t) - 144) & ~0xFULL;
-    uint64_t *dummy_regs = (uint64_t *)base;
+    return build_kernel_frame_generic(task, ret_from_fork);
+}
 
-    for (int i = 0; i < 15; i++)
-        dummy_regs[i] = 0;
-
-    *(uint64_t *)(base + 136) = (uint64_t)ret_from_fork;
-    *(context_t *)(base + 144) = task->cpu_ctx;
-
-    return base;
+uintptr_t build_kernel_frame_from_syscall(task_t *task)
+{
+    return build_kernel_frame_generic(task, ret_from_fork_syscall);
 }
 
 int find_free_slot()
@@ -126,13 +144,13 @@ void task_init(void)
     }
     kernel_task->kstack_top = kernel_task->kstack_frames[3] + hhdm_offset + PAGE_SIZE;
     *(uint64_t *)(kernel_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;
-    kernel_task->kernel_rsp = build_kernel_frame(kernel_task);
 
     kernel_task->cpu_ctx.cs = 0x28;
     kernel_task->cpu_ctx.ss = 0x30;
     kernel_task->cpu_ctx.rflags = 0x202;
     kernel_task->cpu_ctx.rsp = kernel_task->kstack_top;
     kernel_task->cpu_ctx.rip = (uint64_t)kernel_idle_loop;
+    kernel_task->kernel_rsp = build_kernel_frame(kernel_task);
 
     kernel_task->next = kernel_task;
     kernel_task->parent = kernel_task;
@@ -264,7 +282,6 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     }
     new_task->kstack_top = new_task->kstack_frames[3] + hhdm_offset + PAGE_SIZE;
     *(uint64_t *)(new_task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;
-    new_task->kernel_rsp = build_kernel_frame(new_task);
 
     new_task->cpu_ctx.rip = header->e_entry;
     new_task->cpu_ctx.rsp = user_rsp;
@@ -273,6 +290,7 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     new_task->cpu_ctx.rflags = 0x202;
     new_task->cpu_ctx.rdi = argc;
     new_task->cpu_ctx.rsi = user_argv_ptr;
+    new_task->kernel_rsp = build_kernel_frame(new_task);
 
     new_task->next = current_task->next;
     current_task->next = new_task;

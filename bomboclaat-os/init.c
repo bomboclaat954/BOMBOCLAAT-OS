@@ -33,9 +33,14 @@ int main()
     int pid = sys_fork();
 
     char *argv[2] = {"/bin/shell", NULL};
+    /*if (pid == 0)
+    {*/
+        sys_execve("/bin/shell", argv);
+        sys_exit(0);
+    /*}
+    else
+        status = sys_waitpid(pid);*/
 
-    sys_execve("/bin/shell", argv);
-    status = sys_waitpid(pid);
     printf("/bin/shell ended with status %d\n", status);
 
     return 0;

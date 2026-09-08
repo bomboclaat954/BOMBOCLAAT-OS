@@ -84,5 +84,5 @@ void sched(void)
 
     set_syscall_kernel_stack(next->kstack_top);
     vmm_switch_pml4(next->pml4);
-    cpu_switch_context(&prev->kernel_rsp, next->kernel_rsp);
+    cpu_switch_context(prev, next);
 }

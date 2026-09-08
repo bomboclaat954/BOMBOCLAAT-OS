@@ -16,6 +16,7 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 // Por qué Dios... Por qué?...
+#include <x86_64/gdt_tss.h>
 #include <tasks/tasks.h>
 #include <tasks/exec.h>
 #include <memory/pmm.h>
@@ -29,7 +30,9 @@
 
 #define USER_STACK_PAGES 4
 
-extern uintptr_t build_kernel_frame(task_t *task);
+extern uintptr_t build_kernel_frame_from_syscall(task_t *task);
+extern void set_syscall_kernel_stack(uint64_t rsp);
+extern tss_ptr tss;
 
 int calculate_argc(char **argv)
 {
@@ -224,7 +227,7 @@ int prepare_stack(task_t *task, int argc, char **argv, uint64_t e_entry)
 
     uintptr_t user_rsp = (user_stack_virtual + (USER_STACK_PAGES * PAGE_SIZE)) - (PAGE_SIZE - frame_offset);
 
-    for (int i = 0; i < 4; i++)
+    /*for (int i = 0; i < 4; i++)
         pmm_free_frame((void *)task->kstack_frames[i]);
 
     for (int i = 0; i < 4; i++)
@@ -238,10 +241,7 @@ int prepare_stack(task_t *task, int argc, char **argv, uint64_t e_entry)
         task->kstack_frames[i] = (uintptr_t)kstack_phys;
     }
     task->kstack_top = task->kstack_frames[3] + hhdm_offset + PAGE_SIZE;
-    *(uint64_t *)(task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;
-    task->kernel_rsp = build_kernel_frame(task);
-
-    kfree(user_argv_addrs);
+    *(uint64_t *)(task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;*/
 
     context_t ctx = task->parent->cpu_ctx;
     ctx.rip = e_entry;
@@ -252,6 +252,9 @@ int prepare_stack(task_t *task, int argc, char **argv, uint64_t e_entry)
     ctx.rdi = argc;
     ctx.rsi = user_argv_ptr;
     task->cpu_ctx = ctx;
+
+    kfree(user_argv_addrs);
+    task->kernel_rsp = build_kernel_frame_from_syscall(task);
 
     return 0;
 }
@@ -315,8 +318,11 @@ int execve(struct execve_args args)
     }
     vmm_free(old_pml4);
 
-    current_task->state = TASK_READY;
-    sched();
+    asm volatile("cli");
+    tss.rsp0 = current_task->kstack_top;
+    set_syscall_kernel_stack(current_task->kstack_top);
+    vmm_switch_pml4(current_task->pml4);
+    enter_new_context(current_task->kernel_rsp);
 
     return 0;
 }

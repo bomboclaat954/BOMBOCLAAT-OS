@@ -62,8 +62,9 @@ task_t *find_just_forked();
 task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char **argv, int frames);
 pid_t new_pid();
 void sched(void);
+__attribute__((naked)) void cpu_switch_context(task_t *prev, task_t *next);
+__attribute__((naked, noreturn)) void enter_new_context(uintptr_t kernel_rsp);
 
-extern void cpu_switch_context(uintptr_t *old_rsp, uintptr_t new_rsp);
 extern task_t *current_task;
 
 #endif

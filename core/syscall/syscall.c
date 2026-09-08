@@ -26,7 +26,7 @@
  * Instead I'll write an user-side screen driver, which will handle that.
  */
 
-#include <int/int.h>
+#include <x86_64/cpu.h>
 #include <bomboclaat/kprintf.h>
 #include <bomboclaat/globals.h>
 #include <bomboclaat/panic.h>
@@ -100,9 +100,40 @@ void init_syscall(uint16_t kernel_cs, uint16_t user_cs_base)
     wrmsr(IA32_KERNEL_GS_BASE, (uint64_t)&cpu_data);
 }
 
+void set_syscall_kernel_stack(uint64_t rsp)
+{
+    cpu_data.kernel_rsp = rsp;
+}
+
+uint64_t get_user_rsp(void)
+{
+    return cpu_data.user_rsp;
+}
+
 uint64_t syscall_handler(syscall_ctx_t *ctx)
 {
     extern task_t *current_task;
+
+    current_task->cpu_ctx.rax = ctx->sys_num;
+    current_task->cpu_ctx.rbx = ctx->rbx;
+    current_task->cpu_ctx.rcx = 0;
+    current_task->cpu_ctx.rdx = ctx->arg3;
+    current_task->cpu_ctx.rbp = ctx->rbp;
+    current_task->cpu_ctx.rdi = ctx->arg1;
+    current_task->cpu_ctx.rsi = ctx->arg2;
+    current_task->cpu_ctx.r8 = ctx->arg5;
+    current_task->cpu_ctx.r9 = ctx->arg6;
+    current_task->cpu_ctx.r10 = ctx->arg4;
+    current_task->cpu_ctx.r11 = 0;
+    current_task->cpu_ctx.r12 = ctx->r12;
+    current_task->cpu_ctx.r13 = ctx->r13;
+    current_task->cpu_ctx.r14 = ctx->r14;
+    current_task->cpu_ctx.r15 = ctx->r15;
+    current_task->cpu_ctx.rip = ctx->rip;
+    current_task->cpu_ctx.rflags = ctx->rflags;
+    current_task->cpu_ctx.cs = 0x43;
+    current_task->cpu_ctx.ss = 0x3B;
+    current_task->cpu_ctx.rsp = get_user_rsp();
 
     switch (ctx->sys_num)
     {
@@ -242,14 +273,4 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     default:
         return -1;
     }
-}
-
-void set_syscall_kernel_stack(uint64_t rsp)
-{
-    cpu_data.kernel_rsp = rsp;
-}
-
-uint64_t get_user_rsp(void)
-{
-    return cpu_data.user_rsp;
 }

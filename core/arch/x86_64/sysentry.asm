@@ -17,6 +17,8 @@
 bits 64
 
 global syscall_entry
+global ret_from_fork
+global ret_from_fork_syscall
 extern syscall_handler
 
 syscall_entry:
@@ -63,3 +65,43 @@ syscall_entry:
     mov rsp, [gs:0x08]
     swapgs
     o64 sysret
+
+ret_from_fork:
+    jmp ret_from_fork_common
+
+ret_from_fork_syscall:
+    swapgs
+
+ret_from_fork_common:
+    movzx eax, word [rsp + 144]
+    and al, 3
+    cmp al, 3
+    jne .kernel_segments
+    mov ax, 0x3B
+    jmp .load_segments
+.kernel_segments:
+    mov ax, 0x30
+.load_segments:
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop r11
+    pop r10
+    pop r9
+    pop r8
+    pop rbp
+    pop rdi
+    pop rsi
+    pop rdx
+    pop rcx
+    pop rbx
+    pop rax
+    add rsp, 16
+
+    iretq

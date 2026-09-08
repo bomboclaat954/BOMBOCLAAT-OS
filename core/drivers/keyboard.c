@@ -18,7 +18,6 @@
 
 #include <drivers/keyboard.h>
 #include <drivers/io.h>
-#include <int/int.h>
 #include <fs/tmpfs.h>
 #include <fs/devfs.h>
 #include <memory/stack.h>

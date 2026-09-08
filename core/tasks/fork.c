@@ -25,7 +25,7 @@
 #include <bomboclaat/syscall.h>
 #include <lib/string.h>
 
-extern uintptr_t build_kernel_frame(task_t *task);
+extern uintptr_t build_kernel_frame_from_syscall(task_t *task);
 extern uint64_t get_user_rsp(void);
 
 task_t *create_child(task_t *parent, syscall_ctx_t *parent_regs)
@@ -36,6 +36,7 @@ task_t *create_child(task_t *parent, syscall_ctx_t *parent_regs)
     task_t *new = (task_t *)kmalloc(sizeof(task_t));
     if (!new)
         return NULL;
+    memset(new, 0, sizeof(task_t));
 
     strcpy(parent->name, new->name);
     for (int i = 0; i < MAX_FILES_PER_TASK; i++)
@@ -53,6 +54,9 @@ task_t *create_child(task_t *parent, syscall_ctx_t *parent_regs)
         return NULL;
     }
 
+    new->cpu_ctx = parent->cpu_ctx;
+    new->cpu_ctx.rax = 0;
+
     for (int i = 0; i < 4; i++)
     {
         void *frame = pmm_alloc_frame();
@@ -65,14 +69,12 @@ task_t *create_child(task_t *parent, syscall_ctx_t *parent_regs)
     }
     new->kstack_top = new->kstack_frames[3] + hhdm_offset + PAGE_SIZE;
     *(uint64_t *)(new->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;
-    new->kernel_rsp = build_kernel_frame(new);
-
-    new->cpu_ctx = parent->cpu_ctx;
-    new->cpu_ctx.rax = 0;
+    new->kernel_rsp = build_kernel_frame_from_syscall(new);
 
     INIT_LIST_HEAD(&new->children);
     list_add_tail(&new->sibling, &parent->children);
 
+    new->state = TASK_NEW;
     return new;
 }
 
@@ -86,6 +88,8 @@ int fork(syscall_ctx_t *ctx)
     task_t *new = create_child(current_task, ctx);
     if (!new)
         return -1;
+
+    new->state = TASK_READY;
 
     if (task_insert(new) < 0)
     {
