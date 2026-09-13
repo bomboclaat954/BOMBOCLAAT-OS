@@ -15,29 +15,46 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
-
-#include <x86_64/cpu.h>
-#include <x86_64/lapic.h>
-#include <drivers/io.h>
-#include <drivers/keyboard.h>
+// IPC = Inter-Process Communication
+#include <tasks/ipc/signal.h>
 #include <tasks/tasks.h>
 
-extern volatile uint64_t ticks;
-
-void irq_handler(registers_t *r)
+int signal_send(sig_t sig, pid_t target)
 {
-    switch (r->int_no)
+    if (target == 0)
+        return 1; // don't talk to PID 0!
+
+    task_t *target_task = find_by_pid(target);
+    if (!target_task)
+        return 2;
+
+    target_task->pending_signal = sig;
+    return execute_signal(target_task);
+}
+
+int execute_signal(task_t *target)
+{
+    if (!target)
+        return 1;
+
+    switch (target->pending_signal)
     {
-    case 32:
-        ticks++;
-        current_task->cpu_time++;
+    case SIGKILL:
+    {
+        // A guy opens his door and gets shot
+        target->state = TASK_ZOMBIE;
         sched();
-        break;
-    case 33:
-        keyboard_handler();
-        break;
-    default:
-        break;
     }
-    apic_eoi();
+    case SIGTERM:
+    {
+        // A guy opens his door, calls his family to say goodbye and gets shot
+        target->cpu_ctx.rip = target->sigterm_handler_rip;
+        sched();
+    }
+    default:
+    {
+        target->pending_signal = 0;
+        return -1;
+    }
+    }
 }

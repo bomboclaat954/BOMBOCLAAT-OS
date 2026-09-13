@@ -16,38 +16,54 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <stdio.h>
-#include <syscall.h>
-#include <stdint.h>
+OUTPUT_FORMAT(elf64-x86-64)
+ENTRY(_start)
 
-int main()
+PHDRS
 {
-    asm volatile(
-        "syscall"
-        :
-        : "a"(14));
-
-    printf("%s\n", OSVER);
-
-    int status = 0;
-    int pid = sys_fork();
-
-    char *argv[2] = {"/bin/shell", NULL};
-    /*if (pid == 0)
-    {*/
-    sys_execve("/bin/shell", argv);
-    sys_exit(0);
-    /*}
-    else
-        status = sys_waitpid(pid);*/
-
-    printf("/bin/shell ended with status %d\n", status);
-
-    return 0;
+    text PT_LOAD;
+    rodata PT_LOAD;
+    data PT_LOAD;
+    sigterm PT_LOAD;
 }
 
-__attribute__((section(".sigterm"))) void sigterm_handler()
+SECTIONS 
 {
-    printf("Got SIGTERM, goodbye!\n");
-    return;
+    . = 0x400000;
+    _program_start = .;
+
+    .text : {
+        *(.text .text.*)
+    } :text
+
+    . = ALIGN(CONSTANT(MAXPAGESIZE));
+
+    .rodata : {
+        *(.rodata .rodata.*)
+    } :rodata
+
+    .note.gnu.build-id : {
+        *(.note.gnu.build-id)
+    } :rodata
+
+    . = ALIGN(CONSTANT(MAXPAGESIZE));
+
+    .data : {
+        *(.data .data.*)
+    } :data
+
+    .bss : {
+        *(.bss .bss.*)
+        *(COMMON)
+    } :data
+
+    .sigterm (READONLY) : {
+        *(.sigterm .sigterm.*)
+    } :sigterm
+
+    /DISCARD/ : {
+        *(.eh_frame*)
+        *(.note .note.*)
+    }
+    _program_end = .;
 }

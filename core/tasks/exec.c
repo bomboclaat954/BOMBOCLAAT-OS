@@ -53,9 +53,8 @@ int calculate_argc(char **argv)
     @param shnum: number of total sections table entries
     @param shstrndx: index of the string table containing sections names
 */
-int prepare_sections(void *elf_data, uint64_t shoff, uint16_t shentsz, uint16_t shnum, uint16_t shstrndx)
+int prepare_sections(void *elf_data, task_t *task, uint64_t shoff, uint16_t shentsz, uint16_t shnum, uint16_t shstrndx)
 {
-    // TODO: find and clear .bss
     ELF64_Shdr *shstrtab_hdr = (ELF64_Shdr *)(elf_data + shoff + (shentsz * shstrndx));
     char *strtab = (char *)(elf_data + shstrtab_hdr->sh_offset);
 
@@ -63,6 +62,9 @@ int prepare_sections(void *elf_data, uint64_t shoff, uint16_t shentsz, uint16_t 
     {
         ELF64_Shdr *shdr = (ELF64_Shdr *)(elf_data + shoff + (shentsz * i));
         char *name = strtab + shdr->sh_name;
+
+        if (strcmp(name, ".sigterm") == 0)
+            task->sigterm_handler_rip = shdr->sh_addr;
     }
 
     return 0;
@@ -291,7 +293,10 @@ int execve(struct execve_args args)
         return 5;
     }
 
-    // prepare_sections(file, header->e_shoff, header->e_shentsize, header->e_shnum, header->e_shstrndx);
+    current_task->sigterm_handler_rip = 0;
+    prepare_sections(file, current_task, header->e_shoff, header->e_shentsize, header->e_shnum, header->e_shstrndx);
+    if (!current_task->sigterm_handler_rip)
+        current_task->sigterm_handler_rip = current_task->parent->sigterm_handler_rip;
 
     vmm_table_t *old_pml4 = current_task->pml4;
     current_task->pml4 = vmm_init();

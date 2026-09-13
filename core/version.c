@@ -15,13 +15,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
+/*
+    tbh I have no clue when will it be finally useful
+    I guess never
+*/
 
 #include <bomboclaat/utsname.h>
 
 struct utsname utsname = {
-    .sysname = "Mierdux\0", // "Mierda" means "shit" in Spanish, "ux" is here because it's UNIX-like kernel
+    .sysname = "Mierdux\0",
     .nodename = "bbcltOS\0",
-    .release = "v1.0 beta 7.9\0",
+    .release = "v1.0 beta 7.10\0",
     .version = "\0",
+#ifdef __ARCH_X86_64
     .machine = "x86_64\0",
+#elifdef __ARCH_RISCV64
+    .machine = "riscv64\0",
+#endif
 };

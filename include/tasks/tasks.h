@@ -29,7 +29,7 @@ typedef enum
 } task_state_t;
 
 /*
-    Process' family explained:
+    Task's family explained:
         * parent: the process that hit fork() to create a child
         * children: list of processes that were created by a process by fork()
         * siblings: processes created by the same parent
@@ -51,7 +51,10 @@ struct task
     struct task *next;
     vfs_file_t *fd_table[MAX_FILES_PER_TASK];
     vfs_inode_t *current_dir;
+    sig_t pending_signal;
+    uint64_t sigterm_handler_rip;
     int exit_code;
+    uint64_t cpu_time;
 } typedef task_t;
 
 void task_init(void);

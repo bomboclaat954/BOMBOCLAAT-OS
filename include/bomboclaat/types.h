@@ -16,6 +16,7 @@ struct list_head
 } typedef list_head_t;
 
 typedef int pid_t;
+typedef int sig_t;
 
 #define offsetof(TYPE, MEMBER) ((size_t)&((TYPE *)0)->MEMBER)
 

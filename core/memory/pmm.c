@@ -27,6 +27,7 @@ uint8_t *bitmap;
 uintptr_t total_frames = 0;
 uintptr_t used_frames = 0;
 uint64_t mem_size = 0;
+uintptr_t usable_frames = 0;
 
 extern uint8_t _kernel_start[];
 extern uint8_t _kernel_end[];
@@ -43,12 +44,12 @@ void bitmap_unset(uintptr_t frame)
 
 uintptr_t get_total_frames()
 {
-    return total_frames;
+    return usable_frames;
 }
 
 uintptr_t get_free_frames()
 {
-    return total_frames - used_frames;
+    return usable_frames - used_frames;
 }
 
 void *pmm_alloc_frame()
@@ -93,9 +94,11 @@ void pmm_init(struct limine_memmap_response *memmap, struct limine_hhdm_response
         struct limine_memmap_entry *entry = memmap->entries[i];
         if (entry->base + entry->length > top_address)
             top_address = entry->base + entry->length;
+        if (entry->type == LIMINE_MEMMAP_USABLE)
+            usable_frames += entry->length / PAGE_SIZE;
     }
     total_frames = top_address / PAGE_SIZE;
-    uint64_t bitmap_size = total_frames / 8;
+    uint64_t bitmap_size = (total_frames + 7) / 8;
 
     uint64_t bitmap_physical_addr = 0;
     for (uint64_t i = 0; i < memmap->entry_count; i++)

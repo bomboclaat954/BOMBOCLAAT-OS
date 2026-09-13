@@ -19,7 +19,7 @@ CFLAGS =-m64 \
         -Iinclude \
         -march=x86-64 \
         -g
-LDFLAGS = -nostdlib --entry=_start -Ttext 0x400000
+LDFLAGS = -nostdlib -T link.ld
 
 C_SOURCES   = $(shell find . -path "./iso" -prune -o -path "./include" -prune -o -name "*.c" -print)
 CPP_SOURCES = $(shell find . -path "./iso" -prune -o -path "./include" -prune -o -name "*.cpp" -print)

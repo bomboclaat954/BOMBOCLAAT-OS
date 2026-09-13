@@ -59,7 +59,7 @@ limine_download:
 build/%.c.o: %.c
 	@mkdir -p "$(dir $@)"   
 	@echo "  CC   $<"
-	@gcc $(CFLAGS) -D BUILD_NUMBER=$(NEW_BUILD_NO) -c $< -o $@ 
+	@gcc $(CFLAGS) -D BUILD_NUMBER=$(NEW_BUILD_NO) -D __ARCH_X86_64 -c $< -o $@ 
 
 build/%.cpp.o: %.cpp
 	@mkdir -p "$(dir $@)"   

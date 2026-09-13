@@ -2,8 +2,8 @@
  * Copyright (C) 2026 Jakub Fietko <fietkojakub@proton.me>
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
-#ifndef CPU_H
-#define CPU_H
+#ifndef X86_64_CPU_H
+#define X86_64_CPU_H
 #include <stdint.h>
 
 struct registers

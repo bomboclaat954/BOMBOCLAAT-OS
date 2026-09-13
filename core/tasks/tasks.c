@@ -291,6 +291,7 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     new_task->cpu_ctx.rdi = argc;
     new_task->cpu_ctx.rsi = user_argv_ptr;
     new_task->kernel_rsp = build_kernel_frame(new_task);
+    new_task->cpu_time = 0;
 
     new_task->next = current_task->next;
     current_task->next = new_task;
