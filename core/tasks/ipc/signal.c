@@ -18,6 +18,7 @@
 // IPC = Inter-Process Communication
 #include <tasks/ipc/signal.h>
 #include <tasks/tasks.h>
+#include <bomboclaat/kprintf.h>
 
 int signal_send(sig_t sig, pid_t target)
 {
@@ -42,12 +43,21 @@ int execute_signal(task_t *target)
     case SIGKILL:
     {
         // A guy opens his door and gets shot
+        log(LOG_INFO, "PID %d: received SIGKILL", target->pid);
         target->state = TASK_ZOMBIE;
         sched();
     }
     case SIGTERM:
     {
         // A guy opens his door, calls his family to say goodbye and gets shot
+        log(LOG_INFO, "PID %d: received SIGTERM", target->pid);
+
+        if (!target->sigterm_handler_rip)
+        {
+            target->pending_signal = SIGKILL;
+            execute_signal(target);
+        }
+
         target->cpu_ctx.rip = target->sigterm_handler_rip;
         sched();
     }

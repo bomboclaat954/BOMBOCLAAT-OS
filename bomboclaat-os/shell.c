@@ -98,7 +98,7 @@ int main()
         if (strcmp(cmd_line, "\0") == 0)
             continue;
 
-        int status = 0;
+        /*int status = 0;
         int pid = sys_fork();
 
         status = sys_execve(path, argv);
@@ -107,7 +107,8 @@ int main()
 
         status = sys_waitpid(pid);
         if (status != 0)
-            printf("Process returned status %d\n", status);
+            printf("Process returned status %d\n", status);*/
+        sys_spawn(path, argv);
     }
     return 0;
 }

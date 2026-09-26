@@ -20,5 +20,6 @@ struct execve_args
 };
 
 int execve(struct execve_args args);
+int spawn(struct execve_args args);
 
 #endif

@@ -14,3 +14,4 @@ pid_t sys_fork();
 int sys_execve(char *path, char **argv);
 int sys_waitpid(pid_t pid);
 int sys_exit(int code);
+int sys_spawn(char *path, char **argv);

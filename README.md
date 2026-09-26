@@ -69,7 +69,6 @@ Alternatively, you can run it on VirtualBox.
 2. It's highly recommended to use BOMBOCLAAT-OS with UEFI; some things might not work on BIOS or errors may occur.
 3. For understanding everything better, read `README.md` file in each folder.
 4. If you looked into the commits you may noticed that I publish not working ones quite often. That's because I don't like when I have many uncommited changes and also I don't want the project to look dead. If something doesn't work, I'll probably fix it within 30 business days.
-5. The amount of curse words in the comments and basically the way I write anything may be annoying for some people but I don't care. Just analyze the code, and if it really hurts you that bad, just go to another repo.
 
 # Contributing
 

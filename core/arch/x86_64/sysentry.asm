@@ -25,7 +25,7 @@ syscall_entry:
     swapgs
     mov [gs:0x08], rsp
     mov rsp, [gs:0x00]
-    sub rsp, 8
+    push qword [gs:0x08]
 
     push r15
     push r14
@@ -62,7 +62,7 @@ syscall_entry:
     pop r14
     pop r15
 
-    mov rsp, [gs:0x08]
+    pop rsp
     swapgs
     o64 sysret
 
@@ -79,13 +79,13 @@ ret_from_fork_common:
     jne .kernel_segments
     mov ax, 0x3B
     jmp .load_segments
-.kernel_segments:
-    mov ax, 0x30
-.load_segments:
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
+    .kernel_segments:
+        mov ax, 0x30
+    .load_segments:
+        mov ds, ax
+        mov es, ax
+        mov fs, ax
+        mov gs, ax
 
     pop r15
     pop r14

@@ -42,8 +42,7 @@
 #include <x86_64/gdt_tss.h>
 #include <x86_64/idt.h>
 #include <x86_64/lapic.h>
-#include <x86_64/pic.h>
-#include <x86_64/pit.h>
+#include <x86_64/timer.h>
 #include <memory/pmm.h>
 #include <memory/vmm.h>
 #include <memory/kmalloc.h>
@@ -190,7 +189,6 @@ void kinit(void)
         panic("error while getting firmware type", 0, 0);
 
     idt_init();
-    pic_disable();
     log(LOG_OK, "SSE, FPU & IDT OK");
 
     if (hhdm == NULL)

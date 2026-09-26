@@ -170,6 +170,7 @@ task_t *task_create(void *elf_data, int parent_pid, char *name, int argc, char *
     if (!new_task)
         return NULL;
     memset(new_task, 0, sizeof(task_t));
+    new_task->parent = find_by_pid(parent_pid);
 
     strcpy(name, new_task->name);
     new_task->pid = next_pid++;

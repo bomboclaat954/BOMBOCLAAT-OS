@@ -24,6 +24,8 @@
 #include <tasks/exit.h>
 #include <memory/pmm.h>
 
+extern int pf_handler(registers_t *regs, uint64_t addr);
+
 void exception_handler(registers_t *r)
 {
     switch (r->int_no)
@@ -74,28 +76,11 @@ void exception_handler(registers_t *r)
         panic("CPU-EXC: general protection fault", r, 1);
         break;
     case 14:
-        uint64_t fault_addr;
+        uint64_t fault_addr = 0;
         asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
-        extern task_t *current_task;
-        if (r->error_code & (1 << 2) && fault_addr > 0)
-        {
-            log(LOG_ERR, "PID %d: segfault at 0x%x, RIP: %x, err: 0x%x",
-                current_task->pid, fault_addr, r->rip, r->error_code);
-            uintptr_t page_addr = fault_addr & ~0xFFFULL;
 
-            void *phys = pmm_alloc_frame();
-            vmm_map_page(current_task->pml4, page_addr, (uintptr_t)phys, VMM_PRESENT | VMM_WRITE | VMM_USER);
-            return;
-        }
-        else if (fault_addr == 0)
-        {
-            log(LOG_ERR, "PID %d: process tried to write at NULL, RIP: 0x%x", current_task->pid, r->rip);
-            exit(1);
-            return;
-        }
-        char buf[128];
-        sprintf(buf, "CPU-EXC: page fault at: %x", fault_addr);
-        // panic(buf, r, 1);
+        if (pf_handler(r, fault_addr) != 0)
+            panic("CPU-EXC: #PF not handled properly", r, 1);
         break;
     case 16:
         panic("CPU-EXC: x87 float", r, 1);

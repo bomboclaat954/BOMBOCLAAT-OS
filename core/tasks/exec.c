@@ -48,6 +48,7 @@ int calculate_argc(char **argv)
 /**
     * These arguments names may look like Gibberish, so here's an explaination:
     @param elf_data: raw ELF file data
+    @param task: the task we're setting
     @param shoff: offset of the sections table
     @param shentsz: size of one entry in the sections table
     @param shnum: number of total sections table entries
@@ -68,6 +69,54 @@ int prepare_sections(void *elf_data, task_t *task, uint64_t shoff, uint16_t shen
     }
 
     return 0;
+}
+
+struct task_file
+{
+    void *raw;
+    ELF64_Ehdr *ehdr;
+};
+
+struct task_file get_file(char *path)
+{
+    uint64_t size = 0;
+    struct task_file ret = {
+        NULL,
+        NULL,
+    };
+
+    int fd = vfs_open(path, 0, &size, current_task->fd_table);
+    if (fd < 0)
+        return ret;
+
+    void *file = kmalloc(size + 1);
+    if (file == NULL)
+    {
+        vfs_close(fd, current_task->fd_table);
+        return ret;
+    }
+
+    int64_t read_bytes = vfs_read(fd, current_task->fd_table, file, size);
+    vfs_close(fd, current_task->fd_table);
+    if (read_bytes <= 0)
+        return ret;
+
+    ELF64_Ehdr *header = (ELF64_Ehdr *)file;
+    if (*(uint32_t *)header->e_ident != ELF_MAGIC || header->e_machine != 0x3E)
+    {
+        kfree(file);
+        return ret;
+    }
+
+    if (header->e_machine != 0x3E)
+    {
+        log(LOG_ERR, "%s: file not runable on x86_64", path);
+        return ret;
+    }
+
+    ret.raw = file;
+    ret.ehdr = header;
+    return ret;
 }
 
 int elf_alloc(void *elf_data, task_t *task, ELF64_Phdr *ph_table, uint16_t e_phnum)
@@ -263,38 +312,10 @@ int prepare_stack(task_t *task, int argc, char **argv, uint64_t e_entry)
 
 int execve(struct execve_args args)
 {
-    uint64_t size = 0;
-    int fd = vfs_open(args.path, 0, &size, current_task->fd_table);
-    if (fd < 0)
-        return 1;
-
-    void *file = kmalloc(size + 1);
-    if (file == NULL)
-    {
-        vfs_close(fd, current_task->fd_table);
-        return 2;
-    }
-
-    int64_t read_bytes = vfs_read(fd, current_task->fd_table, file, size);
-    vfs_close(fd, current_task->fd_table);
-    if (read_bytes <= 0)
-        return 3;
-
-    ELF64_Ehdr *header = (ELF64_Ehdr *)file;
-    if (*(uint32_t *)header->e_ident != ELF_MAGIC || header->e_machine != 0x3E)
-    {
-        kfree(file);
-        return 4;
-    }
-
-    if (header->e_machine != 0x3E)
-    {
-        log(LOG_ERR, "This ELF file is not runable on x86_64");
-        return 5;
-    }
+    struct task_file exec = get_file(args.path);
 
     current_task->sigterm_handler_rip = 0;
-    prepare_sections(file, current_task, header->e_shoff, header->e_shentsize, header->e_shnum, header->e_shstrndx);
+    prepare_sections(exec.raw, current_task, exec.ehdr->e_shoff, exec.ehdr->e_shentsize, exec.ehdr->e_shnum, exec.ehdr->e_shstrndx);
     if (!current_task->sigterm_handler_rip)
         current_task->sigterm_handler_rip = current_task->parent->sigterm_handler_rip;
 
@@ -303,19 +324,18 @@ int execve(struct execve_args args)
 
     strcpy(args.path, current_task->name);
 
-    ELF64_Phdr *ph_table = (ELF64_Phdr *)((uintptr_t)file + header->e_phoff);
-    if (elf_alloc(file, current_task, ph_table, header->e_phnum) != 0)
+    ELF64_Phdr *ph_table = (ELF64_Phdr *)((uintptr_t)exec.raw + exec.ehdr->e_phoff);
+    if (elf_alloc(exec.raw, current_task, ph_table, exec.ehdr->e_phnum) != 0)
     {
-        kfree(file);
+        kfree(exec.raw);
         vmm_free(current_task->pml4);
         current_task->pml4 = old_pml4;
         return 6;
     }
-    kfree(file);
-    file = NULL;
+    kfree(exec.raw);
 
     int argc = calculate_argc(args.argv);
-    if (prepare_stack(current_task, argc, args.argv, header->e_entry) != 0)
+    if (prepare_stack(current_task, argc, args.argv, exec.ehdr->e_entry) != 0)
     {
         vmm_free(current_task->pml4);
         current_task->pml4 = old_pml4;
@@ -328,6 +348,32 @@ int execve(struct execve_args args)
     set_syscall_kernel_stack(current_task->kstack_top);
     vmm_switch_pml4(current_task->pml4);
     enter_new_context(current_task->kernel_rsp);
+
+    return 0;
+}
+
+int spawn(struct execve_args args)
+{
+    struct task_file exec = get_file(args.path);
+    if (!exec.ehdr || !exec.raw)
+        return 1;
+
+    int argc = calculate_argc(args.argv);
+
+    task_t *new = kmalloc(sizeof(task_t));
+    if (!new)
+        return 2;
+    new = task_create(exec.raw, current_task->pid, args.path, argc, args.argv, USER_STACK_PAGES);
+
+    current_task->state = TASK_BLOCKED;
+    new->state = TASK_READY;
+
+    task_insert(new);
+    asm volatile("cli");
+    tss.rsp0 = new->kstack_top;
+    set_syscall_kernel_stack(new->kstack_top);
+    vmm_switch_pml4(new->pml4);
+    enter_new_context(new->kernel_rsp);
 
     return 0;
 }

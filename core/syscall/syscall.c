@@ -114,9 +114,10 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
 {
     extern task_t *current_task;
 
+#ifdef __ARCH_X86_64
     current_task->cpu_ctx.rax = ctx->sys_num;
     current_task->cpu_ctx.rbx = ctx->rbx;
-    current_task->cpu_ctx.rcx = 0;
+    current_task->cpu_ctx.rcx = ctx->rip;
     current_task->cpu_ctx.rdx = ctx->arg3;
     current_task->cpu_ctx.rbp = ctx->rbp;
     current_task->cpu_ctx.rdi = ctx->arg1;
@@ -124,7 +125,7 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     current_task->cpu_ctx.r8 = ctx->arg5;
     current_task->cpu_ctx.r9 = ctx->arg6;
     current_task->cpu_ctx.r10 = ctx->arg4;
-    current_task->cpu_ctx.r11 = 0;
+    current_task->cpu_ctx.r11 = ctx->rflags;
     current_task->cpu_ctx.r12 = ctx->r12;
     current_task->cpu_ctx.r13 = ctx->r13;
     current_task->cpu_ctx.r14 = ctx->r14;
@@ -134,6 +135,7 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     current_task->cpu_ctx.cs = 0x43;
     current_task->cpu_ctx.ss = 0x3B;
     current_task->cpu_ctx.rsp = get_user_rsp();
+#endif
 
     switch (ctx->sys_num)
     {
@@ -269,6 +271,19 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     {
         cls();
         return 0;
+    }
+    case 15: // spawn (skip fork, just execute)
+    {
+        char *path = (char *)ctx->arg1;
+        char **argv = (char **)ctx->arg2;
+
+        struct execve_args e_args = {
+            .path = path,
+            .argv = argv,
+            .envp = NULL,
+        };
+
+        return spawn(e_args);
     }
     default:
         return -1;

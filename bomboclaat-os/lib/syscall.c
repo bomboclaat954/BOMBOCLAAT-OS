@@ -78,3 +78,16 @@ int sys_exit(int code)
         : "rcx", "r11", "memory");
     return res;
 }
+
+int sys_spawn(char *path, char **argv)
+{
+    int res = 0;
+
+    asm volatile(
+        "syscall"
+        : "=a"(res)
+        : "a"(15), "D"(path), "S"(argv)
+        : "rcx", "r11", "memory");
+
+    return res;
+}
