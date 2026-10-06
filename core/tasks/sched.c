@@ -17,72 +17,66 @@
  */
 
 #include <tasks/tasks.h>
+#include <memory/pmm.h>
 #include <bomboclaat/kprintf.h>
+#include <bomboclaat/panic.h>
+#include <bomboclaat/globals.h>
 #include <x86_64/gdt_tss.h>
 
-extern void reap_zombie(void);
-extern task_t *tasks[MAX_TASKS];
+extern uint64_t hhdm_offset;
 extern void set_syscall_kernel_stack(uint64_t rsp);
 
-task_t *pick_next_task()
+static void check_stack_sentinel(task_t *t)
+{
+    if (!t->kstack_frames[0])
+        return;
+
+    uint64_t *sentinel = (uint64_t *)(t->kstack_frames[0] + hhdm_offset);
+    if (*sentinel != TASK_STACK_SENTINEL)
+        panic("kernel stack overflow", 0, 0);
+}
+
+static task_t *pick_next_task(void)
 {
     if (current_task->state == TASK_RUNNING)
         current_task->state = TASK_READY;
 
-    task_t *next = current_task->next;
-    int safety_counter = 0;
-
-    while (next->state != TASK_READY && (safety_counter < 64))
+    task_t *node = current_task->next;
+    for (int i = 0; i <= MAX_TASKS + 1; i++)
     {
-        next = next->next;
-        safety_counter++;
+        if (node != kernel_task && node->state == TASK_READY)
+            return node;
+        node = node->next;
     }
 
-    if (next->state != TASK_READY)
-    {
-        task_t *search = current_task;
-        do
-        {
-            if (search->pid == 0)
-            {
-                next = search;
-                break;
-            }
-            search = search->next;
-        } while (search != current_task);
-    }
-
-    current_task = next;
-    current_task->state = TASK_RUNNING;
-
-    uint64_t *sentinel = (uint64_t *)(current_task->kstack_frames[3] + hhdm_offset + 8);
-    if (*sentinel != TASK_STACK_SENTINEL)
-        log(LOG_ERR, "PID %d: stack sentinel is corrupted", current_task->pid);
-
-    return current_task;
+    return kernel_task;
 }
 
 void sched(void)
 {
-    asm volatile("cli");
-    reap_zombie();
+    uint64_t flags = irq_save();
 
     task_t *prev = current_task;
     task_t *next = pick_next_task();
 
-    if (next == prev)
-        return;
+    next->state = TASK_RUNNING;
 
-    if (!next)
+    if (next != prev)
     {
-        log(LOG_ERR, "No next task");
-        next = find_by_pid(0);
+        check_stack_sentinel(prev);
+        check_stack_sentinel(next);
+
+        current_task = next;
+        tss.rsp0 = next->kstack_top;
+        set_syscall_kernel_stack(next->kstack_top);
+
+        if (next->pml4 != prev->pml4)
+            vmm_switch_pml4(next->pml4);
+
+        task_fpu_save(prev);
+        task_fpu_load(next);
+        cpu_switch_context(&prev->kernel_rsp, next->kernel_rsp);
     }
 
-    if (next->kstack_top)
-        tss.rsp0 = next->kstack_top;
-
-    set_syscall_kernel_stack(next->kstack_top);
-    vmm_switch_pml4(next->pml4);
-    cpu_switch_context(prev, next);
+    irq_restore(flags);
 }

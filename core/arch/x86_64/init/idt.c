@@ -52,6 +52,8 @@ void idt_init(void)
     for (int i = 0; i < 32; i++)
         idt_set_descriptor(i, isr_stub_table[i], 0x8E);
 
+    idt[8].ist = 1;
+
     idt_set_descriptor(32, isr_stub_table[32], 0x8E);
     idt_set_descriptor(33, isr_stub_table[33], 0x8E);
     idt_set_descriptor(128, (void *)isr_stub_128, 0xEE); // int 0x80

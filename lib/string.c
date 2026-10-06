@@ -197,7 +197,7 @@ int contains(char *str, char c)
     return 0;
 }
 
-char *dtoa(double num, char *str, int precision)
+__attribute__((target("sse2"))) char *dtoa(double num, char *str, int precision)
 {
     int i = 0;
 

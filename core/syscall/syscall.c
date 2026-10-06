@@ -48,6 +48,7 @@
 #include <tasks/tasks.h>
 #include <tasks/exec.h>
 #include <tasks/exit.h>
+#include <tasks/ipc/signal.h>
 #include <fs/vfs.h>
 #include <stddef.h>
 
@@ -55,20 +56,15 @@
 #define IA32_STAR 0xC0000081
 #define IA32_LSTAR 0xC0000082
 #define IA32_FMASK 0xC0000084
-#define IA32_KERNEL_GS_BASE 0xC0000102
 #define KERNEL_STACK_SIZE 0x4000
+#define SYSCALL_FMASK (0x200 | 0x100 | 0x400 | 0x40000)
+#define SYSCALL_MAX_IO (1024 * 1024)
 
 #define EFER_SCE (1ULL << 0)
 
 static uint8_t syscall_stack[KERNEL_STACK_SIZE] __attribute__((aligned(16)));
 
-typedef struct
-{
-    uint64_t kernel_rsp;
-    uint64_t user_rsp;
-} cpu_state_t;
-
-static cpu_state_t cpu_data;
+uint64_t syscall_kernel_rsp = 0;
 
 extern void syscall_entry(void);
 
@@ -94,48 +90,33 @@ void init_syscall(uint16_t kernel_cs, uint16_t user_cs_base)
 
     uint64_t star = ((uint64_t)kernel_cs << 32) | ((uint64_t)user_cs_base << 48);
     wrmsr(IA32_STAR, star);
-    wrmsr(IA32_FMASK, 0x200);
+    wrmsr(IA32_FMASK, SYSCALL_FMASK);
 
-    cpu_data.kernel_rsp = (uint64_t)(syscall_stack + KERNEL_STACK_SIZE);
-    wrmsr(IA32_KERNEL_GS_BASE, (uint64_t)&cpu_data);
+    syscall_kernel_rsp = (uint64_t)(syscall_stack + KERNEL_STACK_SIZE);
 }
 
 void set_syscall_kernel_stack(uint64_t rsp)
 {
-    cpu_data.kernel_rsp = rsp;
+    syscall_kernel_rsp = rsp;
 }
 
-uint64_t get_user_rsp(void)
-{
-    return cpu_data.user_rsp;
-}
+static uint64_t syscall_dispatch(syscall_ctx_t *ctx);
 
 uint64_t syscall_handler(syscall_ctx_t *ctx)
 {
     extern task_t *current_task;
 
-#ifdef __ARCH_X86_64
-    current_task->cpu_ctx.rax = ctx->sys_num;
-    current_task->cpu_ctx.rbx = ctx->rbx;
-    current_task->cpu_ctx.rcx = ctx->rip;
-    current_task->cpu_ctx.rdx = ctx->arg3;
-    current_task->cpu_ctx.rbp = ctx->rbp;
-    current_task->cpu_ctx.rdi = ctx->arg1;
-    current_task->cpu_ctx.rsi = ctx->arg2;
-    current_task->cpu_ctx.r8 = ctx->arg5;
-    current_task->cpu_ctx.r9 = ctx->arg6;
-    current_task->cpu_ctx.r10 = ctx->arg4;
-    current_task->cpu_ctx.r11 = ctx->rflags;
-    current_task->cpu_ctx.r12 = ctx->r12;
-    current_task->cpu_ctx.r13 = ctx->r13;
-    current_task->cpu_ctx.r14 = ctx->r14;
-    current_task->cpu_ctx.r15 = ctx->r15;
-    current_task->cpu_ctx.rip = ctx->rip;
-    current_task->cpu_ctx.rflags = ctx->rflags;
-    current_task->cpu_ctx.cs = 0x43;
-    current_task->cpu_ctx.ss = 0x3B;
-    current_task->cpu_ctx.rsp = get_user_rsp();
-#endif
+    uint64_t ret = syscall_dispatch(ctx);
+
+    if (current_task->pending_signal)
+        signal_check_user(&ctx->rip, &ctx->user_rsp);
+
+    return ret;
+}
+
+static uint64_t syscall_dispatch(syscall_ctx_t *ctx)
+{
+    extern task_t *current_task;
 
     switch (ctx->sys_num)
     {
@@ -145,33 +126,24 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     }
     case 2: // fork
     {
-        pid_t res = fork(ctx);
-        return res;
+        return (uint64_t)(int64_t)fork(ctx);
     }
     case 3: // execve
     {
-        char *path = (char *)ctx->arg1;
-        char **argv = (char **)ctx->arg2;
-
-        current_task->state = TASK_BLOCKED;
-
         struct execve_args e_args = {
-            .path = path,
-            .argv = argv,
+            .path = (char *)ctx->arg1,
+            .argv = (char **)ctx->arg2,
             .envp = NULL,
         };
-        return execve(e_args);
+        return (uint64_t)(int64_t)execve(e_args);
     }
     case 4: // waitpid
     {
-        int pid = (int)ctx->arg1;
-        int status = waitpid(pid);
-        return status;
+        return (uint64_t)(int64_t)waitpid((int)ctx->arg1);
     }
     case 5: // exit (current task)
     {
-        int stat = (int)ctx->arg1;
-        exit(stat);
+        exit((int)ctx->arg1);
         return 0;
     }
     case 6: // get framebuffer info (RDI = 0 - pitch, RDI = 1 - height, RDI = 2 - width)
@@ -196,27 +168,8 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
     }
     case 7: // uname
     {
-        struct utsname *buf = (struct utsname *)ctx->arg1;
         extern struct utsname utsname;
-
-        memset(buf->sysname, 0, _UTSNAME_LENGTH);
-        memset(buf->nodename, 0, _UTSNAME_LENGTH);
-        memset(buf->release, 0, _UTSNAME_LENGTH);
-        memset(buf->version, 0, _UTSNAME_LENGTH);
-        memset(buf->machine, 0, _UTSNAME_LENGTH);
-
-        if (copy_to_user(buf->sysname, utsname.sysname, _UTSNAME_LENGTH) != 0)
-            return -1;
-        if (copy_to_user(buf->nodename, utsname.nodename, _UTSNAME_LENGTH) != 0)
-            return -1;
-        if (copy_to_user(buf->release, utsname.release, _UTSNAME_LENGTH) != 0)
-            return -1;
-        if (copy_to_user(buf->version, utsname.version, _UTSNAME_LENGTH) != 0)
-            return -1;
-        if (copy_to_user(buf->machine, utsname.machine, _UTSNAME_LENGTH) != 0)
-            return -1;
-
-        return 0;
+        return copy_to_user((void *)ctx->arg1, &utsname, sizeof(struct utsname)) == 0 ? 0 : (uint64_t)-1;
     }
     case 8: // reboot / shutdown
     {
@@ -227,63 +180,79 @@ uint64_t syscall_handler(syscall_ctx_t *ctx)
             acpi_shutdown();
         return 0;
     }
-    case 9: // brk
+    case 9: // sbrk (returns previous break or -1)
     {
-        // TODO: fix it (but execve has to be fixed first)
+        return task_sbrk(current_task, (int64_t)ctx->arg1);
     }
     case 10: // file open
     {
-        char *path = (char *)ctx->arg1;
-        int flags = (int)ctx->arg2;
+        char path[256];
+        if (copy_string_from_user(path, (const char *)ctx->arg1, sizeof(path)) < 0)
+            return -1;
         if (path[0] != '/')
             return -1;
+
         uint64_t size = 0;
-        int x = vfs_open(path, flags, &size, current_task->fd_table);
-        return x;
+        return (uint64_t)(int64_t)vfs_open(path, (int)ctx->arg2, &size, current_task->fd_table);
     }
     case 11: // file read
     {
         int fd = (int)ctx->arg1;
-        uint64_t size = (uint64_t)ctx->arg2;
-        void *ptr = (void *)ctx->arg3;
+        uint64_t size = ctx->arg2;
+        if (size > SYSCALL_MAX_IO)
+            size = SYSCALL_MAX_IO;
+        if (size == 0)
+            return 0;
 
         void *tmpbuf = kmalloc(size);
+        if (!tmpbuf)
+            return -1;
 
         int bytes_read = vfs_read(fd, current_task->fd_table, tmpbuf, size);
-        copy_to_user(ptr, tmpbuf, bytes_read);
+        if (bytes_read > 0 && copy_to_user((void *)ctx->arg3, tmpbuf, (uint32_t)bytes_read) != 0)
+            bytes_read = -1;
         kfree(tmpbuf);
 
-        return bytes_read;
+        return (uint64_t)(int64_t)bytes_read;
     }
     case 12: // file write
     {
         int fd = (int)ctx->arg1;
-        uint64_t size = (uint64_t)ctx->arg2;
-        void *buf = (void *)ctx->arg3;
-        return vfs_write(fd, current_task->fd_table, buf, size);
+        uint64_t size = ctx->arg2;
+        if (size > SYSCALL_MAX_IO)
+            size = SYSCALL_MAX_IO;
+        if (size == 0)
+            return 0;
+
+        void *tmpbuf = kmalloc(size);
+        if (!tmpbuf)
+            return -1;
+
+        int written = -1;
+        if (copy_from_user(tmpbuf, (void *)ctx->arg3, (uint32_t)size) == 0)
+            written = vfs_write(fd, current_task->fd_table, tmpbuf, size);
+        kfree(tmpbuf);
+
+        return (uint64_t)(int64_t)written;
     }
     case 13: // file close
     {
-        int fd = (int)ctx->arg1;
-        return vfs_close(fd, current_task->fd_table);
+        return (uint64_t)(int64_t)vfs_close((int)ctx->arg1, current_task->fd_table);
     }
     case 14: // cls, TO BE REMOVED ONCE USER-SIDE SCREEN DRIVER IS DONE
     {
         cls();
         return 0;
     }
-    case 15: // spawn (skip fork, just execute)
+    case 15: // spawn (skip fork, just execute; returns child's PID)
     {
-        char *path = (char *)ctx->arg1;
-        char **argv = (char **)ctx->arg2;
-
         struct execve_args e_args = {
-            .path = path,
-            .argv = argv,
+            .path = (char *)ctx->arg1,
+            .argv = (char **)ctx->arg2,
             .envp = NULL,
         };
 
-        return spawn(e_args);
+        return (uint64_t)(int64_t)spawn(e_args);
     }
     default:
         return -1;

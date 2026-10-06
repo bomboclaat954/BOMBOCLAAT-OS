@@ -144,7 +144,7 @@ void initramfs()
         THEORETICALLY I could use fork() and execve() here (because the kernel task is already running),
         but I'm a bit afraid it won't work so I'll keep it like that.
     */
-    task_t *init_task = task_create(init_data, 0, "/bin/init", 0, 0, 4);
+    task_t *init_task = task_create(init_data, init_size, 0, "/bin/init", 0, 0, USER_STACK_PAGES);
 
     if (init_task == NULL)
         panic("Failed to create init process", 0, 0);

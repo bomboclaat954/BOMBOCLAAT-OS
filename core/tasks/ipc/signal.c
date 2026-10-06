@@ -18,6 +18,7 @@
 // IPC = Inter-Process Communication
 #include <tasks/ipc/signal.h>
 #include <tasks/tasks.h>
+#include <memory/userspace.h>
 #include <bomboclaat/kprintf.h>
 
 int signal_send(sig_t sig, pid_t target)
@@ -26,11 +27,17 @@ int signal_send(sig_t sig, pid_t target)
         return 1; // don't talk to PID 0!
 
     task_t *target_task = find_by_pid(target);
-    if (!target_task)
+    if (!target_task || target_task->state == TASK_ZOMBIE)
         return 2;
 
+    if (sig != SIGKILL && sig != SIGTERM)
+        return -1;
+
+    uint64_t flags = irq_save();
     target_task->pending_signal = sig;
-    return execute_signal(target_task);
+    int ret = execute_signal(target_task);
+    irq_restore(flags);
+    return ret;
 }
 
 int execute_signal(task_t *target)
@@ -44,8 +51,10 @@ int execute_signal(task_t *target)
     {
         // A guy opens his door and gets shot
         log(LOG_INFO, "PID %d: received SIGKILL", target->pid);
-        target->state = TASK_ZOMBIE;
-        sched();
+        task_terminate(target, 128 + SIGKILL);
+        if (target == current_task)
+            sched();
+        return 0;
     }
     case SIGTERM:
     {
@@ -54,12 +63,15 @@ int execute_signal(task_t *target)
 
         if (!target->sigterm_handler_rip)
         {
-            target->pending_signal = SIGKILL;
-            execute_signal(target);
+            task_terminate(target, 128 + SIGTERM);
+            if (target == current_task)
+                sched();
+            return 0;
         }
 
-        target->cpu_ctx.rip = target->sigterm_handler_rip;
-        sched();
+        if (target->state == TASK_BLOCKED)
+            target->state = TASK_READY;
+        return 0;
     }
     default:
     {
@@ -67,4 +79,31 @@ int execute_signal(task_t *target)
         return -1;
     }
     }
+}
+
+void signal_check_user(uint64_t *user_rip, uint64_t *user_rsp)
+{
+    task_t *t = current_task;
+    if (!t->pending_signal)
+        return;
+
+    int sig = t->pending_signal;
+    t->pending_signal = 0;
+
+    if (sig == SIGTERM && t->sigterm_handler_rip)
+    {
+        uint64_t sp = ((*user_rsp - 128) & ~0xFULL) - 8;
+        uint64_t ret_addr = USER_SIGTRAMP_VIRT;
+
+        if (copy_to_user((void *)sp, &ret_addr, sizeof(ret_addr)) == 0)
+        {
+            *user_rsp = sp;
+            *user_rip = t->sigterm_handler_rip;
+            t->sigterm_handler_rip = 0;
+            return;
+        }
+    }
+
+    task_terminate(t, 128 + sig);
+    sched();
 }

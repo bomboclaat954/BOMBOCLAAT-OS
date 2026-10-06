@@ -4,6 +4,7 @@
  */
 #ifndef SYSCALL_H
 #define SYSCALL_H
+#include <stdint.h>
 
 typedef struct
 {
@@ -22,6 +23,7 @@ typedef struct
     uint64_t r13;
     uint64_t r14;
     uint64_t r15;
+    uint64_t user_rsp;
 } __attribute__((packed)) syscall_ctx_t;
 
 void init_syscall(uint16_t kernel_cs, uint16_t user_cs_base);

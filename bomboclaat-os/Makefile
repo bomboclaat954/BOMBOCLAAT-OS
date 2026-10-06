@@ -66,8 +66,7 @@ link: $(ALL_OBJECTS)
 	done
 
 mkramfs: link
-	$(eval ELF_OBJS := $(wildcard build/*.elf))
-	@for obj in $(ELF_OBJS); do \
+	@for obj in build/*.elf; do \
 		name=$$(basename $$obj .elf); \
 		cp build/$$name.elf root/bin/$$name; \
 	done

@@ -66,11 +66,48 @@ void *pmm_alloc_frame()
     return NULL;
 }
 
+void *pmm_alloc_frame_zeroed(void)
+{
+    void *phys = pmm_alloc_frame();
+    if (!phys)
+        return NULL;
+    memset((void *)((uintptr_t)phys + hhdm_offset), 0, PAGE_SIZE);
+    return phys;
+}
+
+void *pmm_alloc_contiguous(size_t count)
+{
+    if (count == 0)
+        return NULL;
+
+    size_t run = 0;
+    for (uintptr_t i = 1; i < total_frames; i++)
+    {
+        if ((bitmap[i / 8] & (1 << (i % 8))) == 0)
+        {
+            run++;
+            if (run == count)
+            {
+                uintptr_t first = i - count + 1;
+                for (uintptr_t j = first; j <= i; j++)
+                {
+                    bitmap_set(j);
+                    used_frames++;
+                }
+                return (void *)(first * PAGE_SIZE);
+            }
+        }
+        else
+            run = 0;
+    }
+    return NULL;
+}
+
 void pmm_free_frame(void *phys)
 {
     if ((uintptr_t)phys % PAGE_SIZE != 0)
         panic("tried to free unaligned frame", 0, 0);
-    else if ((uintptr_t)phys > total_frames * PAGE_SIZE)
+    else if ((uintptr_t)phys >= total_frames * PAGE_SIZE)
         panic("tried to free too high address", 0, 0);
 
     uintptr_t frame = (uintptr_t)phys / PAGE_SIZE;
@@ -112,7 +149,7 @@ void pmm_init(struct limine_memmap_response *memmap, struct limine_hhdm_response
     }
     bitmap = (uint8_t *)(bitmap_physical_addr + hhdm->offset);
     used_frames = total_frames;
-    memset(bitmap, 0xFF, (total_frames / 8));
+    memset(bitmap, 0xFF, bitmap_size);
     struct limine_memmap_entry **entries = memmap->entries;
     for (uint64_t i = 0; i < memmap->entry_count; i++)
     {

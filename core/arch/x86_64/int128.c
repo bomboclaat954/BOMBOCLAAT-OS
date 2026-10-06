@@ -41,19 +41,27 @@
 
 uint64_t int128_handler(context_t *r)
 {
-    extern task_t *current_task;
-    extern task_t *task_list_head;
     switch (r->rax)
     {
     case 1: // printf
     {
         char *txt_ptr = (char *)r->rdi;
-        int len = (int)r->rsi;
+        uint32_t len = (uint32_t)r->rsi;
+        if (len > 4096)
+            len = 4096;
 
         char *txt = kmalloc(len + 1);
-        copy_from_user(txt, txt_ptr, len);
+        if (!txt)
+            return -ENOMEM;
 
-        kprintf(txt);
+        if (copy_from_user(txt, txt_ptr, len) != 0)
+        {
+            kfree(txt);
+            return -EFAULT;
+        }
+
+        txt[len] = '\0';
+        kprintf("%s", txt);
         kfree(txt);
         return 0;
     }
@@ -62,23 +70,21 @@ uint64_t int128_handler(context_t *r)
         // TODO: get rid of this and write to /dev/kbd
         char *buf = (char *)r->rdi;
         uint32_t max_len = (uint32_t)r->rsi;
+        if (max_len == 0 || max_len > 4096)
+            return -EINVAL;
 
         char *tmpbuf = kmalloc(max_len);
         if (!tmpbuf)
-        {
-            r->rax = 1;
-            return (uint64_t)r;
-        }
-        input(tmpbuf, max_len);
-        copy_to_user(buf, tmpbuf, strlen(tmpbuf) + 1);
+            return -ENOMEM;
 
-        r->rax = 0;
-        return (uint64_t)r;
+        input(tmpbuf, max_len);
+        tmpbuf[max_len - 1] = '\0';
+        int res = copy_to_user(buf, tmpbuf, strlen(tmpbuf) + 1);
+        kfree(tmpbuf);
+
+        return res == 0 ? 0 : -EFAULT;
     }
     default:
-    {
-        r->rax = ENOSYS;
-        return (uint64_t)r;
-    }
+        return -ENOSYS;
     }
 }

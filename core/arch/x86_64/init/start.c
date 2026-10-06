@@ -276,6 +276,5 @@ void kinit(void)
     asm volatile("sti");
     sched();
 
-    while (1)
-        ;
+    kernel_idle_loop();
 }

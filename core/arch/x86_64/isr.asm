@@ -33,10 +33,7 @@ isr_stub_%1:
 
 extern irq_handler
 extern exception_handler
-extern schedule
-extern int128_handler  
-extern kernel_stack_ptr
-extern user_rsp_scratch
+extern int128_handler
 
 global isr_stub_default
 global isr_stub_128
@@ -65,11 +62,9 @@ syscall_common_stub:
     push r14
     push r15
     
-    sub rsp, 8
+    cld
     mov rdi, rsp
-    add rdi, 8
     call int128_handler
-    add rsp, 8
 
     mov [rsp + 112], rax
 
@@ -108,6 +103,7 @@ isr_common_stub:
     push r14
     push r15
 
+    cld
     mov rdi, rsp
     call exception_handler
 
@@ -151,12 +147,15 @@ irq_common_stub:
     mov ds, ax
     mov es, ax
 
+    cld
     mov rdi, rsp
     call irq_handler
-    
-    ;mov rsp, rax
 
+    test byte [rsp + 144], 3
+    mov ax, 0x30
+    jz .restore_segments
     mov ax, 0x3B
+.restore_segments:
     mov ds, ax
     mov es, ax
 

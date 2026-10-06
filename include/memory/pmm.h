@@ -20,6 +20,8 @@ struct ram // a lil bit useless but works
 uintptr_t get_total_frames();
 uintptr_t get_free_frames();
 void *pmm_alloc_frame();
+void *pmm_alloc_frame_zeroed(void);
+void *pmm_alloc_contiguous(size_t count);
 void pmm_free_frame(void *phys);
 void pmm_init(struct limine_memmap_response *memmap, struct limine_hhdm_response *hhdm);
 ram_t init_memmap(struct limine_memmap_response *memmap);

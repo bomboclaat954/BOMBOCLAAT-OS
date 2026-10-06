@@ -20,6 +20,8 @@
 #include <stddef.h>
 #include <memory/memtools.h>
 
+static uint8_t df_stack[8192] __attribute__((aligned(16)));
+
 gdt_entries gdt = {0};
 gdt_ptr gdtr = {0};
 tss_ptr tss = {0};
@@ -96,5 +98,7 @@ void gdt_tss_init(void)
 
     gdt_reload();
     memset(&tss, 0, sizeof(tss_ptr));
+    tss.ist1 = (uint64_t)(df_stack + sizeof(df_stack));
+    tss.iopb = (uint32_t)sizeof(tss_ptr) << 16;
     gdt_load_tss(&tss);
 }

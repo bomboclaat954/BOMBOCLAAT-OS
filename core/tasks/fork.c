@@ -18,88 +18,83 @@
 
 #include <bomboclaat/types.h>
 #include <tasks/tasks.h>
+#include <tasks/fork.h>
 #include <memory/kmalloc.h>
 #include <memory/memtools.h>
 #include <memory/vmm.h>
 #include <memory/pmm.h>
 #include <bomboclaat/syscall.h>
 #include <lib/string.h>
-
-extern uintptr_t build_kernel_frame_from_syscall(task_t *task);
-extern uint64_t get_user_rsp(void);
-
-task_t *create_child(task_t *parent, syscall_ctx_t *parent_regs)
-{
-    if (!parent)
-        return NULL;
-
-    task_t *new = (task_t *)kmalloc(sizeof(task_t));
-    if (!new)
-        return NULL;
-    memset(new, 0, sizeof(task_t));
-
-    strcpy(parent->name, new->name);
-    for (int i = 0; i < MAX_FILES_PER_TASK; i++)
-    {
-        if (parent->fd_table[i])
-            new->fd_table[i] = parent->fd_table[i];
-    }
-    new->parent = parent;
-    new->pid = new_pid();
-
-    new->pml4 = vmm_clone_user_space(parent->pml4);
-    if (!new->pml4)
-    {
-        kfree(new);
-        return NULL;
-    }
-
-    new->cpu_ctx = parent->cpu_ctx;
-    new->cpu_ctx.rax = 0;
-
-    for (int i = 0; i < 4; i++)
-    {
-        void *frame = pmm_alloc_frame();
-        if (!frame)
-        {
-            kfree(new);
-            return NULL;
-        }
-        new->kstack_frames[i] = (uintptr_t)frame;
-    }
-    new->kstack_top = new->kstack_frames[3] + hhdm_offset + PAGE_SIZE;
-    *(uint64_t *)(new->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;
-    new->kernel_rsp = build_kernel_frame_from_syscall(new);
-
-    INIT_LIST_HEAD(&new->children);
-    list_add_tail(&new->sibling, &parent->children);
-
-    new->state = TASK_NEW;
-    return new;
-}
+#include <errno.h>
 
 int fork(syscall_ctx_t *ctx)
 {
-    extern task_t *current_task;
+    task_t *parent = current_task;
+    if (!parent || parent == kernel_task)
+        return -EPERM;
 
-    if (!current_task)
-        return -1;
+    uint64_t flags = irq_save();
+    int result;
 
-    task_t *new = create_child(current_task, ctx);
-    if (!new)
-        return -1;
-
-    new->state = TASK_READY;
-
-    if (task_insert(new) < 0)
+    if (find_free_slot() < 0)
     {
-        list_del(&new->sibling);
-        kfree(new);
-        return -1;
+        result = -EAGAIN;
+        goto out;
     }
 
-    new->next = current_task->next;
-    current_task->next = new;
+    task_t *child = task_alloc();
+    if (!child)
+    {
+        result = -ENOMEM;
+        goto out;
+    }
 
-    return new->pid;
+    child->pml4 = vmm_clone_user_space(parent->pml4);
+    if (!child->pml4)
+    {
+        task_release(child);
+        result = -ENOMEM;
+        goto out;
+    }
+
+    child->mm = parent->mm;
+    child->sigterm_handler_rip = parent->sigterm_handler_rip;
+    task_set_name(child, parent->name);
+    task_inherit_fds(child, parent);
+
+    task_fpu_save(parent);
+    memcpy((uint8_t *)task_fpu_area(child), (uint8_t *)task_fpu_area(parent), 512);
+
+    memset(&child->cpu_ctx, 0, sizeof(context_t));
+    child->cpu_ctx.r15 = ctx->r15;
+    child->cpu_ctx.r14 = ctx->r14;
+    child->cpu_ctx.r13 = ctx->r13;
+    child->cpu_ctx.r12 = ctx->r12;
+    child->cpu_ctx.r11 = ctx->rflags;
+    child->cpu_ctx.r10 = ctx->arg4;
+    child->cpu_ctx.r9 = ctx->arg6;
+    child->cpu_ctx.r8 = ctx->arg5;
+    child->cpu_ctx.rbp = ctx->rbp;
+    child->cpu_ctx.rdi = ctx->arg1;
+    child->cpu_ctx.rsi = ctx->arg2;
+    child->cpu_ctx.rdx = ctx->arg3;
+    child->cpu_ctx.rcx = ctx->rip;
+    child->cpu_ctx.rbx = ctx->rbx;
+    child->cpu_ctx.rax = 0;
+    child->cpu_ctx.rip = ctx->rip;
+    child->cpu_ctx.cs = USER_CS;
+    child->cpu_ctx.ss = USER_SS;
+    child->cpu_ctx.rsp = ctx->user_rsp;
+    child->cpu_ctx.rflags = (ctx->rflags & USER_RFLAGS_MASK) | 0x202;
+
+    child->pid = new_pid();
+    build_kernel_frame(child);
+
+    task_link(parent, child);
+    child->state = TASK_READY;
+    result = child->pid;
+
+out:
+    irq_restore(flags);
+    return result;
 }

@@ -31,13 +31,20 @@ void irq_handler(registers_t *r)
     case 32:
         ticks++;
         current_task->cpu_time++;
+        apic_eoi();
         sched();
         break;
     case 33:
         keyboard_handler();
+        apic_eoi();
         break;
+    case 0xFF:
+        return;
     default:
+        apic_eoi();
         break;
     }
-    apic_eoi();
+
+    if ((r->cs & 3) && current_task->pending_signal)
+        signal_check_user(&r->rip, &r->rsp);
 }

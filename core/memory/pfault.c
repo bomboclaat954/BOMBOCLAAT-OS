@@ -25,37 +25,48 @@
 #include <bomboclaat/kprintf.h>
 #include <bomboclaat/panic.h>
 
-int user_pf(registers_t *regs, uintptr_t addr)
+static int user_pf(registers_t *regs, uintptr_t addr)
 {
-    if (regs->error_code & 0x02)
-    {
-        void *phys = pmm_alloc_frame();
-        if (!phys)
-            return 1;
+    if (regs->error_code & 0x01)
+        return 1;
 
-        return vmm_map_page(current_task->pml4, addr, (uintptr_t)phys, VMM_PRESENT | VMM_WRITE | VMM_USER);
-    }
-    else if (regs->error_code & 0x08)
+    if (addr >= USER_SPACE_LIMIT)
         return 2;
 
-    return 3;
+    mm_t *mm = &current_task->mm;
+    if (addr < mm->stack_start && addr >= mm->stack_limit)
+    {
+        void *phys = pmm_alloc_frame_zeroed();
+        if (!phys)
+            return 3;
+
+        if (vmm_map_page(current_task->pml4, addr & ~(uintptr_t)(PAGE_SIZE - 1), (uintptr_t)phys, VMM_PRESENT | VMM_WRITE | VMM_USER) != 0)
+        {
+            pmm_free_frame(phys);
+            return 4;
+        }
+        return 0;
+    }
+
+    return 5;
 }
 
 int pf_handler(registers_t *regs, uint64_t addr)
 {
-    if (!addr)
+    if (!(regs->cs & 0x03))
     {
-        log(LOG_ERR, "PID %d: #PF at NULL", current_task->pid);
-        signal_send(SIGKILL, current_task->pid);
+        char msg[128];
+        sprintf(msg, "#PF in kernel space at 0x%x", addr);
+        panic(msg, regs, 0);
+        return 1;
     }
 
-    if (regs->cs & 0x03)
+    if (user_pf(regs, addr) != 0)
     {
-        if (user_pf(regs, addr) != 0)
-            panic("Unfixable #PF in user space", regs, 0);
+        log(LOG_ERR, "PID %d (%s): segmentation fault at 0x%x, RIP=0x%x", current_task->pid, current_task->name, addr, regs->rip);
+        task_terminate(current_task, 139);
+        sched();
     }
-    else
-        panic("#PF in kernel space", regs, 0);
 
     return 0;
 }

@@ -22,358 +22,437 @@
 #include <memory/pmm.h>
 #include <memory/memtools.h>
 #include <memory/kmalloc.h>
+#include <memory/userspace.h>
 #include <memory/vmm.h>
 #include <lib/string.h>
 #include <bomboclaat/kprintf.h>
 #include <bomboclaat/elf64.h>
 #include <bomboclaat/globals.h>
+#include <errno.h>
 
-#define USER_STACK_PAGES 4
+#define EXEC_MAX_ARGS 32
+#define EXEC_MAX_PATH 256
+#define EXEC_ARG_BYTES 3584
+#define EXEC_MAX_FILE (16 * 1024 * 1024)
+#define EXEC_MAX_SEGMENT (64ULL * 1024 * 1024)
+#define EXEC_MAX_PHNUM 64
+#define EXEC_MAX_SHNUM 256
 
-extern uintptr_t build_kernel_frame_from_syscall(task_t *task);
 extern void set_syscall_kernel_stack(uint64_t rsp);
-extern tss_ptr tss;
+extern uint64_t hhdm_offset;
 
-int calculate_argc(char **argv)
+struct exec_args_k
 {
-    if (!argv)
-        return 0;
-    int argc = 0;
-    while (argv[argc])
-        argc++;
+    char path[EXEC_MAX_PATH];
+    char *argv[EXEC_MAX_ARGS + 1];
+    char buf[EXEC_ARG_BYTES];
+    int argc;
+};
 
-    return argc;
+static uint64_t nx_flag(void)
+{
+    uint32_t lo, hi;
+    asm volatile("rdmsr" : "=a"(lo), "=d"(hi) : "c"(0xC0000080));
+    return (lo & (1U << 11)) ? VMM_NX : 0;
 }
 
-/**
-    * These arguments names may look like Gibberish, so here's an explaination:
-    @param elf_data: raw ELF file data
-    @param task: the task we're setting
-    @param shoff: offset of the sections table
-    @param shentsz: size of one entry in the sections table
-    @param shnum: number of total sections table entries
-    @param shstrndx: index of the string table containing sections names
-*/
-int prepare_sections(void *elf_data, task_t *task, uint64_t shoff, uint16_t shentsz, uint16_t shnum, uint16_t shstrndx)
+static int elf_validate(const uint8_t *data, size_t size)
 {
-    ELF64_Shdr *shstrtab_hdr = (ELF64_Shdr *)(elf_data + shoff + (shentsz * shstrndx));
-    char *strtab = (char *)(elf_data + shstrtab_hdr->sh_offset);
+    if (!data || size < sizeof(ELF64_Ehdr))
+        return -ENOEXEC;
 
-    for (int i = 0; i < shnum; i++)
+    const ELF64_Ehdr *eh = (const ELF64_Ehdr *)data;
+
+    if (*(const uint32_t *)eh->e_ident != ELF_MAGIC || eh->e_ident[4] != 2 || eh->e_ident[5] != 1)
+        return -ENOEXEC;
+    if (eh->e_machine != 0x3E || eh->e_type != 2)
+        return -ENOEXEC;
+    if (eh->e_phentsize != sizeof(ELF64_Phdr) || eh->e_phnum == 0 || eh->e_phnum > EXEC_MAX_PHNUM)
+        return -ENOEXEC;
+    if (eh->e_phoff > size || (uint64_t)eh->e_phnum * sizeof(ELF64_Phdr) > size - eh->e_phoff)
+        return -ENOEXEC;
+    if (eh->e_entry < USER_MIN_ADDR || eh->e_entry >= USER_IMAGE_LIMIT)
+        return -ENOEXEC;
+
+    const ELF64_Phdr *ph = (const ELF64_Phdr *)(data + eh->e_phoff);
+    int loads = 0;
+    int entry_ok = 0;
+
+    for (int i = 0; i < eh->e_phnum; i++)
     {
-        ELF64_Shdr *shdr = (ELF64_Shdr *)(elf_data + shoff + (shentsz * i));
-        char *name = strtab + shdr->sh_name;
+        if (ph[i].p_type != PT_LOAD || ph[i].p_memsz == 0)
+            continue;
 
-        if (strcmp(name, ".sigterm") == 0)
-            task->sigterm_handler_rip = shdr->sh_addr;
+        if (ph[i].p_filesz > ph[i].p_memsz || ph[i].p_memsz > EXEC_MAX_SEGMENT)
+            return -ENOEXEC;
+        if (ph[i].p_offset > size || ph[i].p_filesz > size - ph[i].p_offset)
+            return -ENOEXEC;
+        if (ph[i].p_vaddr < USER_MIN_ADDR || ph[i].p_vaddr >= USER_IMAGE_LIMIT)
+            return -ENOEXEC;
+        if (ph[i].p_memsz > USER_IMAGE_LIMIT - ph[i].p_vaddr)
+            return -ENOEXEC;
+
+        if ((ph[i].p_flags & PF_X) && eh->e_entry >= ph[i].p_vaddr && eh->e_entry < ph[i].p_vaddr + ph[i].p_memsz)
+            entry_ok = 1;
+        loads++;
+    }
+
+    if (!loads || !entry_ok)
+        return -ENOEXEC;
+
+    return 0;
+}
+
+static uint64_t elf_find_sigterm(const uint8_t *data, size_t size)
+{
+    const ELF64_Ehdr *eh = (const ELF64_Ehdr *)data;
+
+    if (eh->e_shoff == 0 || eh->e_shnum == 0 || eh->e_shnum > EXEC_MAX_SHNUM)
+        return 0;
+    if (eh->e_shentsize != sizeof(ELF64_Shdr) || eh->e_shstrndx >= eh->e_shnum)
+        return 0;
+    if (eh->e_shoff > size || (uint64_t)eh->e_shnum * sizeof(ELF64_Shdr) > size - eh->e_shoff)
+        return 0;
+
+    const ELF64_Shdr *sh = (const ELF64_Shdr *)(data + eh->e_shoff);
+    const ELF64_Shdr *strsec = &sh[eh->e_shstrndx];
+
+    if (strsec->sh_offset > size || strsec->sh_size > size - strsec->sh_offset)
+        return 0;
+
+    const char *strtab = (const char *)(data + strsec->sh_offset);
+    static const char wanted[] = ".sigterm";
+
+    for (int i = 0; i < eh->e_shnum; i++)
+    {
+        uint64_t off = sh[i].sh_name;
+        if (off >= strsec->sh_size || strsec->sh_size - off < sizeof(wanted))
+            continue;
+
+        int same = 1;
+        for (size_t k = 0; k < sizeof(wanted); k++)
+        {
+            if (strtab[off + k] != wanted[k])
+            {
+                same = 0;
+                break;
+            }
+        }
+
+        if (same && sh[i].sh_addr >= USER_MIN_ADDR && sh[i].sh_addr < USER_IMAGE_LIMIT)
+            return sh[i].sh_addr;
     }
 
     return 0;
 }
 
-struct task_file
+static int elf_load(const uint8_t *data, vmm_table_t *pml4, mm_t *mm)
 {
-    void *raw;
-    ELF64_Ehdr *ehdr;
-};
+    const ELF64_Ehdr *eh = (const ELF64_Ehdr *)data;
+    const ELF64_Phdr *ph = (const ELF64_Phdr *)(data + eh->e_phoff);
+    uint64_t nx = nx_flag();
 
-struct task_file get_file(char *path)
-{
-    uint64_t size = 0;
-    struct task_file ret = {
-        NULL,
-        NULL,
-    };
+    mm->code_start = UINTPTR_MAX;
+    mm->code_end = 0;
+    mm->data_start = UINTPTR_MAX;
+    mm->data_end = 0;
 
-    int fd = vfs_open(path, 0, &size, current_task->fd_table);
-    if (fd < 0)
-        return ret;
-
-    void *file = kmalloc(size + 1);
-    if (file == NULL)
+    for (int i = 0; i < eh->e_phnum; i++)
     {
-        vfs_close(fd, current_task->fd_table);
-        return ret;
-    }
+        const ELF64_Phdr *seg = &ph[i];
+        if (seg->p_type != PT_LOAD || seg->p_memsz == 0)
+            continue;
 
-    int64_t read_bytes = vfs_read(fd, current_task->fd_table, file, size);
-    vfs_close(fd, current_task->fd_table);
-    if (read_bytes <= 0)
-        return ret;
+        uintptr_t seg_start = seg->p_vaddr;
+        uintptr_t seg_end = seg->p_vaddr + seg->p_memsz;
 
-    ELF64_Ehdr *header = (ELF64_Ehdr *)file;
-    if (*(uint32_t *)header->e_ident != ELF_MAGIC || header->e_machine != 0x3E)
-    {
-        kfree(file);
-        return ret;
-    }
-
-    if (header->e_machine != 0x3E)
-    {
-        log(LOG_ERR, "%s: file not runable on x86_64", path);
-        return ret;
-    }
-
-    ret.raw = file;
-    ret.ehdr = header;
-    return ret;
-}
-
-int elf_alloc(void *elf_data, task_t *task, ELF64_Phdr *ph_table, uint16_t e_phnum)
-{
-    task->mm.code_start = UINTPTR_MAX;
-    task->mm.code_end = 0;
-    task->mm.data_start = UINTPTR_MAX;
-    task->mm.data_end = 0;
-
-    for (int i = 0; i < e_phnum; i++)
-    {
-        ELF64_Phdr *phdr = &ph_table[i];
-        if (phdr->p_type == PT_LOAD)
+        if (seg->p_flags & PF_X)
         {
-            uintptr_t seg_start = phdr->p_vaddr;
-            uintptr_t seg_end = phdr->p_vaddr + phdr->p_memsz;
+            if (seg_start < mm->code_start)
+                mm->code_start = seg_start;
+            if (seg_end > mm->code_end)
+                mm->code_end = seg_end;
+        }
+        else
+        {
+            if (seg_start < mm->data_start)
+                mm->data_start = seg_start;
+            if (seg_end > mm->data_end)
+                mm->data_end = seg_end;
+        }
 
-            if (phdr->p_flags & PF_X)
+        uint64_t flags = VMM_PRESENT | VMM_USER;
+        if (seg->p_flags & PF_W)
+            flags |= VMM_WRITE;
+        if (!(seg->p_flags & PF_X))
+            flags |= nx;
+
+        uintptr_t first = seg_start & ~(uintptr_t)(PAGE_SIZE - 1);
+        uintptr_t last = (seg_end + PAGE_SIZE - 1) & ~(uintptr_t)(PAGE_SIZE - 1);
+
+        for (uintptr_t va = first; va < last; va += PAGE_SIZE)
+        {
+            uintptr_t phys = 0;
+            uint64_t old_flags = 0;
+            uint8_t *kvirt;
+
+            if (vmm_resolve(pml4, va, &phys, &old_flags) == 0)
             {
-                if (seg_start < task->mm.code_start)
-                    task->mm.code_start = seg_start;
-                if (seg_end > task->mm.code_end)
-                    task->mm.code_end = seg_end;
+                phys &= ~(uintptr_t)(PAGE_SIZE - 1);
+                uint64_t merged = VMM_PRESENT | VMM_USER | (old_flags & VMM_WRITE) | (flags & VMM_WRITE);
+                if (vmm_map_page(pml4, va, phys, merged) != 0)
+                    return -ENOMEM;
             }
             else
             {
-                if (seg_start < task->mm.data_start)
-                    task->mm.data_start = seg_start;
-                if (seg_end > task->mm.data_end)
-                    task->mm.data_end = seg_end;
-            }
-
-            uintptr_t page_boundary_dist = phdr->p_vaddr & 0xFFF;
-            uintptr_t current_virt = phdr->p_vaddr & ~0xFFFULL;
-            size_t bytes_written = 0;
-            size_t mem_size = phdr->p_memsz;
-            size_t file_size = phdr->p_filesz;
-            size_t file_bytes_written = 0;
-
-            while (bytes_written < mem_size)
-            {
-                void *phys_frame = pmm_alloc_frame();
-                if (!phys_frame)
-                    return 1;
-
-                if (vmm_map_page(task->pml4, current_virt, (uintptr_t)phys_frame, VMM_PRESENT | VMM_USER) != 0)
-                    return 2;
-
-                uint8_t *kvirt = (uint8_t *)((uintptr_t)phys_frame + hhdm_offset);
-                memset(kvirt, 0, PAGE_SIZE);
-
-                uintptr_t dest_off = (bytes_written == 0) ? page_boundary_dist : 0;
-                size_t space = PAGE_SIZE - dest_off;
-
-                if (file_bytes_written < file_size)
+                void *frame = pmm_alloc_frame_zeroed();
+                if (!frame)
+                    return -ENOMEM;
+                phys = (uintptr_t)frame;
+                if (vmm_map_page(pml4, va, phys, flags) != 0)
                 {
-                    size_t to_copy = file_size - file_bytes_written;
-                    if (to_copy > space)
-                        to_copy = space;
-
-                    memcpy(kvirt + dest_off, (uint8_t *)elf_data + phdr->p_offset + file_bytes_written, to_copy);
-                    file_bytes_written += to_copy;
+                    pmm_free_frame(frame);
+                    return -ENOMEM;
                 }
-
-                bytes_written += space;
-                current_virt += PAGE_SIZE;
             }
+
+            kvirt = (uint8_t *)(phys + hhdm_offset);
+
+            uintptr_t file_end = seg_start + seg->p_filesz;
+            uintptr_t lo = va > seg_start ? va : seg_start;
+            uintptr_t hi = (va + PAGE_SIZE) < file_end ? (va + PAGE_SIZE) : file_end;
+
+            if (lo < hi)
+                memcpy(kvirt + (lo - va), (uint8_t *)data + seg->p_offset + (lo - seg_start), (uint32_t)(hi - lo));
         }
     }
 
-    if (task->mm.code_start == UINTPTR_MAX)
-        task->mm.code_start = 0;
-    if (task->mm.data_start == UINTPTR_MAX)
-        task->mm.data_start = 0;
+    if (mm->code_start == UINTPTR_MAX)
+        mm->code_start = 0;
+    if (mm->data_start == UINTPTR_MAX)
+        mm->data_start = 0;
 
-    uintptr_t highest = task->mm.code_end > task->mm.data_end ? task->mm.code_end : task->mm.data_end;
-    task->mm.brk_start = (highest + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-    task->mm.brk = task->mm.brk_start;
+    uintptr_t highest = mm->code_end > mm->data_end ? mm->code_end : mm->data_end;
+    mm->brk_start = (highest + PAGE_SIZE - 1) & ~(uintptr_t)(PAGE_SIZE - 1);
+    mm->brk = mm->brk_start;
 
     return 0;
 }
 
-int prepare_stack(task_t *task, int argc, char **argv, uint64_t e_entry)
+int image_build(const void *elf, size_t size, int argc, char **argv, int stack_pages, struct image *out)
 {
-    uintptr_t user_stack_virtual = 0xFFFFFFF000000000;
-    task->mm.stack_start = user_stack_virtual + (USER_STACK_PAGES * PAGE_SIZE);
+    memset(out, 0, sizeof(struct image));
 
-    void *top_frame_phys = NULL;
-    for (int i = 0; i < USER_STACK_PAGES; i++)
+    int rc = elf_validate((const uint8_t *)elf, size);
+    if (rc != 0)
+        return rc;
+
+    out->pml4 = vmm_init();
+    if (!out->pml4)
+        return -ENOMEM;
+
+    rc = elf_load((const uint8_t *)elf, out->pml4, &out->mm);
+    if (rc == 0)
+        rc = task_setup_user_stack(out->pml4, &out->mm, argc, argv, stack_pages, &out->rsp, &out->argv);
+    if (rc == 0)
+        rc = task_map_shared_regions(out->pml4);
+
+    if (rc != 0)
     {
-        void *frame_phys = pmm_alloc_frame();
-        if (!frame_phys)
-            return 1;
-
-        if (vmm_map_page(task->pml4, user_stack_virtual + (i * PAGE_SIZE), (uintptr_t)frame_phys, VMM_PRESENT | VMM_WRITE | VMM_USER) != 0)
-            return 2;
-
-        if (i == USER_STACK_PAGES - 1)
-            top_frame_phys = frame_phys;
+        vmm_free(out->pml4);
+        out->pml4 = NULL;
+        return rc;
     }
 
-    uintptr_t fbf_virtual = 0x7FFF00000000;
-
-    extern uintptr_t fbf_phys;
-    extern uintptr_t fbf_size;
-    size_t aligned_size = (fbf_size + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-
-    for (size_t offset = 0; offset < aligned_size; offset += PAGE_SIZE)
-    {
-        uintptr_t phys = fbf_phys + offset;
-        uintptr_t virt = fbf_virtual + offset;
-        vmm_map_page(task->pml4, virt, phys, VMM_PRESENT | VMM_WRITE | VMM_USER);
-    }
-
-    uintptr_t k_stack_high = (uintptr_t)top_frame_phys + hhdm_offset + PAGE_SIZE;
-    uintptr_t *user_argv_addrs = (uintptr_t *)kmalloc(sizeof(uintptr_t) * (argc + 1));
-    if (!user_argv_addrs)
-    {
-        log(LOG_ERR, "prepare_stack(): kmalloc error");
-        return 3;
-    }
-    uintptr_t top_frame_kvirt = (uintptr_t)top_frame_phys + hhdm_offset;
-    uintptr_t frame_offset = PAGE_SIZE;
-
-    for (int i = argc - 1; i >= 0; i--)
-    {
-        size_t len = argv[i] ? (strlen(argv[i]) + 1) : 0;
-
-        if (len > frame_offset)
-        {
-            kfree(user_argv_addrs);
-            return 4; /* OH SHIT ARGV TOO BIG */
-        }
-
-        frame_offset -= len;
-
-        char *dest = (char *)(top_frame_kvirt + frame_offset);
-        if (argv[i])
-            memcpy(dest, argv[i], strlen(argv[i]));
-
-        user_argv_addrs[i] = (user_stack_virtual + (USER_STACK_PAGES * PAGE_SIZE)) - (PAGE_SIZE - frame_offset);
-    }
-    user_argv_addrs[argc] = (uintptr_t)NULL;
-
-    frame_offset &= ~0xFULL;
-
-    size_t argv_array_size = sizeof(uintptr_t) * (argc + 1);
-    frame_offset -= argv_array_size;
-
-    // uintptr_t *dest_argv_array = (uintptr_t *)(k_stack_high - (PAGE_SIZE - frame_offset));
-    uintptr_t *dest_argv_array = (uintptr_t *)(top_frame_kvirt + frame_offset);
-    memcpy((uint8_t *)dest_argv_array, (uint8_t *)user_argv_addrs, argv_array_size);
-
-    uintptr_t user_argv_ptr = (user_stack_virtual + (USER_STACK_PAGES * PAGE_SIZE)) - (PAGE_SIZE - frame_offset);
-
-    frame_offset -= sizeof(uintptr_t);
-    uintptr_t *dest_argc = (uintptr_t *)(top_frame_kvirt + frame_offset); //(uintptr_t *)(k_stack_high - (PAGE_SIZE - frame_offset));
-    *dest_argc = (uintptr_t)argc;
-
-    uintptr_t user_rsp = (user_stack_virtual + (USER_STACK_PAGES * PAGE_SIZE)) - (PAGE_SIZE - frame_offset);
-
-    /*for (int i = 0; i < 4; i++)
-        pmm_free_frame((void *)task->kstack_frames[i]);
-
-    for (int i = 0; i < 4; i++)
-    {
-        void *kstack_phys = pmm_alloc_frame();
-        if (!kstack_phys)
-        {
-            kfree(user_argv_addrs);
-            return 5;
-        }
-        task->kstack_frames[i] = (uintptr_t)kstack_phys;
-    }
-    task->kstack_top = task->kstack_frames[3] + hhdm_offset + PAGE_SIZE;
-    *(uint64_t *)(task->kstack_frames[3] + hhdm_offset + 8) = TASK_STACK_SENTINEL;*/
-
-    context_t ctx = task->parent->cpu_ctx;
-    ctx.rip = e_entry;
-    ctx.rsp = user_rsp;
-    ctx.cs = 0x43;
-    ctx.ss = 0x3B;
-    ctx.rflags = 0x202;
-    ctx.rdi = argc;
-    ctx.rsi = user_argv_ptr;
-    task->cpu_ctx = ctx;
-
-    kfree(user_argv_addrs);
-    task->kernel_rsp = build_kernel_frame_from_syscall(task);
-
+    out->entry = ((const ELF64_Ehdr *)elf)->e_entry;
+    out->argc = (uint64_t)argc;
+    out->sigterm = elf_find_sigterm((const uint8_t *)elf, size);
     return 0;
+}
+
+void image_free(struct image *img)
+{
+    if (img && img->pml4)
+    {
+        vmm_free(img->pml4);
+        img->pml4 = NULL;
+    }
+}
+
+static int load_file(const char *path, void **data, size_t *size)
+{
+    uint64_t file_size = 0;
+
+    int fd = vfs_open((char *)path, 0, &file_size, current_task->fd_table);
+    if (fd < 0)
+        return -ENOENT;
+
+    if (file_size == 0 || file_size > EXEC_MAX_FILE)
+    {
+        vfs_close(fd, current_task->fd_table);
+        return -ENOEXEC;
+    }
+
+    uint8_t *buf = (uint8_t *)kmalloc(file_size + 1);
+    if (!buf)
+    {
+        vfs_close(fd, current_task->fd_table);
+        return -ENOMEM;
+    }
+
+    uint64_t total = 0;
+    while (total < file_size)
+    {
+        int n = vfs_read(fd, current_task->fd_table, buf + total, file_size - total);
+        if (n <= 0)
+            break;
+        total += (uint64_t)n;
+    }
+    vfs_close(fd, current_task->fd_table);
+
+    if (total != file_size)
+    {
+        kfree(buf);
+        return -EIO;
+    }
+
+    *data = buf;
+    *size = (size_t)file_size;
+    return 0;
+}
+
+static int exec_copy_args(struct exec_args_k *ka, struct execve_args args)
+{
+    memset(ka, 0, sizeof(*ka));
+
+    if (copy_string_from_user(ka->path, args.path, EXEC_MAX_PATH) < 0)
+        return -EFAULT;
+    if (ka->path[0] != '/')
+        return -ENOENT;
+
+    size_t used = 0;
+    ka->argc = 0;
+
+    if (!args.argv)
+        return 0;
+
+    for (int i = 0; i < EXEC_MAX_ARGS; i++)
+    {
+        uint64_t user_ptr = 0;
+        if (copy_from_user(&user_ptr, (void *)((uintptr_t)args.argv + (uintptr_t)i * sizeof(uint64_t)), sizeof(user_ptr)) != 0)
+            return -EFAULT;
+        if (user_ptr == 0)
+            return 0;
+
+        int len = copy_string_from_user(ka->buf + used, (const char *)user_ptr, (uint32_t)(EXEC_ARG_BYTES - used));
+        if (len < 0)
+            return -E2BIG;
+
+        ka->argv[i] = ka->buf + used;
+        used += (size_t)len + 1;
+        ka->argc = i + 1;
+    }
+
+    return -E2BIG;
 }
 
 int execve(struct execve_args args)
 {
-    struct task_file exec = get_file(args.path);
+    struct exec_args_k *ka = (struct exec_args_k *)kmalloc(sizeof(struct exec_args_k));
+    if (!ka)
+        return -ENOMEM;
 
-    current_task->sigterm_handler_rip = 0;
-    prepare_sections(exec.raw, current_task, exec.ehdr->e_shoff, exec.ehdr->e_shentsize, exec.ehdr->e_shnum, exec.ehdr->e_shstrndx);
-    if (!current_task->sigterm_handler_rip)
-        current_task->sigterm_handler_rip = current_task->parent->sigterm_handler_rip;
-
-    vmm_table_t *old_pml4 = current_task->pml4;
-    current_task->pml4 = vmm_init();
-
-    strcpy(args.path, current_task->name);
-
-    ELF64_Phdr *ph_table = (ELF64_Phdr *)((uintptr_t)exec.raw + exec.ehdr->e_phoff);
-    if (elf_alloc(exec.raw, current_task, ph_table, exec.ehdr->e_phnum) != 0)
+    int rc = exec_copy_args(ka, args);
+    if (rc != 0)
     {
-        kfree(exec.raw);
-        vmm_free(current_task->pml4);
-        current_task->pml4 = old_pml4;
-        return 6;
+        kfree(ka);
+        return rc;
     }
-    kfree(exec.raw);
 
-    int argc = calculate_argc(args.argv);
-    if (prepare_stack(current_task, argc, args.argv, exec.ehdr->e_entry) != 0)
+    void *data = NULL;
+    size_t size = 0;
+    rc = load_file(ka->path, &data, &size);
+    if (rc != 0)
     {
-        vmm_free(current_task->pml4);
-        current_task->pml4 = old_pml4;
-        return 7;
+        kfree(ka);
+        return rc;
     }
+
+    struct image img;
+    rc = image_build(data, size, ka->argc, ka->argv, USER_STACK_PAGES, &img);
+    kfree(data);
+    if (rc != 0)
+    {
+        kfree(ka);
+        return rc;
+    }
+
+    task_t *t = current_task;
+    asm volatile("cli" ::: "memory");
+
+    vmm_table_t *old_pml4 = t->pml4;
+    t->pml4 = img.pml4;
+    t->mm = img.mm;
+    t->sigterm_handler_rip = img.sigterm;
+    t->pending_signal = 0;
+    task_set_name(t, ka->path);
+    task_setup_user_context(t, &img);
+    kfree(ka);
+
+    task_fpu_init(t);
+    task_fpu_load(t);
+
+    tss.rsp0 = t->kstack_top;
+    set_syscall_kernel_stack(t->kstack_top);
+    vmm_switch_pml4(t->pml4);
     vmm_free(old_pml4);
 
-    asm volatile("cli");
-    tss.rsp0 = current_task->kstack_top;
-    set_syscall_kernel_stack(current_task->kstack_top);
-    vmm_switch_pml4(current_task->pml4);
-    enter_new_context(current_task->kernel_rsp);
-
-    return 0;
+    enter_user_context(&t->cpu_ctx, t->kstack_top);
 }
 
 int spawn(struct execve_args args)
 {
-    struct task_file exec = get_file(args.path);
-    if (!exec.ehdr || !exec.raw)
-        return 1;
+    struct exec_args_k *ka = (struct exec_args_k *)kmalloc(sizeof(struct exec_args_k));
+    if (!ka)
+        return -ENOMEM;
 
-    int argc = calculate_argc(args.argv);
+    int rc = exec_copy_args(ka, args);
+    if (rc != 0)
+    {
+        kfree(ka);
+        return rc;
+    }
 
-    task_t *new = kmalloc(sizeof(task_t));
-    if (!new)
-        return 2;
-    new = task_create(exec.raw, current_task->pid, args.path, argc, args.argv, USER_STACK_PAGES);
+    void *data = NULL;
+    size_t size = 0;
+    rc = load_file(ka->path, &data, &size);
+    if (rc != 0)
+    {
+        kfree(ka);
+        return rc;
+    }
 
-    current_task->state = TASK_BLOCKED;
-    new->state = TASK_READY;
+    uint64_t flags = irq_save();
+    int result;
+    struct image img;
 
-    task_insert(new);
-    asm volatile("cli");
-    tss.rsp0 = new->kstack_top;
-    set_syscall_kernel_stack(new->kstack_top);
-    vmm_switch_pml4(new->pml4);
-    enter_new_context(new->kernel_rsp);
+    rc = image_build(data, size, ka->argc, ka->argv, USER_STACK_PAGES, &img);
+    if (rc != 0)
+        result = rc;
+    else
+    {
+        task_t *child = task_from_image(current_task, &img, ka->path);
+        if (!child)
+        {
+            image_free(&img);
+            result = -EAGAIN;
+        }
+        else
+            result = child->pid;
+    }
 
-    return 0;
+    irq_restore(flags);
+    kfree(data);
+    kfree(ka);
+    return result;
 }

@@ -21,47 +21,47 @@
 #include <bomboclaat/types.h>
 #include <bomboclaat/kprintf.h>
 #include <memory/pmm.h>
-
-extern task_t *tasks[MAX_TASKS];
-extern void reap_zombie();
-
-void remove_child(task_t *child)
-{
-    list_del(&child->sibling);
-}
+#include <errno.h>
 
 int exit(int status)
 {
-    current_task->exit_code = status;
-    current_task->state = TASK_ZOMBIE;
+    if (current_task == kernel_task)
+        return -EPERM;
 
-    if (current_task->parent && current_task->parent->state == TASK_BLOCKED)
-        current_task->parent->state = TASK_READY;
-
+    irq_save();
+    task_terminate(current_task, status);
     sched();
 
-    return 0;
+    while (1)
+        asm volatile("hlt");
 }
 
 int waitpid(pid_t pid)
 {
+    uint64_t flags = irq_save();
+
     task_t *child = find_by_pid(pid);
     if (!child || child->parent != current_task)
-        return -1;
+    {
+        irq_restore(flags);
+        return -ECHILD;
+    }
 
     while (child->state != TASK_ZOMBIE)
+    {
+        if (current_task->pending_signal)
+        {
+            irq_restore(flags);
+            return -EINTR;
+        }
+
+        current_task->state = TASK_BLOCKED;
         sched();
+    }
 
     int status = child->exit_code;
+    task_reap(child);
 
-    int slot = find_in_array(child);
-    if (slot >= 0)
-        tasks[slot] = NULL;
-    list_del(&child->sibling);
-
-    extern task_t *task_to_reap;
-    task_to_reap = child;
-    reap_zombie();
-
+    irq_restore(flags);
     return status;
 }

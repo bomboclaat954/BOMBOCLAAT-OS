@@ -18,7 +18,7 @@
 
 #include <lib/math.h>
 
-int pow(int base, int exponent)
+__attribute__((target("sse2"))) int pow(int base, int exponent)
 {
     double res = 1;
     for (int i = 0; i < exponent; i++)
@@ -26,7 +26,7 @@ int pow(int base, int exponent)
     return res;
 }
 
-float sqrt(float x)
+__attribute__((target("sse2"))) float sqrt(float x)
 {
     float result = 0;
     __asm__ volatile(

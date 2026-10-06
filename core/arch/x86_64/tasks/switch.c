@@ -19,41 +19,39 @@
 #include <stddef.h>
 #include <tasks/tasks.h>
 
-__attribute__((naked)) void cpu_switch_context(task_t *prev, task_t *next)
-{
-    asm volatile(
-        "push %%rbp\n"
-        "push %%rbx\n"
-        "push %%r12\n"
-        "push %%r13\n"
-        "push %%r14\n"
-        "push %%r15\n"
-        "mov %%rsp, %c[off](%%rdi)\n"
-        "mov %c[off](%%rsi), %%rsp\n"
-        "pop %%r15\n"
-        "pop %%r14\n"
-        "pop %%r13\n"
-        "pop %%r12\n"
-        "pop %%rbx\n"
-        "pop %%rbp\n"
-        "ret\n"
-        :
-        : [off] "i"(offsetof(task_t, kernel_rsp))
-        : "memory");
-}
+_Static_assert(sizeof(registers_t) == 176, "registers_t layout is assumed by the assembly code");
 
-__attribute__((naked, noreturn)) void enter_new_context(uintptr_t kernel_rsp)
-{
-    asm volatile(
-        "mov %%rdi, %%rsp\n"
-        "pop %%r15\n"
-        "pop %%r14\n"
-        "pop %%r13\n"
-        "pop %%r12\n"
-        "pop %%rbx\n"
-        "pop %%rbp\n"
-        "ret\n"
-        :
-        :
-        : "memory");
-}
+__asm__(
+    ".text\n"
+    ".globl cpu_switch_context\n"
+    ".type cpu_switch_context, @function\n"
+    "cpu_switch_context:\n"
+    "    pushq %rbp\n"
+    "    pushq %rbx\n"
+    "    pushq %r12\n"
+    "    pushq %r13\n"
+    "    pushq %r14\n"
+    "    pushq %r15\n"
+    "    movq %rsp, (%rdi)\n"
+    "    movq %rsi, %rsp\n"
+    "    popq %r15\n"
+    "    popq %r14\n"
+    "    popq %r13\n"
+    "    popq %r12\n"
+    "    popq %rbx\n"
+    "    popq %rbp\n"
+    "    ret\n"
+    ".size cpu_switch_context, .-cpu_switch_context\n"
+    "\n"
+    ".globl enter_user_context\n"
+    ".type enter_user_context, @function\n"
+    "enter_user_context:\n"
+    "    cld\n"
+    "    leaq -176(%rsi), %rax\n"
+    "    movq %rdi, %rsi\n"
+    "    movq %rax, %rdi\n"
+    "    movq %rax, %rsp\n"
+    "    movl $22, %ecx\n"
+    "    rep movsq\n"
+    "    jmp ret_from_fork\n"
+    ".size enter_user_context, .-enter_user_context\n");

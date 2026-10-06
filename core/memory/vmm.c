@@ -115,37 +115,46 @@ int vmm_remap_page(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t phys, ui
 
 int vmm_resolve(vmm_table_t *pml4_virtual, uintptr_t virt, uintptr_t *phys_out, uint64_t *flags_out)
 {
-    if (!(pml4_virtual->entries[PML4_INDEX(virt)] & VMM_PRESENT))
-        return -1;
-    else
-        pml4_virtual->entries[PML4_INDEX(virt)];
-
-    uintptr_t pdpt_phys = pml4_virtual->entries[PML4_INDEX(virt)] & CLEAR_FLAGS;
-    vmm_table_t *pdpt_virtual = (vmm_table_t *)(pdpt_phys + hhdm_offset);
-
-    if (!(pdpt_virtual->entries[PDPT_INDEX(virt)] & VMM_PRESENT))
-        return -1;
-    else
-        pdpt_virtual->entries[PDPT_INDEX(virt)];
-
-    uintptr_t pd_phys = pdpt_virtual->entries[PDPT_INDEX(virt)] & CLEAR_FLAGS;
-    vmm_table_t *pd_virtual = (vmm_table_t *)(pd_phys + hhdm_offset);
-
-    if (!(pd_virtual->entries[PD_INDEX(virt)] & VMM_PRESENT))
-        return -1;
-    else
-        pd_virtual->entries[PD_INDEX(virt)];
-
-    uintptr_t pt_phys = pd_virtual->entries[PD_INDEX(virt)] & CLEAR_FLAGS;
-    vmm_table_t *pt_virtual = (vmm_table_t *)(pt_phys + hhdm_offset);
-
-    if (!(pt_virtual->entries[PD_INDEX(virt)] & VMM_PRESENT))
+    if (!pml4_virtual || !phys_out || !flags_out)
         return -1;
 
-    pt_entry_t entry = pt_virtual->entries[PT_INDEX(virt)];
-    uintptr_t phys = entry & CLEAR_FLAGS;
-    *phys_out = phys | (virt & 0xFFF);
-    *flags_out = entry & 0xFFF;
+    pt_entry_t entry = pml4_virtual->entries[PML4_INDEX(virt)];
+    if (!(entry & VMM_PRESENT))
+        return -1;
+    uint64_t eff = entry & (VMM_WRITE | VMM_USER);
+
+    vmm_table_t *pdpt_virtual = (vmm_table_t *)((entry & CLEAR_FLAGS) + hhdm_offset);
+    entry = pdpt_virtual->entries[PDPT_INDEX(virt)];
+    if (!(entry & VMM_PRESENT))
+        return -1;
+    eff &= entry | ~(uint64_t)(VMM_WRITE | VMM_USER);
+    if (entry & (1ULL << 7))
+    {
+        *phys_out = (entry & 0x000FFFFFC0000000ULL) | (virt & 0x3FFFFFFFULL);
+        *flags_out = (entry & 0xFFF & ~(uint64_t)(VMM_WRITE | VMM_USER)) | eff;
+        return 0;
+    }
+
+    vmm_table_t *pd_virtual = (vmm_table_t *)((entry & CLEAR_FLAGS) + hhdm_offset);
+    entry = pd_virtual->entries[PD_INDEX(virt)];
+    if (!(entry & VMM_PRESENT))
+        return -1;
+    eff &= entry | ~(uint64_t)(VMM_WRITE | VMM_USER);
+    if (entry & (1ULL << 7))
+    {
+        *phys_out = (entry & 0x000FFFFFFFE00000ULL) | (virt & 0x1FFFFFULL);
+        *flags_out = (entry & 0xFFF & ~(uint64_t)(VMM_WRITE | VMM_USER)) | eff;
+        return 0;
+    }
+
+    vmm_table_t *pt_virtual = (vmm_table_t *)((entry & CLEAR_FLAGS) + hhdm_offset);
+    entry = pt_virtual->entries[PT_INDEX(virt)];
+    if (!(entry & VMM_PRESENT))
+        return -1;
+    eff &= entry | ~(uint64_t)(VMM_WRITE | VMM_USER);
+
+    *phys_out = (entry & CLEAR_FLAGS) | (virt & 0xFFF);
+    *flags_out = (entry & 0xFFF & ~(uint64_t)(VMM_WRITE | VMM_USER)) | eff;
 
     return 0;
 }
@@ -175,20 +184,128 @@ vmm_table_t *vmm_init()
     return table;
 }
 
+extern int vmm_is_shared_frame(uintptr_t phys);
+
+static void vmm_copy_frame(uintptr_t dst_phys, uintptr_t src_phys)
+{
+    uint64_t *dst = (uint64_t *)(dst_phys + hhdm_offset);
+    uint64_t *src = (uint64_t *)(src_phys + hhdm_offset);
+    for (int i = 0; i < PAGE_SIZE / 8; i++)
+        dst[i] = src[i];
+}
+
 vmm_table_t *vmm_clone_user_space(vmm_table_t *parent_pml4)
 {
-    vmm_table_t *ret = (vmm_table_t *)kmalloc(sizeof(vmm_table_t));
+    if (!parent_pml4)
+        return NULL;
 
-    ret = vmm_init();
-    for (int i = 0; i < 256; i++)
-        ret->entries[i] = parent_pml4->entries[i];
+    vmm_table_t *child = vmm_init();
+    if (!child)
+        return NULL;
 
-    return ret;
+    for (uintptr_t i4 = 0; i4 < 256; i4++)
+    {
+        pt_entry_t e4 = parent_pml4->entries[i4];
+        if (!(e4 & VMM_PRESENT))
+            continue;
+        vmm_table_t *pdpt = (vmm_table_t *)((e4 & CLEAR_FLAGS) + hhdm_offset);
+
+        for (uintptr_t i3 = 0; i3 < 512; i3++)
+        {
+            pt_entry_t e3 = pdpt->entries[i3];
+            if (!(e3 & VMM_PRESENT))
+                continue;
+            vmm_table_t *pd = (vmm_table_t *)((e3 & CLEAR_FLAGS) + hhdm_offset);
+
+            for (uintptr_t i2 = 0; i2 < 512; i2++)
+            {
+                pt_entry_t e2 = pd->entries[i2];
+                if (!(e2 & VMM_PRESENT))
+                    continue;
+                vmm_table_t *pt = (vmm_table_t *)((e2 & CLEAR_FLAGS) + hhdm_offset);
+
+                for (uintptr_t i1 = 0; i1 < 512; i1++)
+                {
+                    pt_entry_t e1 = pt->entries[i1];
+                    if (!(e1 & VMM_PRESENT))
+                        continue;
+
+                    uintptr_t virt = (i4 << 39) | (i3 << 30) | (i2 << 21) | (i1 << 12);
+                    uintptr_t phys = e1 & CLEAR_FLAGS;
+                    uintptr_t flags = e1 & (0xFFFULL | VMM_NX);
+
+                    if (vmm_is_shared_frame(phys))
+                    {
+                        if (vmm_map_page(child, virt, phys, flags) != 0)
+                            goto fail;
+                        continue;
+                    }
+
+                    uintptr_t copy = (uintptr_t)pmm_alloc_frame();
+                    if (!copy)
+                        goto fail;
+                    vmm_copy_frame(copy, phys);
+                    if (vmm_map_page(child, virt, copy, flags) != 0)
+                    {
+                        pmm_free_frame((void *)copy);
+                        goto fail;
+                    }
+                }
+            }
+        }
+    }
+
+    return child;
+
+fail:
+    vmm_free(child);
+    return NULL;
 }
 
 void vmm_free(vmm_table_t *pml4)
 {
-    return;
+    extern vmm_table_t *kernel_pml4_virt;
+    if (!pml4 || pml4 == kernel_pml4_virt)
+        return;
+
+    for (uintptr_t i4 = 0; i4 < 256; i4++)
+    {
+        pt_entry_t e4 = pml4->entries[i4];
+        if (!(e4 & VMM_PRESENT))
+            continue;
+        vmm_table_t *pdpt = (vmm_table_t *)((e4 & CLEAR_FLAGS) + hhdm_offset);
+
+        for (uintptr_t i3 = 0; i3 < 512; i3++)
+        {
+            pt_entry_t e3 = pdpt->entries[i3];
+            if (!(e3 & VMM_PRESENT))
+                continue;
+            vmm_table_t *pd = (vmm_table_t *)((e3 & CLEAR_FLAGS) + hhdm_offset);
+
+            for (uintptr_t i2 = 0; i2 < 512; i2++)
+            {
+                pt_entry_t e2 = pd->entries[i2];
+                if (!(e2 & VMM_PRESENT))
+                    continue;
+                vmm_table_t *pt = (vmm_table_t *)((e2 & CLEAR_FLAGS) + hhdm_offset);
+
+                for (uintptr_t i1 = 0; i1 < 512; i1++)
+                {
+                    pt_entry_t e1 = pt->entries[i1];
+                    if (!(e1 & VMM_PRESENT))
+                        continue;
+                    uintptr_t phys = e1 & CLEAR_FLAGS;
+                    if (!vmm_is_shared_frame(phys))
+                        pmm_free_frame((void *)phys);
+                }
+                pmm_free_frame((void *)(e2 & CLEAR_FLAGS));
+            }
+            pmm_free_frame((void *)(e3 & CLEAR_FLAGS));
+        }
+        pmm_free_frame((void *)(e4 & CLEAR_FLAGS));
+    }
+
+    pmm_free_frame((void *)((uintptr_t)pml4 - hhdm_offset));
 }
 
 vmm_table_t *vmm_init_kernel()

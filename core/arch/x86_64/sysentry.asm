@@ -14,18 +14,27 @@
 ; * You should have received a copy of the GNU General Public License
 ; * along with this program. If not, see <https://www.gnu.org/licenses/>.
 ; Fuck assembly
+; jakim kurwa cwelem jebanym trzeba być żeby takie chujostwo wymyślić to ja pierdole
+; co za jebany kurwa w dupe pojeb to stworzył, serio kurwa niech go walec rozjedzie
 bits 64
+default rel
 
 global syscall_entry
 global ret_from_fork
 global ret_from_fork_syscall
 extern syscall_handler
+extern syscall_kernel_rsp
+
+section .bss
+align 8
+syscall_user_rsp: resq 1
+
+section .text
 
 syscall_entry:
-    swapgs
-    mov [gs:0x08], rsp
-    mov rsp, [gs:0x00]
-    push qword [gs:0x08]
+    mov [syscall_user_rsp], rsp
+    mov rsp, [syscall_kernel_rsp]
+    push qword [syscall_user_rsp]
 
     push r15
     push r14
@@ -43,6 +52,7 @@ syscall_entry:
     push rdi
     push rax
 
+    cld
     mov rdi, rsp
     call syscall_handler
 
@@ -63,29 +73,17 @@ syscall_entry:
     pop r15
 
     pop rsp
-    swapgs
     o64 sysret
 
 ret_from_fork:
-    jmp ret_from_fork_common
-
 ret_from_fork_syscall:
-    swapgs
-
-ret_from_fork_common:
-    movzx eax, word [rsp + 144]
-    and al, 3
-    cmp al, 3
-    jne .kernel_segments
+    test byte [rsp + 144], 3
+    mov ax, 0x30
+    jz .load_segments
     mov ax, 0x3B
-    jmp .load_segments
-    .kernel_segments:
-        mov ax, 0x30
-    .load_segments:
-        mov ds, ax
-        mov es, ax
-        mov fs, ax
-        mov gs, ax
+.load_segments:
+    mov ds, ax
+    mov es, ax
 
     pop r15
     pop r14

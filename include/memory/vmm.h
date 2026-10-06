@@ -19,6 +19,7 @@ struct mm_struct
     uintptr_t data_start, data_end;
     uintptr_t brk_start, brk;
     uintptr_t stack_start;
+    uintptr_t stack_limit;
 } typedef mm_t;
 
 #define PROGRAM_START 0x400000

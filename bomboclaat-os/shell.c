@@ -98,17 +98,18 @@ int main()
         if (strcmp(cmd_line, "\0") == 0)
             continue;
 
-        /*int status = 0;
+        int status = 0;
         int pid = sys_fork();
-
-        status = sys_execve(path, argv);
-        if (status != 0)
+        if (pid == 0)
+        {
+            status = sys_execve(path, argv);
             printf("Process returned status %d\n", status);
+            sys_exit(1);
+        }
 
         status = sys_waitpid(pid);
         if (status != 0)
-            printf("Process returned status %d\n", status);*/
-        sys_spawn(path, argv);
+            printf("Process returned status %d\n", status);
     }
     return 0;
 }

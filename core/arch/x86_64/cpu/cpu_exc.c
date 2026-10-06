@@ -26,17 +26,24 @@
 
 extern int pf_handler(registers_t *regs, uint64_t addr);
 
+static void user_fault(registers_t *r, const char *what)
+{
+    log(LOG_ERR, "PID %d (%s): %s at RIP=%x", current_task->pid, current_task->name, what, r->rip);
+    task_terminate(current_task, 128 + (int)r->int_no);
+    sched();
+}
+
 void exception_handler(registers_t *r)
 {
+    if ((r->cs & 3) && r->int_no != 2 && r->int_no != 8 && r->int_no != 14 && r->int_no != 18)
+    {
+        user_fault(r, r->int_no == 0 ? "division by zero" : (r->int_no == 13 ? "general protection fault" : "CPU exception"));
+        return;
+    }
+
     switch (r->int_no)
     {
     case 0:
-        if (r->error_code & (1 << 2))
-        {
-            extern task_t *current_task;
-            kprintf("Division by zero caused by process PID %d, RIP=%x\n", current_task->pid, r->rip);
-            exit(1);
-        }
         panic("CPU-EXC: division by zero", r, 1);
         break;
     case 1:
@@ -76,12 +83,14 @@ void exception_handler(registers_t *r)
         panic("CPU-EXC: general protection fault", r, 1);
         break;
     case 14:
+    {
         uint64_t fault_addr = 0;
         asm volatile("mov %%cr2, %0" : "=r"(fault_addr));
 
         if (pf_handler(r, fault_addr) != 0)
             panic("CPU-EXC: #PF not handled properly", r, 1);
         break;
+    }
     case 16:
         panic("CPU-EXC: x87 float", r, 1);
         break;

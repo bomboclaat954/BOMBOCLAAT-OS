@@ -25,7 +25,7 @@
 struct utsname utsname = {
     .sysname = "Mierdux\0",
     .nodename = "bbcltOS\0",
-    .release = "v1.0 beta 7.10.1\0",
+    .release = "v1.0 beta 7.11\0",
     .version = "\0",
 #ifdef __ARCH_X86_64
     .machine = "x86_64\0",
